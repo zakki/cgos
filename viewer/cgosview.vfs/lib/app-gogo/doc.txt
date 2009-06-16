@@ -1,0 +1,15 @@
+active_games
+
+   key is gid
+
+
+   0: status?
+   1: dte
+   2: tme
+   3: boardsize
+   4: komi
+   5: white
+   6: black
+   7: results ??
+   8 - move/time pairs
+
