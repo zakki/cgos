@@ -1,0 +1,76 @@
+USING TCLKIT
+============
+
+The CGOS server is written in tcl, but uses tclkit technology.  If
+your are not familiar with this, just google for "tcl starkit" or 
+look at some links here:
+
+http://www.equi4.com/tclkit.html
+
+http://aspn.activestate.com/ASN/Tcl/TclConferencePapers2002/Tcl2002papers/landers-tclkit/tclkit.pdf
+
+In a nutshell, the complete tcl run-time is packed into a single
+package usually called "tclkit" and there is a version of tclkit for
+each platform.
+
+Tcl software can be a single tcl script and executed with tclkit, or
+it can be bundled similar to how java jar files are bundled.  These
+are called "starkits."  A starkit is a complete software package,
+wrapped into a single space efficient compressed form and files inside
+it can be executed without unpacking.
+
+The basic idea behind starkits is simple cross platform software
+deployment.  All that is required is the appropriate tclkit run-time
+for your platform and a starkit representing your software system.
+It's also possible to bundle the tcl run-time AS WELL AS your
+application into a single executable file.  These are called starpacks
+and creating them is very simple.  The primary CGOS site has some of
+the clients bundled this way for user convenience.
+
+In order to work with starpacks - which means being able to create
+them, wrap them, unwrap them, etc you will need a utility (which is
+itself a starpack) called sdx.kit
+
+The makefile assumes you have sdx.kit and the platform specific tclkit
+in your execution path.   
+
+
+INSTALLING CGOS
+===============
+
+CGOS does not currently have an installation procedure.  But these
+notes should serve as a rough guide to getting it properly set up.
+
+On the initial run of the server, any required databases are created.
+The primary concern is simply getting the configuration file 
+properly set up, which should generally be enough to get things
+working correctly.
+
+The configuration file is actually a tcl script, so correct tcl
+language constructs should be used.  But primarily this consists of
+several tcl set commands.  You probably don't have to understand tcl
+to undertand the sample.cfg and work from that.
+
+In addition to that, the server itself is a tclkit, which requires
+a tclkit binary (a tcl runtime) to execute.   There are many 
+tclkit binaries for various platforms.  (google for tclkit)
+
+The server requires a single argument, the name of a configuration
+file.  So your server invocation might look something like this on a
+unix based system:
+
+   % tclkit cgos.kit cgos.cfg
+
+In addition to the running server process, another process should be
+constantly running which periodically rebuilds the web pages.  It is
+called "webuild.kit" and it also requires as it's only parameter the
+name of the configuration file.  The configuration file should be the
+SAME file specified by the server invocation.
+
+In addition to these 2 running processes, will be placement of web
+pages, cgi scripts, etc.  These are all relative to a fixed location
+specified in the configuration file - so there is not much flexibility
+built into the system for the placement of these elements, such as
+where the sgf file are stored, etc.  This may be a future enhancement
+to the system if the need arises.
+
