@@ -162,7 +162,8 @@ class CGOSClient(object):
     def _respond(self, message):        
         if self._socket is not None:
             self.logger.debug("Responding: " + message) 
-            self._socket.sendall(message)
+            self._socketfile.write(message)
+            self._socketfile.flush()
         
     def _handle_info(self, parameters):
         ''' Event handler: "info". Ignored. '''
