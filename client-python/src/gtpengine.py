@@ -93,30 +93,32 @@ class EngineConnector(object):
     MANDATORY_OBSERVE_COMMANDS = ["boardsize", "clear_board", "komi", "play", "quit"]
     ''' Mandatory commands for an engine that can observe a game (like GoGUI). '''
     
-    def __init__(self, programCommandLine, logger="EngineConnector", logfile = "engine.log"):
+    def __init__(self, programCommandLine, name, logger="EngineConnector", logfile = "engine.log"):
         self._programCommandLine = programCommandLine
+        self._name = name
         self._subprocess = None
         self._supportedCommands = []
         
         self.logger = logging.getLogger(logger)
         self.logger.setLevel(logging.DEBUG)
         
-        self.handler = logging.FileHandler(logfile)
-        self.handler.setLevel(logging.DEBUG)
+        if len(self.logger.handlers) == 0:
+            self.handler = logging.FileHandler(logfile)
+            self.handler.setLevel(logging.DEBUG)
         
-        self.formatter = logging.Formatter("%(asctime)s - %(levelname)s: %(message)s")
-        self.handler.setFormatter(self.formatter)
+            self.formatter = logging.Formatter("%(asctime)s - %(levelname)s: %(message)s")
+            self.handler.setFormatter(self.formatter)
         
-        self.logger.addHandler(self.handler)
+            self.logger.addHandler(self.handler)
         
-        # Log info output to console
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(logging.INFO)
+            # Log info output to console
+            handler = logging.StreamHandler(sys.stdout)
+            handler.setLevel(logging.INFO)
         
-        formatter = logging.Formatter("%(asctime)s: %(message)s")
-        handler.setFormatter(formatter)
+            formatter = logging.Formatter("%(asctime)s: %(message)s")
+            handler.setFormatter(formatter)
         
-        self.logger.addHandler(handler)
+            self.logger.addHandler(handler)
         
     def __del__(self):
         self.shutdown()
@@ -132,6 +134,9 @@ class EngineConnector(object):
                                             stdout=subprocess.PIPE, shell=False)
         time.sleep(1)
         self._findSupportedCommands(mandatoryCommands)
+    
+    def getName(self):
+        return self._name
     
     def shutdown(self):
         '''

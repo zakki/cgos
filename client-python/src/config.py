@@ -97,26 +97,6 @@ class ConfigFile(object):
         result = filter(lambda x: x.name() == ConfigFile.OBSERVER_SECTION, self._sections)
         if len(result) > 0: return result[0]
     
-    def getServerHost(self):
-        for section in self._sections:
-            if section.name() == ConfigFile.SERVER_SECTION:
-                return section.getValue("Host")
-        
-    def getServerPort(self):
-        for section in self._sections:
-            if section.name() == ConfigFile.SERVER_SECTION:
-                return int(section.getValue("Port"))
-            
-    def getServerUser(self):
-        for section in self._sections:
-            if section.name() == ConfigFile.SERVER_SECTION:
-                return int(section.getValue("User"))
-
-    def getServerPassword(self):
-        for section in self._sections:
-            if section.name() == ConfigFile.SERVER_SECTION:
-                return int(section.getValue("Password"))
-
     def sections(self):
         return self._sections
     
@@ -128,9 +108,17 @@ class ConfigFile(object):
             if section.name() == ConfigFile.ENGINE_SECTION: 
                 hasEngine = True
                 
-                for req in ["CommandLine", "ServerHost", "ServerPort", "ServerUser", "ServerPassword", "Priority"]:
+                for req in ["Name", "CommandLine", "ServerHost", "ServerPort", "ServerUser", "ServerPassword", "Priority"]:
                     if not(section.hasValue(req)):
                         raise Exception("Mandatory engine attribute missing: " + req)
+
+                try:
+                    if int(section.getValue("Priority")) <= 0:
+                        raise Exception("Configuration attribute 'Priority' must be greater than zero")
+                except ValueError:
+                    raise Exception("Configuration attribute 'Priority' must be an integer")
+                
+                
                 
                 if section.hasValue("SGFDirectory"):
                     dir = section.getValue("SGFDirectory")

@@ -46,13 +46,33 @@ class CGOSClient(object):
     See _handlerloop for the command dispatcher, mainloop for the reconnect/play loop.
     '''
     
-    CLIENT_ID = "e1 cgosPython 0.2.1 beta"
+    CLIENT_ID = "e1 cgosPython 0.3.0 beta"
     
     __TIME_CHECKPOINT_FREQUENCY = 60 * 30
     ''' How often to output stats, etc., in seconds '''
     
-    def __init__(self, server, port, username, password, engine, killFileName = "kill.txt"):
+    def __init__(self, engineConfigurationSections, killFileName = "kill.txt"):
+        '''
+        Initialise the client, without connecting anything yet
+          - engineConfigurationSections is a list of ConfigSection objects containing
+            engine parameters. An engine will be chosen from there.
+          - killFileName is the file to look for when deciding whether to shut down        
+        '''
+        self._engineConfigs = engineConfigurationSections
+        self._engine = None                  # Currently playing engine
+        self._currentEngineIndex = -1        # Index in configuration sections of current engine
+        
+        self._killFileName = killFileName   # File that will trigger shutdown
+        
         self._finished = False              # Should the main loop quit
+        self._engineSwitching = False       # Should the handler loop quit to allow an engine switch
+
+        self._socketfile = None
+        
+        self._server = None                 # Server host name (engine dependent)
+        self._port = None                   # Server port (engine dependent)
+        self._username = None               # User name (engine dependent)
+        self._password = None               # Password (engine dependent)
         
         self._gameInProgress = False        # Currently between setup and gameover?
         self._engineColour = "black"        # Which colour is the local engine playing in a game?
@@ -63,14 +83,9 @@ class CGOSClient(object):
         self._timeStarted = time.localtime()    # Will not change
         self._timeCheckPoint = time.localtime() # Last time checkpoint for outputting stats, mail, etc.
         
-        self._server = server               # Host name
-        self._port = port                   # Host port
-        self._username = username           # User name
-        self._password = password           # Password
-        self._engine = engine               # Engine - already connected
         self._observer = None               # GTP observer, if any - already connected
         self._sgfDirectory = None           # Directory to store SGF. Leave None to disable.
-        self._killFileName = killFileName   # File that will trigger shutdown
+        
                         
         # movecount is only used for periodically outputting information messages
         self._movecount = 0
@@ -112,11 +127,42 @@ class CGOSClient(object):
         self._finished = False
         
         self.logger.info("Connected")
+       
+    def disconnect(self):
+        self.logger.info("Disconnecting")
+        if self._socketfile is not None:
+            self._socketfile.close()
+            self._socket.close()
         
-    def _respond(self, message):
-        self.logger.debug("Responding: " + message)
-        self._socketfile.write(message)
-        self._socketfile.flush()
+    def _chooseEngineIndexAtRandom(self):
+        '''
+        Pick an engine from the configuration file at random, given the weights of
+        all engines.
+        '''
+        if len(self._engineConfigs) == 1: return 0
+        
+        # Normalise weights to [0.0, 1.0]
+        priorities = map(lambda x : int(x.getValue("Priority")), self._engineConfigs)
+        totalPriorities = reduce(lambda x,y: x+y, priorities)
+        
+        normalisedPriorities = map(lambda x : float(x)/totalPriorities, priorities)
+
+        chosenEngineIndex = 0
+        cumulativeSum = 0.0
+        randomIndex = random.random()
+        
+        for idx in xrange(len(normalisedPriorities)):
+            if randomIndex > cumulativeSum and randomIndex <= cumulativeSum + normalisedPriorities[idx]:
+                chosenEngineIndex = idx
+                break
+            cumulativeSum += normalisedPriorities[idx]
+        
+        return chosenEngineIndex
+            
+    def _respond(self, message):        
+        if self._socket is not None:
+            self.logger.debug("Responding: " + message) 
+            self._socket.sendall(message)
         
     def _handle_info(self, parameters):
         ''' Event handler: "info". Ignored. '''
@@ -185,7 +231,8 @@ class CGOSClient(object):
             self._engineColour = "white"
         
         self.logger.info("Starting game against " + opponent + "("+opponentRank+
-                         "). Local engine (rated " + engineRank+ ") is playing " + self._engineColour + ".")                    
+                         "). Local engine (\"" + self._engine.getName() + "\", rated " + 
+                         engineRank+ ") is playing " + self._engineColour + ".")                    
         
         if len(parameters) > 6:
             self.logger.info("This is a restart. Catching up " + str((len(parameters)-6) / 2) + " moves")
@@ -259,7 +306,7 @@ class CGOSClient(object):
         
         self._movecount += 1
         if self._movecount % 10 == 0:
-            self.logger.info("Engine playing " + self._engineColour+". " + 
+            self.logger.info("Engine \"" + self._engine.getName() + "\" playing " + self._engineColour+". " + 
                              str(self._movecount) + " moves generated. " +
                              "Time left: " + str(int(parameters[1]) / 1000) + " sec")
             
@@ -339,7 +386,9 @@ class CGOSClient(object):
         # Have to check kill file here too - so we don't tell the server we are ready
         # before quitting
         self._checkKillFile()
-        if not(self._finished): self._respond("ready")
+        
+        if not(self._finished): self.pickNewEngine()
+        if not(self._finished) and not(self._engineSwitching): self._respond("ready")
         
         self._checkTimeCheckpoint()
         
@@ -354,7 +403,7 @@ class CGOSClient(object):
         This loop will exit with an exception if the socket fails or an engine or
         client error occurs. Calling methods will have to handle this.
         '''
-        while not(self._finished):            
+        while not(self._finished) and not(self._engineSwitching):            
             line = self._socketfile.readline()
             line = line.strip()
             
@@ -389,7 +438,11 @@ class CGOSClient(object):
                     raise
             
             if not(self._gameInProgress): self._checkKillFile()
-
+        
+        if self._engineSwitching: 
+            self._respond("quit")
+            self.disconnect()
+        
     def _checkKillFile(self):
         '''
         Check if the kill file exists and set _finished to true if yes.
@@ -415,9 +468,12 @@ class CGOSClient(object):
             duration = currentTime - time.mktime(self._timeStarted)
             self.logger.info("Client up for " + str(int(duration)/3600) + " hours, " +
                              str((int(duration)/60)%60) + " mins, " + str(int(duration)%60) + " seconds. " + 
-                             "Local engine won " + str(self._wonGames) + " games, lost " + 
+                             "Local engines won " + str(self._wonGames) + " games, lost " + 
                              str(self._lostGames) + ".")
         
+    def isConnected(self):
+        return self._server is not None
+    
     def mainloop(self):
         '''
         Main loop - keep trying to connect to CGOS, with reasonable wait times. Once connected,
@@ -428,7 +484,10 @@ class CGOSClient(object):
         an orderly shutdown is performed.
         '''
         self._finished = False
+        
         while not(self._finished):
+            self._engineSwitching = False
+                        
             connected = False
             retries = 1 
             while not(connected):
@@ -444,7 +503,7 @@ class CGOSClient(object):
                 self._handlerloop()
             except socket.error:
                 self.logger.error("Socket error. CGOS connection lost.")
-                self.shutdown()
+                self.disconnect()
             except CGOSClientError, e:
                 self.logger.error(str(e))
                 return
@@ -455,6 +514,48 @@ class CGOSClient(object):
         self._respond("quit")
         if os.path.exists(self._killFileName): os.remove(self._killFileName)
 
+
+    def pickNewEngine(self):
+        '''
+        Choose a different engine and reconnect. If the engine fails to start,
+        this throws an exception
+        '''
+                
+        newEngineIndex = self._chooseEngineIndexAtRandom()
+        if newEngineIndex == self._currentEngineIndex: return
+
+        if self._engine is not None:
+            self._engine.shutdown()
+
+        newEngineConfig = self._engineConfigs[newEngineIndex]        
+        
+        self.logger.info("Chose engine " + str(newEngineIndex+1) + " (\"" + newEngineConfig.getValue("Name") +
+                         "\") as next player. Switching and re-connecting.")
+        
+        try:
+            newEngine = EngineConnector(newEngineConfig.getValue("CommandLine"),
+                                        newEngineConfig.getValue("Name"),
+                                        logger="EngineConnector"+str(newEngineIndex))
+            newEngine.connect()
+        except Exception,e:
+            self.logger.error("Switch failed. Engine failed to start: " + str(e))
+            raise    
+            
+        self._engine = newEngine
+        self._currentEngineIndex = newEngineIndex
+        
+        if newEngineConfig.hasValue("SGFDirectory"):
+            self._sgfDirectory = newEngineConfig.getValue("SGFDirectory")
+        else:
+            self._sgfDirectory = None
+            
+        self._server = newEngineConfig.getValue("ServerHost")
+        self._port = int(newEngineConfig.getValue("ServerPort"))
+        self._username =  newEngineConfig.getValue("ServerUser")
+        self._password =  newEngineConfig.getValue("ServerPassword")        
+        
+        self._engineSwitching = True
+                       
     def setObserver(self, engine):
         self._observer = engine
         
@@ -465,8 +566,11 @@ class CGOSClient(object):
     def shutdown(self):
         self.logger.info("Shutting down CGOS connection")
         
-        self._socketfile.close()
-        self._socket.close()
+        if self._socketfile is not None:
+            self._socketfile.close()
+            self._socket.close()
+        
+        if self._engine is not None: self._engine.shutdown()
         
         
 def main(argv):
@@ -479,41 +583,23 @@ def main(argv):
     config = ConfigFile()
     config.load(argv[0])
     
-    engineConfig = config.getEngineSections()
-    if len(engineConfig) != 1:
-        print "Exactly one engine is required by this version"
-        return 1
+    engineConfigs = config.getEngineSections()  
+    client = CGOSClient(engineConfigs, config.getCommonSection().getValue("KillFile"))
     
-    # Initialize the engine
-    engine = EngineConnector(engineConfig[0].getValue("CommandLine"))
-    engine.connect()
-
-    
-    # Initialize server (without connecting)
-    client = CGOSClient(engineConfig[0].getValue("ServerHost"),
-                        int(engineConfig[0].getValue("ServerPort")),
-                        engineConfig[0].getValue("ServerUser"),
-                        engineConfig[0].getValue("ServerPassword"),
-                        engine,
-                        config.getCommonSection().getValue("KillFile"))
-    
-    if engineConfig[0].hasValue("SGFDirectory"):
-        client.setSGFDirectory(engineConfig[0].getValue("SGFDirectory"))
-        
     # Launch observer (e.g. GoGUI) if any
     observerConfig = config.getObserverSection()
     observerEngine = None
     
     if observerConfig is not None:
-        observerEngine = EngineConnector(observerConfig.getValue("CommandLine"), logger="ObserverLogger", logfile="observer.log")
+        observerEngine = EngineConnector(observerConfig.getValue("CommandLine"), "Observer", logger="ObserverLogger", logfile="observer.log")
         observerEngine.connect(EngineConnector.MANDATORY_OBSERVE_COMMANDS)
-        client.setObserver(observerEngine)
-        
+        client.setObserver(observerEngine)    
+    
     # And play until done
     try:
+        client.pickNewEngine()
         client.mainloop()
     finally:
-        engine.shutdown()
         client.shutdown()
         if observerEngine is not None:
             observerEngine.shutdown()            

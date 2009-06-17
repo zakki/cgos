@@ -18,3 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 	Refer to doc\index.html to get started.
 	
 	
+	
+	
+	NOTE: This directory is an eclipse project. If you have PyDev installed,
+	you can check this out directly as a standalone project. 
