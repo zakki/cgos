@@ -2,8 +2,8 @@
 	<head>
 		<title>Python CGOS Client</title>
 		<style type="text/css">
-		h1 { font-size: 160%; font-weight: bold; margin-top: 1em; background: #eee; padding: 0.3em; }
-		h2 { font-size: 140%; font-weight: normal; margin-top: 1em; background: #eee; padding: 0.3em; }
+		h1 { font-size: 160%; font-weight: bold; margin-top: 1.5em; background: #eee; padding: 0.3em; }
+		h2 { font-size: 140%; font-weight: normal; margin-top: 1.5em; background: #eee; padding: 0.3em; }
 		pre { background-color: #eee; padding: 0.2em; }
 		table { board: 1px solid black; border-collapse: collapse; }
 		td, th { border: 1px solid black; padding: 0.3em; }
@@ -15,29 +15,39 @@
 		<h1>Python CGOS Client</h1>
 			
 		This client connects Go programs that implement the <a href="http://www.lysator.liu.se/~gunnar/gtp/">GTP</a> 
-		protocol to the	<a href="cgos.boardspace.net/">Computer Go Server</a> (CGOS). If you downloaded this,
-		you know what they are.
+		protocol to the	<a href="cgos.boardspace.net/">Computer Go Server</a> (CGOS). If you downloaded this, you know what they are.
+		<i>Any</i> GTP engine is supported, not just those written in Python. 
 		
 		<h2>Information</h2>
 		
-		This is version <b>0.2.1</b>. This program is &copy;2009 Christian Nentwich and is licensed to you under
+		This is version <b>0.3.0</b>. This program is &copy;2009 Christian Nentwich and is licensed to you under
 		the terms of the <a href="http://www.opensource.org/licenses/gpl-3.0.html">GNU General Public License version 3 (GPLv3)</a>.
+		
+		<p>
+		Please read the <a href="changes.html">change log</a>.
 		
 		<p>For the avoidance of doubt:</b> this licence makes no claim <i>whatsoever</i> about the Go programs
 		used with this client, in particular any programs using this client to connect to CGOS shall <b>not</b>
 		meet the definition of a "covered work", or derivative work, under this license. 
 		
 		<p>
-		The CGOS server and client are &copy; Don Daily and others and are not included here.
+		The CGOS server and TCL client are &copy; Don Daily and others and are not included here.
 		
 		<ul>
 		<li><a href="#features">Features</a>
 		<li><a href="#usage">Usage</a>
-		<li><a href="#gtp">GTP Commands</a>
-		<li><a href="#ext">GTP Extensions</a>
-		<li><a href="#logging">Logging</a>
-		<li><a href="#observer">Displaying Games using GoGUI</a>
-		<li><a href="#samplecfg">Sample Configuration</a>
+		<li>GTP
+		<ul>
+			<li><a href="#gtp">GTP Commands</a>
+			<li><a href="#ext">GTP Extensions</a>
+		</ul>
+		<li>Configuration
+		<ul>
+			<li><a href="#logging">Logging</a>
+			<li><a href="#observer">Displaying Games using GoGUI</a>
+			<li><a href="#multipleengines">Alternating Between Multiple Engines</a>
+			<li><a href="#samplecfg">Sample Configuration</a>
+		</ul>
 		</ul>
 		
 		<h2 id="features">Features</h2>
@@ -48,6 +58,7 @@
 		<li>Waits for server restart when server crashes or is unreachable (checks every 30 seconds + small random amount)
 		<li>Supports resume if the engine crashes. Just restart the client and it will catch up the game.
 		<li>Kill file to terminate connections
+		<li>Supports multiple engines, and automatic switching (but <a href="#multipleengines">the behaviour</a> is slightly different)
 		</ul>
 			
 		<p>
@@ -179,27 +190,86 @@ python bin/cgosclient.py config.cfg</pre>
 		If you wish to stop displaying, put a kill file in place (see above), then start the client
 		again without an observer.
 		
+		<h2 id="multipleengines">Alternating Between Multiple Engines</h2>
+		
+		In the <a href="#samplecfg">configuration file</a>, each GTP engine has an attribute called
+		<code>NumberOfGames</code>. This attribute is mandatory in this version of the client, even if there
+		is only one engine, though in the case of one engine it is ignored.
+		Multiple GTP engines are played sequentially in a round-robin fashion. For example, if
+		<code>NumberOfGames</code> is set to 2 for <b>EngineA</b> and to 3 for <b>EngineB</b>, the client
+		will play the engines as follows:
+		
+		<p>
+		<table>
+		  <tr>
+		    <th>Game</th><th>Engine</th>
+		  </tr>
+		  <tr><td>1</td><td>EngineA</td></tr>
+		  <tr><td>2</td><td>EngineA</td></tr>
+		  <tr><td>3</td><td>EngineB</td></tr>
+		  <tr><td>4</td><td>EngineB</td></tr>
+		  <tr><td>5</td><td>EngineB</td></tr>
+		  <tr><td>6</td><td>EngineA</td></tr>
+		  <tr><td>7</td><td>EngineA</td></tr>
+		  <tr><td>8</td><td>EngineB</td></tr>
+		  <tr><td>9</td><td>...</td></tr>
+		</table>
+		
+		<p>
+		Recommendations:
+		<ul>
+			<li>If you are planning to play for a long time (e.g. a day or longer of 9x9), set the
+			game counts to five or higher. This minimises the number of reconnects and restarts that have to be 
+			performed.
+			<li>If your engines leak memory, set it lower - but set up at least two engines or the
+			attribute will be ignored.
+		</ul>
+		
 		<h2 id="samplecfg">Sample Configuration</h2>
 		
 		This sample configuration shows how <a href="http://www.gnu.org/software/gnugo/">GNU Go</a>
 		can be connected to play on CGOS, 9x9 board size, and with GoGUI running locally to view all
 		games.
 		
+		In addition, the client will play round-robin between two engine configurations, running the
+		engine at level 8 for 5 games, followed by level 10 for 2 games, and then starting over.
+		
 		<p>
 <pre>Common:
   KillFile = kill.txt
   
 GTPEngine:
+  # Name to display on console / in logs
+  Name = Gnugo Level 8
+  
   CommandLine = gnugo.exe --mode gtp --score aftermath --capture-all-dead --chinese-rules --level 8
   
   ServerHost = cgos.boardspace.net
   ServerPort = 6867
   ServerUser = myuser
   ServerPassword = mypw
-   
-  Priority = 5
   
+  # Switch to next engine after this many games
+  NumberOfGames = 5
+  
+  # Optional: persist games here
   SGFDirectory = ..\sgf9x9
+  
+GTPEngine:
+  Name = Gnugo Level 10
+  CommandLine = gnugo.exe --mode gtp --score aftermath --capture-all-dead --chinese-rules --level 10
+  
+  ServerHost = cgos.boardspace.net
+  ServerPort = 6867
+  ServerUser = myuser-level10
+  ServerPassword = mypw-level10
+  
+  # Switch back to first engine after this many games
+  NumberOfGames = 2
+  
+  # Optional: persist games here
+  SGFDirectory = ..\sgf9x9
+  
    
 # Observer engine (e.g. GoGUI)
 GTPObserver:

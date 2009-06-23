@@ -61,6 +61,7 @@ class CGOSClient(object):
         self._engineConfigs = engineConfigurationSections
         self._engine = None                  # Currently playing engine
         self._currentEngineIndex = -1        # Index in configuration sections of current engine
+        self._currentEngineGamesLeft = 0     # Number of games the current engine has left before switching
         
         self._killFileName = killFileName   # File that will trigger shutdown
         
@@ -134,30 +135,30 @@ class CGOSClient(object):
             self._socketfile.close()
             self._socket.close()
         
-    def _chooseEngineIndexAtRandom(self):
-        '''
-        Pick an engine from the configuration file at random, given the weights of
-        all engines.
-        '''
-        if len(self._engineConfigs) == 1: return 0
-        
-        # Normalise weights to [0.0, 1.0]
-        priorities = map(lambda x : int(x.getValue("Priority")), self._engineConfigs)
-        totalPriorities = reduce(lambda x,y: x+y, priorities)
-        
-        normalisedPriorities = map(lambda x : float(x)/totalPriorities, priorities)
-
-        chosenEngineIndex = 0
-        cumulativeSum = 0.0
-        randomIndex = random.random()
-        
-        for idx in xrange(len(normalisedPriorities)):
-            if randomIndex > cumulativeSum and randomIndex <= cumulativeSum + normalisedPriorities[idx]:
-                chosenEngineIndex = idx
-                break
-            cumulativeSum += normalisedPriorities[idx]
-        
-        return chosenEngineIndex
+#    def _chooseEngineIndexAtRandom(self):
+#        '''
+#        Pick an engine from the configuration file at random, given the weights of
+#        all engines.
+#        '''
+#        if len(self._engineConfigs) == 1: return 0
+#        
+#        # Normalise weights to [0.0, 1.0]
+#        priorities = map(lambda x : int(x.getValue("Priority")), self._engineConfigs)
+#        totalPriorities = reduce(lambda x,y: x+y, priorities)
+#        
+#        normalisedPriorities = map(lambda x : float(x)/totalPriorities, priorities)
+#
+#        chosenEngineIndex = 0
+#        cumulativeSum = 0.0
+#        randomIndex = random.random()
+#        
+#        for idx in xrange(len(normalisedPriorities)):
+#            if randomIndex > cumulativeSum and randomIndex <= cumulativeSum + normalisedPriorities[idx]:
+#                chosenEngineIndex = idx
+#                break
+#            cumulativeSum += normalisedPriorities[idx]
+#        
+#        return chosenEngineIndex
             
     def _respond(self, message):        
         if self._socket is not None:
@@ -521,29 +522,38 @@ class CGOSClient(object):
         Choose a different engine and reconnect. If the engine fails to start,
         this throws an exception
         '''
-                
-        newEngineIndex = self._chooseEngineIndexAtRandom()
-        if newEngineIndex == self._currentEngineIndex: return
+
+        if self._currentEngineIndex == -1:
+            self._currentEngineIndex = 0
+        elif len(self._engineConfigs) == 1:
+            return
+        else:
+            self._currentEngineGamesLeft -= 1
+            
+            if self._currentEngineGamesLeft > 0: 
+                return
+            
+            self._currentEngineIndex = (self._currentEngineIndex + 1) % len(self._engineConfigs)
 
         if self._engine is not None:
             self._engine.shutdown()
 
-        newEngineConfig = self._engineConfigs[newEngineIndex]        
+        newEngineConfig = self._engineConfigs[self._currentEngineIndex]
+        self._currentEngineGamesLeft = int(newEngineConfig.getValue("NumberOfGames"))        
         
-        self.logger.info("Chose engine " + str(newEngineIndex+1) + " (\"" + newEngineConfig.getValue("Name") +
+        self.logger.info("Chose engine " + str(self._currentEngineIndex+1) + " (\"" + newEngineConfig.getValue("Name") +
                          "\") as next player. Switching and re-connecting.")
         
         try:
             newEngine = EngineConnector(newEngineConfig.getValue("CommandLine"),
                                         newEngineConfig.getValue("Name"),
-                                        logger="EngineConnector"+str(newEngineIndex))
+                                        logger="EngineConnector"+str(self._currentEngineIndex))
             newEngine.connect()
         except Exception,e:
             self.logger.error("Switch failed. Engine failed to start: " + str(e))
             raise    
             
         self._engine = newEngine
-        self._currentEngineIndex = newEngineIndex
         
         if newEngineConfig.hasValue("SGFDirectory"):
             self._sgfDirectory = newEngineConfig.getValue("SGFDirectory")

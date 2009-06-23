@@ -108,15 +108,15 @@ class ConfigFile(object):
             if section.name() == ConfigFile.ENGINE_SECTION: 
                 hasEngine = True
                 
-                for req in ["Name", "CommandLine", "ServerHost", "ServerPort", "ServerUser", "ServerPassword", "Priority"]:
+                for req in ["Name", "CommandLine", "ServerHost", "ServerPort", "ServerUser", "ServerPassword", "NumberOfGames"]:
                     if not(section.hasValue(req)):
                         raise Exception("Mandatory engine attribute missing: " + req)
 
                 try:
-                    if int(section.getValue("Priority")) <= 0:
-                        raise Exception("Configuration attribute 'Priority' must be greater than zero")
+                    if int(section.getValue("NumberOfGames")) <= 0:
+                        raise Exception("Configuration attribute 'NumberOfGames' must be greater than zero")
                 except ValueError:
-                    raise Exception("Configuration attribute 'Priority' must be an integer")
+                    raise Exception("Configuration attribute 'NumberOfGames' must be an integer")
                 
                 
                 
