@@ -1,5 +1,6 @@
 '''
-Copyright (C) 2009 Christian Nentwich
+Copyright for initial code (C) 2009 Christian Nentwich. See contributors
+file.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -46,7 +47,7 @@ class CGOSClient(object):
     See _handlerloop for the command dispatcher, mainloop for the reconnect/play loop.
     '''
     
-    CLIENT_ID = "e1 cgosPython 0.3.0 beta"
+    CLIENT_ID = "e1 cgosPython 0.3.1 beta"
     
     __TIME_CHECKPOINT_FREQUENCY = 60 * 30
     ''' How often to output stats, etc., in seconds '''
@@ -226,7 +227,7 @@ class CGOSClient(object):
         engineRank = programBRank
         self._engineColour = "black"
         
-        if self._username in programA:
+        if self._username == programA:
             opponent = programB
             opponentRank = programBRank
             engineRank = programARank
@@ -243,9 +244,10 @@ class CGOSClient(object):
         self._movecount = 0
         self._engine.notifyBoardSize(boardSize)
         self._engine.notifyKomi(komi)
-        self._engine.notifyClearBoard()
         self._engine.notifyTimeSettings(gameTimeMSec)
         self._engine.notifyCGOSOpponentName(opponent)
+        self._engine.notifyCGOSOpponentRating(opponentRank)
+        self._engine.notifyClearBoard()
         
         if self._observer is not None:
             self._observer.notifyBoardSize(boardSize)

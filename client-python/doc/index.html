@@ -20,8 +20,9 @@
 		
 		<h2>Information</h2>
 		
-		This is version <b>0.3.0</b>. This program is &copy;2009 Christian Nentwich and is licensed to you under
-		the terms of the <a href="http://www.opensource.org/licenses/gpl-3.0.html">GNU General Public License version 3 (GPLv3)</a>.
+		This is version <b>0.3.0</b>. This program is &copy;2009 Christian Nentwich and <a href="contributors.html">contributors</a> 
+		and is licensed to you under the terms of the 
+		<a href="http://www.opensource.org/licenses/gpl-3.0.html">GNU General Public License version 3 (GPLv3)</a>.
 		
 		<p>
 		Please read the <a href="changes.html">change log</a>.
@@ -115,6 +116,19 @@ python bin/cgosclient.py config.cfg</pre>
 		make sure it does not get up anymore
 		</ul>
 		
+		<h3>Command Ordering and Game Control</h3>
+		
+		It can be difficult for a GTP engine to decide when a game has started or a game is over. With the Python CGOS client,
+		you can infer the following:
+		<ul>
+			<li><code>clear_board</code> will be the decisive command indicating that the game has started. All time setup and board
+			setup happens before it. There <i>may</i> be a list of <code>play</code> commands sent in rapid succession after
+			<code>clear_board</code>, but only if the connection or server previously crashed and the game needs to be caught up. In
+			principle, you can trigger any pondering code after <code>clear_board</code>.
+			<li><code>cgos-gameover</code>, described in the next section, definitively ends the game. You may deallocate 
+			resources in response to this command.
+		</ul>
+		
 		<h2 id="ext">GTP Extensions</h2>
 		
 		The following GTP extensions are available. If your engine records its own logs, or writes its own
@@ -127,8 +141,14 @@ python bin/cgosclient.py config.cfg</pre>
 			</tr>
 			<tr>
 				<th>cgos-opponent_name</th>
-				<td>Between boardsize and first move</td>
+				<td>Between boardsize and clear_board</td>
 				<td>Gives the name of the opponent engine (the CGOS login name)</td>
+			</tr>
+			<tr>
+				<th>cgos-opponent_rating</th>
+				<td>Between boardsize and clear_board</td>
+				<td>Gives the current CGOS rating of the opponent engine. This will be a 
+				number or a number followed by a question mark</td>
 			</tr>
 			<tr>
 				<th>cgos-gameover</th>

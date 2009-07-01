@@ -208,6 +208,14 @@ class EngineConnector(object):
         if "cgos-opponent_name" in self._supportedCommands:
             self._sendNoResponseCommand("cgos-opponent_name " + name)
             
+    def notifyCGOSOpponentRating(self, rating):
+        '''
+        Send cgos-opponent_rating to engine.
+        '''
+        if "cgos-opponent_rating" in self._supportedCommands:
+            self._sendNoResponseCommand("cgos-opponent_rating " + rating)
+
+
     def notifyCGOSGameover(self, result):
         '''
         Sent cgos-game_over to engine. The calling function must format this
