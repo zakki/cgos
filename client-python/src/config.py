@@ -1,5 +1,5 @@
 '''
-Copyright (C) 2009 Christian Nentwich
+Copyright (C) 2009 Christian Nentwich and contributors
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ class ConfigFile(object):
                 currentSection = ConfigSection(line[0 : len(line) -1 ])
                 self._sections.append(currentSection)
             elif "=" in line and currentSection is not None:                
-                param = line.split("=")        
+                param = line.split("=", 1)
                 currentSection.addValue(param[0].strip(), param[1].strip())
         
         self._validate()

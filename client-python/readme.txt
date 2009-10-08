@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------
-Copyright (C) 2009 Christian Nentwich
+Copyright (C) 2009 Christian Nentwich and contributors
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 	Refer to doc\index.html to get started.
 	
+	doc\contributors.html lists the contributors.
 	
 	
 	

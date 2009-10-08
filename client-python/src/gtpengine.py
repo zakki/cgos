@@ -1,5 +1,5 @@
 '''
-Copyright (C) 2009 Christian Nentwich
+Copyright (C) 2009 Christian Nentwich and contributors
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -130,7 +130,11 @@ class EngineConnector(object):
         engine. 
         '''
         self.logger.info("Starting GTP engine, command line: " + self._programCommandLine)
-        self._subprocess = subprocess.Popen(self._programCommandLine, stdin=subprocess.PIPE,
+        if sys.platform == "win32":
+            args = self._programCommandLine
+        else:
+            args = self._programCommandLine.split()
+        self._subprocess = subprocess.Popen(args, stdin=subprocess.PIPE,
                                             stdout=subprocess.PIPE, shell=False)
         time.sleep(1)
         self._findSupportedCommands(mandatoryCommands)
