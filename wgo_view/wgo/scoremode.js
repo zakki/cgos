@@ -93,6 +93,8 @@ ScoreMode.prototype.displayScore = function() {
 		neutral: [],
 		black_captured: [],
 		white_captured: [],
+		black_alive: [],
+		white_alive: [],
 	}
 	
 	for(var i = 0; i < this.position.size; i++) {
@@ -106,6 +108,9 @@ ScoreMode.prototype.displayScore = function() {
 			
 			if(t == WGo.W && s != state.WHITE_STONE) score.white_captured.push({x: i, y: j, type: "outline", c: WGo.W});
 			else if(t == WGo.B && s != state.BLACK_STONE) score.black_captured.push({x: i, y: j, type: "outline", c: WGo.B});
+
+			if(t == WGo.W && s == state.WHITE_STONE) score.white_alive.push({x: i, y: j, type: "outline", c: WGo.W});
+			else if(t == WGo.B && s == state.BLACK_STONE) score.black_alive.push({x: i, y: j, type: "outline", c: WGo.B});
 		}
 	}
 	
@@ -122,14 +127,22 @@ ScoreMode.prototype.displayScore = function() {
 	this.board.addObject(score.black);
 	this.board.addObject(score.white);
 	
-	var msg = "<p style='font-weight: bold;'>"+WGo.t("RE")+"</p>";
+	var sb;
+	var sw;
+	var msg = "";
+	sb = score.black.length+score.black_alive.length;
+	sw = score.white.length+score.white_alive.length+parseFloat(this.komi);
+	msg += "<p style='font-weight: bold;'>Area "+WGo.t("RE")+"</p>";
+	msg += WGo.t("black")+": "+score.black_alive.length+" + "+score.black.length+" = "+sb+"</p>";
+	msg += WGo.t("white")+": "+score.white_alive.length+" + "+score.white.length+" + "+this.komi+" = "+sw+"</p>";
+	if(sb > sw) msg += "<p style='font-weight: bold;'>"+WGo.t("bwin", sb-sw)+"</p>";
+	else msg += "<p style='font-weight: bold;'>"+WGo.t("wwin", sw-sb)+"</p>";
 	
-	var sb = score.black.length+score.white_captured.length+this.originalPosition.capCount.black;
-	var sw = score.white.length+score.black_captured.length+this.originalPosition.capCount.white+parseFloat(this.komi);
-	
+	msg += "<p style='font-weight: bold;'>Territory "+WGo.t("RE")+"</p>";
+	sb = score.black.length+score.white_captured.length+this.originalPosition.capCount.black;
+	sw = score.white.length+score.black_captured.length+this.originalPosition.capCount.white+parseFloat(this.komi);
 	msg += "<p>"+WGo.t("black")+": "+score.black.length+" + "+(score.white_captured.length+this.originalPosition.capCount.black)+" = "+sb+"</br>";
 	msg += WGo.t("white")+": "+score.white.length+" + "+(score.black_captured.length+this.originalPosition.capCount.white)+" + "+this.komi+" = "+sw+"</p>";
-	
 	if(sb > sw) msg += "<p style='font-weight: bold;'>"+WGo.t("bwin", sb-sw)+"</p>";
 	else msg += "<p style='font-weight: bold;'>"+WGo.t("wwin", sw-sb)+"</p>";
 	
