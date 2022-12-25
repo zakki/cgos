@@ -16,7 +16,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from common import Colour
-import traceback, sys
+import traceback
+import sys
 
 
 class SGFMove(object):

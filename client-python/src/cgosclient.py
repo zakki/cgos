@@ -17,7 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import socket
-import sys, traceback, time
+import sys
+import traceback
+import time
 import logging
 import logging.handlers
 import os.path
@@ -429,7 +431,7 @@ class CGOSClient(object):
                 self._sgfGame.setScore(
                     GTPTools.convertColourToConstant(result[0]), score
                 )
-            except:
+            except Exception:
                 pass
             self._engine.notifyCGOSGameover(result)
 
@@ -572,7 +574,7 @@ class CGOSClient(object):
                 try:
                     self.connect()
                     connected = True
-                except:
+                except Exception:
                     self.logger.error(
                         "Could not connect to " + self._server + ". Will try again."
                     )

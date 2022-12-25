@@ -18,7 +18,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import logging
 import logging.handlers
 import subprocess
-import traceback, sys, time
+import sys
+import time
 from common import Colour
 
 
@@ -161,7 +162,7 @@ class EngineConnector(object):
         Shut down the GTP engine using the 'quit' command, or kill it if it does not
         support that or takes too long.
         """
-        if self._subprocess != None and self._subprocess.poll() == None:
+        if self._subprocess is not None and self._subprocess.poll() is None:
             self.logger.info(
                 "Shutting down GTP engine, command line: " + self._programCommandLine
             )
@@ -169,7 +170,7 @@ class EngineConnector(object):
 
             for i in range(5):
                 time.sleep(0.5)
-                if self._subprocess.poll() == None:
+                if self._subprocess.poll() is None:
                     self.logger.info("Sending terminate")
                     self._subprocess.terminate()
                     break
@@ -290,7 +291,7 @@ class EngineConnector(object):
         Don't call this even within this class. Use the other send methods for specific
         command types (list response, etc.)
         """
-        if self._subprocess.poll() != None:
+        if self._subprocess.poll() is not None:
             raise EngineConnectorError("Cannot send GTP command. Engine has terminated")
 
         self.logger.debug("Sending: " + commandString)
@@ -316,7 +317,7 @@ class EngineConnector(object):
 
         self.logger.debug("Response: " + str(response))
 
-        if error != None:
+        if error is not None:
             raise EngineConnectorError("GTP command rejected: " + error)
 
         return response
