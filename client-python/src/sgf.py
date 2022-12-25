@@ -27,32 +27,32 @@ class SGFMove(object):
         self._coord = coord
         self._colour = colour
         self._timeleft = timeleft
-        
+
     @staticmethod
     def getPassMove(colour, timeleft = None):
         return SGFMove((0,0), colour, timeleft)
-       
+
     def isPass(self):
         return self._coord == (0,0)
-    
+
     def x(self):
         (x,y) = self._coord
         return x
-        
+
     def y(self):
         (x,y) = self._coord
         return y
-    
+
     def colour(self):
         return self._colour
 
     def timeleft(self):
         return self._timeleft
-       
-class SGFGame(object):    
+
+class SGFGame(object):
     ''' SGF move coordinate letters for x/y axis'''
     __COORD_LETTERS = "abcdefghijklmnopqrstuvwxyz"
-    
+
     def __init__(self, boardsize, komi):
         self._boardsize = int(boardsize)
         self._komi = komi
@@ -63,31 +63,31 @@ class SGFGame(object):
         self._blackRank = None
         self._time = 0
         self._result = None
-    
+
     def addMove(self, move):
         self._moves.append(move)
-        
+
     def getBlack(self): return self._black
-    
+
     def setBlack(self, black): self._black = black
-    
+
     def setBlackRank(self, rank): self._blackRank = rank
-    
+
     def setWhite(self, white): self._white = white
-    
+
     def getWhite(self): return self._white
-    
+
     def setWhiteRank(self, rank): self._whiteRank = rank
-    
+
     def setMainTimeLimit(self, timeSeconds): self._time = timeSeconds
-    
+
     def setScore(self, winColour, score):
-        ''' 
+        '''
         Set a numeric score. winColour must be a constant from the Colour class.
         score must be a floating point number or integer.
-        '''        
+        '''
         self._result = self._sgfColour(winColour) + "+" + str(score)
-        
+
     def setScoreResign(self, winColour):
         '''
         Set a resignation score. winColour is the player who win, a constant
@@ -100,20 +100,20 @@ class SGFGame(object):
         Set a forfeit score. winColour is a constant from the Colour class.
         '''
         self._result = self._sgfColour(winColour) + "+Forfeit"
-        
+
     def setScoreTimeWin(self, winColour):
         '''
         Set a win by time. winColour is a constant from the Colour class.
         '''
         self._result = self._sgfColour(winColour) + "+Time"
-                        
+
     def _sgfColour(self, colour):
         ''' Convert a colour constant to an SGF colour '''
         return { Colour.WHITE : "W", Colour.BLACK : "B" }[colour]
 
     def save(self, fileName):
         file = open(fileName, "w")
-        
+
         file.write("(\n")
         file.write(";GM[1]FF[3]AP[cgos-python]\n")
         file.write("RU[NZ]SZ[" + str(self._boardsize) + "]HA[0]KM[" + str(self._komi) + "]\n")
@@ -124,33 +124,33 @@ class SGFGame(object):
         if self._blackRank is not None and self._whiteRank is not None:
             file.write("GN[" + self._black +" (" + self._blackRank+") vs. "+
                        self._white + " (" + self._whiteRank+")]\n")
-            
+
         if self._result is not None:
             file.write("RE[" + self._result + "]\n")
-            
+
         if len(self._moves) > 0:
             file.write("(\n")
-            
+
             for move in self._moves:
                 sgfColour = self._sgfColour(move.colour())
-                             
+
                 if move.isPass():
                     file.write(";"+sgfColour+"[]")
                 else:
                     sgfCoord = SGFGame.__COORD_LETTERS[move.x() - 1] + SGFGame.__COORD_LETTERS[self._boardsize - move.y()]
                     file.write(";"+sgfColour+"["+sgfCoord+"]")
-                    
+
                 if move.timeleft() is not None:
-                    file.write(sgfColour+"L[" + str(move.timeleft()) + "]")               
-                
+                    file.write(sgfColour+"L[" + str(move.timeleft()) + "]")
+
             file.write(")\n")
-        
+
         file.write(")\n")
-            
+
         file.flush()
         file.close()
-        
-    
+
+
 def main():
     game = SGFGame(19, 6.5)
     game.setBlack("foo")
@@ -158,13 +158,13 @@ def main():
     game.setWhite("bar")
     game.setWhiteRank("1400?")
     game.setMainTimeLimit(500)
-    game.addMove(SGFMove((5,5), Colour.BLACK, 300)) 
+    game.addMove(SGFMove((5,5), Colour.BLACK, 300))
     game.addMove(SGFMove.getPassMove(Colour.WHITE, 200))
     game.setScoreTimeWin(Colour.BLACK)
     game.save("test.sgf")
-    
+
 if __name__ == "__main__":
     try:
         main()
-    except Exception, e:
+    except Exception as e:
         traceback.print_exc(file=sys.stderr)
