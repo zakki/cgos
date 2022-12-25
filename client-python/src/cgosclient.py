@@ -1,4 +1,4 @@
-'''
+"""
 Copyright for initial code (C) 2009 Christian Nentwich. See contributors
 file.
 
@@ -14,7 +14,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import socket
 import sys, traceback, time
@@ -24,19 +24,21 @@ import os.path
 import string
 import random
 
-from gtpengine import *
-from sgf import *
-from config import *
+from gtpengine import EngineConnector, EngineConnectorError, GTPTools
+from sgf import SGFGame, SGFMove
+from config import ConfigFile
+
 
 class CGOSClientError(Exception):
     def __init__(self, msg):
         self._msg = msg
+
     def __str__(self):
         return repr(self._msg)
 
 
 class CGOSClient(object):
-    '''
+    """
     Main CGOS client class. This requires an initialized and connected engine as
     a parameter. It will then connect to CGOS and play until it finds a kill file
     in place.
@@ -45,49 +47,60 @@ class CGOSClient(object):
     are followed by CGOS command name.
 
     See _handlerloop for the command dispatcher, mainloop for the reconnect/play loop.
-    '''
+    """
 
     CLIENT_ID = "e1 cgosPython 0.3.1 beta"
 
     __TIME_CHECKPOINT_FREQUENCY = 60 * 30
-    ''' How often to output stats, etc., in seconds '''
+    """ How often to output stats, etc., in seconds """
 
-    def __init__(self, engineConfigurationSections, killFileName = "kill.txt"):
-        '''
+    def __init__(self, engineConfigurationSections, killFileName="kill.txt"):
+        """
         Initialise the client, without connecting anything yet
           - engineConfigurationSections is a list of ConfigSection objects containing
             engine parameters. An engine will be chosen from there.
           - killFileName is the file to look for when deciding whether to shut down
-        '''
+        """
         self._engineConfigs = engineConfigurationSections
-        self._engine = None                  # Currently playing engine
-        self._currentEngineIndex = -1        # Index in configuration sections of current engine
-        self._currentEngineGamesLeft = 0     # Number of games the current engine has left before switching
+        self._engine = None  # Currently playing engine
+        self._currentEngineIndex = (
+            -1
+        )  # Index in configuration sections of current engine
+        self._currentEngineGamesLeft = (
+            0  # Number of games the current engine has left before switching
+        )
 
-        self._killFileName = killFileName   # File that will trigger shutdown
+        self._killFileName = killFileName  # File that will trigger shutdown
 
-        self._finished = False              # Should the main loop quit
-        self._engineSwitching = False       # Should the handler loop quit to allow an engine switch
+        self._finished = False  # Should the main loop quit
+        self._engineSwitching = (
+            False  # Should the handler loop quit to allow an engine switch
+        )
 
         self._socketfile = None
 
-        self._server = None                 # Server host name (engine dependent)
-        self._port = None                   # Server port (engine dependent)
-        self._username = None               # User name (engine dependent)
-        self._password = None               # Password (engine dependent)
+        self._server = None  # Server host name (engine dependent)
+        self._port = None  # Server port (engine dependent)
+        self._username = None  # User name (engine dependent)
+        self._password = None  # Password (engine dependent)
 
-        self._gameInProgress = False        # Currently between setup and gameover?
-        self._engineColour = "black"        # Which colour is the local engine playing in a game?
+        self._gameInProgress = False  # Currently between setup and gameover?
+        self._engineColour = (
+            "black"  # Which colour is the local engine playing in a game?
+        )
 
-        self._wonGames = 0                  # Stats about how many games were won/lost during this session
+        self._wonGames = (
+            0  # Stats about how many games were won/lost during this session
+        )
         self._lostGames = 0
 
-        self._timeStarted = time.localtime()    # Will not change
-        self._timeCheckPoint = time.localtime() # Last time checkpoint for outputting stats, mail, etc.
+        self._timeStarted = time.localtime()  # Will not change
+        self._timeCheckPoint = (
+            time.localtime()
+        )  # Last time checkpoint for outputting stats, mail, etc.
 
-        self._observer = None               # GTP observer, if any - already connected
-        self._sgfDirectory = None           # Directory to store SGF. Leave None to disable.
-
+        self._observer = None  # GTP observer, if any - already connected
+        self._sgfDirectory = None  # Directory to store SGF. Leave None to disable.
 
         # movecount is only used for periodically outputting information messages
         self._movecount = 0
@@ -113,9 +126,13 @@ class CGOSClient(object):
 
         self.logger.addHandler(handler)
 
-
     def connect(self):
-        self.logger.info("Attempting to connect to server '" + self._server + "', port " + str(self._port))
+        self.logger.info(
+            "Attempting to connect to server '"
+            + self._server
+            + "', port "
+            + str(self._port)
+        )
 
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -136,30 +153,30 @@ class CGOSClient(object):
             self._socketfile.close()
             self._socket.close()
 
-#    def _chooseEngineIndexAtRandom(self):
-#        '''
-#        Pick an engine from the configuration file at random, given the weights of
-#        all engines.
-#        '''
-#        if len(self._engineConfigs) == 1: return 0
-#
-#        # Normalise weights to [0.0, 1.0]
-#        priorities = map(lambda x : int(x.getValue("Priority")), self._engineConfigs)
-#        totalPriorities = reduce(lambda x,y: x+y, priorities)
-#
-#        normalisedPriorities = map(lambda x : float(x)/totalPriorities, priorities)
-#
-#        chosenEngineIndex = 0
-#        cumulativeSum = 0.0
-#        randomIndex = random.random()
-#
-#        for idx in xrange(len(normalisedPriorities)):
-#            if randomIndex > cumulativeSum and randomIndex <= cumulativeSum + normalisedPriorities[idx]:
-#                chosenEngineIndex = idx
-#                break
-#            cumulativeSum += normalisedPriorities[idx]
-#
-#        return chosenEngineIndex
+    #    def _chooseEngineIndexAtRandom(self):
+    #        '''
+    #        Pick an engine from the configuration file at random, given the weights of
+    #        all engines.
+    #        '''
+    #        if len(self._engineConfigs) == 1: return 0
+    #
+    #        # Normalise weights to [0.0, 1.0]
+    #        priorities = map(lambda x : int(x.getValue("Priority")), self._engineConfigs)
+    #        totalPriorities = reduce(lambda x,y: x+y, priorities)
+    #
+    #        normalisedPriorities = map(lambda x : float(x)/totalPriorities, priorities)
+    #
+    #        chosenEngineIndex = 0
+    #        cumulativeSum = 0.0
+    #        randomIndex = random.random()
+    #
+    #        for idx in xrange(len(normalisedPriorities)):
+    #            if randomIndex > cumulativeSum and randomIndex <= cumulativeSum + normalisedPriorities[idx]:
+    #                chosenEngineIndex = idx
+    #                break
+    #            cumulativeSum += normalisedPriorities[idx]
+    #
+    #        return chosenEngineIndex
 
     def _respond(self, message):
         if self._socket is not None:
@@ -168,24 +185,24 @@ class CGOSClient(object):
             self._socketfile.flush()
 
     def _handle_info(self, parameters):
-        ''' Event handler: "info". Ignored. '''
+        """Event handler: "info". Ignored."""
         self.logger.info("Server info: " + (" ".join(parameters)))
         self._checkTimeCheckpoint()
 
     def _handle_protocol(self, parameters):
-        ''' Event handler: "protocol" command. No parameters. '''
+        """Event handler: "protocol" command. No parameters."""
         self._respond(CGOSClient.CLIENT_ID)
 
     def _handle_username(self, parameters):
-        ''' Event handler: "username" command. No parameters. '''
+        """Event handler: "username" command. No parameters."""
         self._respond(self._username)
 
     def _handle_password(self, parameters):
-        ''' Event handler: "password" command. No parameters. '''
+        """Event handler: "password" command. No parameters."""
         self._respond(self._password)
 
     def _handle_setup(self, parameters):
-        '''
+        """
         Event handler: "setup" command to prepare for game.
         Expects the following parameters:
           - Game id
@@ -199,8 +216,9 @@ class CGOSClient(object):
         starting with black, to place on the board.
 
         Example: setup 1 19 7.5 1800000 programA(1800?) programB(1800?) E5 1700000 H3 1600000
-        '''
-        if (len(parameters) < 6): raise CGOSClientError("'setup' command requires at least 6 parameters")
+        """
+        if len(parameters) < 6:
+            raise CGOSClientError("'setup' command requires at least 6 parameters")
 
         self._gameInProgress = True
 
@@ -215,11 +233,15 @@ class CGOSClient(object):
         programARank = ""
         programBRank = ""
         if "(" in programA:
-            programARank = programA[programA.find("(") : programA.rfind(")")].strip("()")
-            programA = programA[:programA.find("(")]
+            programARank = programA[programA.find("(") : programA.rfind(")")].strip(
+                "()"
+            )
+            programA = programA[: programA.find("(")]
         if "(" in programB:
-            programBRank = programB[programB.find("(") : programB.rfind(")")].strip("()")
-            programB = programB[:programB.find("(")]
+            programBRank = programB[programB.find("(") : programB.rfind(")")].strip(
+                "()"
+            )
+            programB = programB[: programB.find("(")]
 
         # Log some information
         opponent = programA
@@ -233,12 +255,26 @@ class CGOSClient(object):
             engineRank = programARank
             self._engineColour = "white"
 
-        self.logger.info("Starting game against " + opponent + "("+opponentRank+
-                         "). Local engine (\"" + self._engine.getName() + "\", rated " +
-                         engineRank+ ") is playing " + self._engineColour + ".")
+        self.logger.info(
+            "Starting game against "
+            + opponent
+            + "("
+            + opponentRank
+            + '). Local engine ("'
+            + self._engine.getName()
+            + '", rated '
+            + engineRank
+            + ") is playing "
+            + self._engineColour
+            + "."
+        )
 
         if len(parameters) > 6:
-            self.logger.info("This is a restart. Catching up " + str((len(parameters)-6) / 2) + " moves")
+            self.logger.info(
+                "This is a restart. Catching up "
+                + str((len(parameters) - 6) / 2)
+                + " moves"
+            )
 
         # Set up the engine through GTP. Also observer, if registered
         self._movecount = 0
@@ -264,23 +300,26 @@ class CGOSClient(object):
         if len(parameters) > 6:
             colour = "b"
 
-            for i in range(6,len(parameters),2):
+            for i in range(6, len(parameters), 2):
                 coord = parameters[i].lower()
-                time = parameters[i+1]
+                time = parameters[i + 1]
 
                 self._handle_play([colour, coord, time])
 
-                if colour == "b": colour = "w"
-                else: colour = "b"
+                if colour == "b":
+                    colour = "w"
+                else:
+                    colour = "b"
 
     def _handle_play(self, parameters):
-        '''
+        """
         Event handler: "play" command. Expects:
           - GTP colour
           - GTP coordinate
           - Time left in msec
-        '''
-        if (len(parameters) != 3): raise CGOSClientError("'play' command requires 3 parameters")
+        """
+        if len(parameters) != 3:
+            raise CGOSClientError("'play' command requires 3 parameters")
 
         colour = parameters[0]
         coord = parameters[1].lower()
@@ -292,27 +331,41 @@ class CGOSClient(object):
             self._observer.notifyPlay(colour, coord)
 
         if coord == "pass":
-            move = SGFMove.getPassMove(GTPTools.convertColourToConstant(colour), int(timeMSec/1000))
+            move = SGFMove.getPassMove(
+                GTPTools.convertColourToConstant(colour), int(timeMSec / 1000)
+            )
         else:
-            move = SGFMove(GTPTools.convertCoordinateToXY(coord),
-                           GTPTools.convertColourToConstant(colour),
-                           int(timeMSec/1000))
+            move = SGFMove(
+                GTPTools.convertCoordinateToXY(coord),
+                GTPTools.convertColourToConstant(colour),
+                int(timeMSec / 1000),
+            )
 
         self._sgfGame.addMove(move)
 
     def _handle_genmove(self, parameters):
-        '''
+        """
         Event handler: "genmove". Expects:
           - GTP colour
           - Time left in msec
-        '''
-        if (len(parameters) != 2): raise CGOSClientError("'play' command requires 2 parameters")
+        """
+        if len(parameters) != 2:
+            raise CGOSClientError("'play' command requires 2 parameters")
 
         self._movecount += 1
         if self._movecount % 10 == 0:
-            self.logger.info("Engine \"" + self._engine.getName() + "\" playing " + self._engineColour+". " +
-                             str(self._movecount) + " moves generated. " +
-                             "Time left: " + str(int(parameters[1]) / 1000) + " sec")
+            self.logger.info(
+                'Engine "'
+                + self._engine.getName()
+                + '" playing '
+                + self._engineColour
+                + ". "
+                + str(self._movecount)
+                + " moves generated. "
+                + "Time left: "
+                + str(int(parameters[1]) / 1000)
+                + " sec"
+            )
 
         colour = parameters[0]
         timeMSec = int(parameters[1])
@@ -330,20 +383,25 @@ class CGOSClient(object):
         if result == "resign":
             move = None
         elif result == "pass":
-            move = SGFMove.getPassMove(GTPTools.convertColourToConstant(colour), int(timeMSec/1000))
+            move = SGFMove.getPassMove(
+                GTPTools.convertColourToConstant(colour), int(timeMSec / 1000)
+            )
         else:
-            move = SGFMove(GTPTools.convertCoordinateToXY(result),
-                           GTPTools.convertColourToConstant(colour),
-                           int(timeMSec/1000))
+            move = SGFMove(
+                GTPTools.convertCoordinateToXY(result),
+                GTPTools.convertColourToConstant(colour),
+                int(timeMSec / 1000),
+            )
 
-        if move is not None: self._sgfGame.addMove(move)
+        if move is not None:
+            self._sgfGame.addMove(move)
 
     def _handle_gameover(self, parameters):
-        '''
+        """
         Event handler: "gameover". Expects:
           - A date
           - The result (unparsed) e.g. "B+Resign"
-        '''
+        """
         result = parameters[1]
         self.logger.info("Game over. Result: " + result)
 
@@ -368,19 +426,21 @@ class CGOSClient(object):
         else:
             try:
                 score = float(result[2:])
-                self._sgfGame.setScore(GTPTools.convertColourToConstant(result[0]), score)
+                self._sgfGame.setScore(
+                    GTPTools.convertColourToConstant(result[0]), score
+                )
             except:
                 pass
             self._engine.notifyCGOSGameover(result)
 
         if self._sgfDirectory is not None:
-            fileName = time.strftime("%Y-%m-%d-%H-%M-%S",time.localtime())
+            fileName = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
             ascii = set(string.ascii_letters).union(set(string.digits))
             ascii.add("-_")
 
-            blackName = ''.join(ch for ch in self._sgfGame.getBlack() if ch in ascii)
-            whiteName = ''.join(ch for ch in self._sgfGame.getWhite() if ch in ascii)
+            blackName = "".join(ch for ch in self._sgfGame.getBlack() if ch in ascii)
+            whiteName = "".join(ch for ch in self._sgfGame.getWhite() if ch in ascii)
 
             fileName = fileName + "-" + blackName + "-" + whiteName + ".sgf"
             self.logger.info("Saving SGF file: " + fileName)
@@ -391,13 +451,15 @@ class CGOSClient(object):
         # before quitting
         self._checkKillFile()
 
-        if not(self._finished): self.pickNewEngine()
-        if not(self._finished) and not(self._engineSwitching): self._respond("ready")
+        if not (self._finished):
+            self.pickNewEngine()
+        if not (self._finished) and not (self._engineSwitching):
+            self._respond("ready")
 
         self._checkTimeCheckpoint()
 
     def _handlerloop(self):
-        '''
+        """
         Read from CGOS socket and dispatch to handlers. This uses reflection on the
         class to handle CGOS commands. Handler methods start with "_handle_" and
         continue with the CGOS command name.
@@ -406,8 +468,8 @@ class CGOSClient(object):
 
         This loop will exit with an exception if the socket fails or an engine or
         client error occurs. Calling methods will have to handle this.
-        '''
-        while not(self._finished) and not(self._engineSwitching):
+        """
+        while not (self._finished) and not (self._engineSwitching):
             line = self._socketfile.readline()
             line = line.strip()
 
@@ -429,11 +491,12 @@ class CGOSClient(object):
             try:
                 handler = getattr(self, commandHandler)
             except AttributeError:
-                self.logger.error("Unsupported CGOS command, '"+splitline[0]+"'")
+                self.logger.error("Unsupported CGOS command, '" + splitline[0] + "'")
                 raise CGOSClientError("Unsupported command: " + splitline[0])
             else:
                 parameters = []
-                if (len(splitline) > 1): parameters = splitline[1].split()
+                if len(splitline) > 1:
+                    parameters = splitline[1].split()
 
                 try:
                     result = handler(parameters)
@@ -441,28 +504,29 @@ class CGOSClient(object):
                     self.logger.error(str(e))
                     raise
 
-            if not(self._gameInProgress): self._checkKillFile()
+            if not (self._gameInProgress):
+                self._checkKillFile()
 
         if self._engineSwitching:
             self._respond("quit")
             self.disconnect()
 
     def _checkKillFile(self):
-        '''
+        """
         Check if the kill file exists and set _finished to true if yes.
-        '''
+        """
         self._finished = os.path.exists(self._killFileName)
         if self._finished:
             self.logger.info("Kill file found. Shutting down connection and engines.")
 
     def _checkTimeCheckpoint(self):
-        '''
+        """
         Check if the last time checkpoint was more than half an hour away, and
         perform maintenance tasks if necessary (information output, etc).
 
         This should not be called from time-sensitive parts like genmove, but from
         info messages, gameover, etc.
-        '''
+        """
         currentTime = time.mktime(time.localtime())
         duration = currentTime - time.mktime(self._timeCheckPoint)
 
@@ -470,37 +534,49 @@ class CGOSClient(object):
             self._timeCheckPoint = time.localtime()
 
             duration = currentTime - time.mktime(self._timeStarted)
-            self.logger.info("Client up for " + str(int(duration)/3600) + " hours, " +
-                             str((int(duration)/60)%60) + " mins, " + str(int(duration)%60) + " seconds. " +
-                             "Local engines won " + str(self._wonGames) + " games, lost " +
-                             str(self._lostGames) + ".")
+            self.logger.info(
+                "Client up for "
+                + str(int(duration) / 3600)
+                + " hours, "
+                + str((int(duration) / 60) % 60)
+                + " mins, "
+                + str(int(duration) % 60)
+                + " seconds. "
+                + "Local engines won "
+                + str(self._wonGames)
+                + " games, lost "
+                + str(self._lostGames)
+                + "."
+            )
 
     def isConnected(self):
         return self._server is not None
 
     def mainloop(self):
-        '''
+        """
         Main loop - keep trying to connect to CGOS, with reasonable wait times. Once connected,
         invoke the handler loop.
 
         If the engine crashes or something severe happens, the CGOS connection is closed and
         the loop exits. If a kill file is found (see killFileName parameter to constructor),
         an orderly shutdown is performed.
-        '''
+        """
         self._finished = False
 
-        while not(self._finished):
+        while not (self._finished):
             self._engineSwitching = False
 
             connected = False
             retries = 1
-            while not(connected):
+            while not (connected):
                 try:
                     self.connect()
                     connected = True
                 except:
-                    self.logger.error("Could not connect to " + self._server +". Will try again.")
-                    time.sleep(30 + int(random.random()*5))
+                    self.logger.error(
+                        "Could not connect to " + self._server + ". Will try again."
+                    )
+                    time.sleep(30 + int(random.random() * 5))
                     retries += 1
 
             try:
@@ -516,14 +592,14 @@ class CGOSClient(object):
                 return
 
         self._respond("quit")
-        if os.path.exists(self._killFileName): os.remove(self._killFileName)
-
+        if os.path.exists(self._killFileName):
+            os.remove(self._killFileName)
 
     def pickNewEngine(self):
-        '''
+        """
         Choose a different engine and reconnect. If the engine fails to start,
         this throws an exception
-        '''
+        """
 
         if self._currentEngineIndex == -1:
             self._currentEngineIndex = 0
@@ -535,7 +611,9 @@ class CGOSClient(object):
             if self._currentEngineGamesLeft > 0:
                 return
 
-            self._currentEngineIndex = (self._currentEngineIndex + 1) % len(self._engineConfigs)
+            self._currentEngineIndex = (self._currentEngineIndex + 1) % len(
+                self._engineConfigs
+            )
 
         if self._engine is not None:
             self._engine.shutdown()
@@ -543,13 +621,20 @@ class CGOSClient(object):
         newEngineConfig = self._engineConfigs[self._currentEngineIndex]
         self._currentEngineGamesLeft = int(newEngineConfig.getValue("NumberOfGames"))
 
-        self.logger.info("Chose engine " + str(self._currentEngineIndex+1) + " (\"" + newEngineConfig.getValue("Name") +
-                         "\") as next player. Switching and re-connecting.")
+        self.logger.info(
+            "Chose engine "
+            + str(self._currentEngineIndex + 1)
+            + ' ("'
+            + newEngineConfig.getValue("Name")
+            + '") as next player. Switching and re-connecting.'
+        )
 
         try:
-            newEngine = EngineConnector(newEngineConfig.getValue("CommandLine"),
-                                        newEngineConfig.getValue("Name"),
-                                        logger="EngineConnector"+str(self._currentEngineIndex))
+            newEngine = EngineConnector(
+                newEngineConfig.getValue("CommandLine"),
+                newEngineConfig.getValue("Name"),
+                logger="EngineConnector" + str(self._currentEngineIndex),
+            )
             newEngine.connect()
         except Exception as e:
             self.logger.error("Switch failed. Engine failed to start: " + str(e))
@@ -564,8 +649,8 @@ class CGOSClient(object):
 
         self._server = newEngineConfig.getValue("ServerHost")
         self._port = int(newEngineConfig.getValue("ServerPort"))
-        self._username =  newEngineConfig.getValue("ServerUser")
-        self._password =  newEngineConfig.getValue("ServerPassword")
+        self._username = newEngineConfig.getValue("ServerUser")
+        self._password = newEngineConfig.getValue("ServerPassword")
 
         self._engineSwitching = True
 
@@ -583,7 +668,8 @@ class CGOSClient(object):
             self._socketfile.close()
             self._socket.close()
 
-        if self._engine is not None: self._engine.shutdown()
+        if self._engine is not None:
+            self._engine.shutdown()
 
 
 def main(argv):
@@ -604,7 +690,12 @@ def main(argv):
     observerEngine = None
 
     if observerConfig is not None:
-        observerEngine = EngineConnector(observerConfig.getValue("CommandLine"), "Observer", logger="ObserverLogger", logfile="observer.log")
+        observerEngine = EngineConnector(
+            observerConfig.getValue("CommandLine"),
+            "Observer",
+            logger="ObserverLogger",
+            logfile="observer.log",
+        )
         observerEngine.connect(EngineConnector.MANDATORY_OBSERVE_COMMANDS)
         client.setObserver(observerEngine)
 
