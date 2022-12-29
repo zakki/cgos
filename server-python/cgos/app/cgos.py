@@ -244,6 +244,53 @@ class Client:
             logger.error(str(e))
 
 
+# -------------------------------------------------
+# vact - record of an active viewers
+# key is a VID (viewer ID),  val is a socket number
+# -------------------------------------------------
+# obs - a hash indexed by gid - who is viewing?
+# obs( gid ) - a list of viewers of this game
+class ViewerList:
+    vact: dict[str, Client] = dict()  # key=vid, val=socket
+
+    # obs( gid ) - a list of viewers of this game
+    obs: dict[int, List[str]] = dict()  # index by vid
+
+    def __init__(self) -> None:
+        pass
+
+    def add(self, who: str, client: Client) -> None:
+        self.vact[who] = client
+
+    def remove(self, who: str) -> None:
+        del self.vact[who]
+
+    def addObserver(self, gid: int, who: str) -> None:
+        if gid in self.obs:
+            if who not in self.obs[gid]:
+                self.obs[gid].append(who)
+        else:
+            self.obs[gid] = [who]
+
+    def removeObservers(self, gid: int) -> None:
+        if gid in self.obs:
+            del self.obs[gid]
+
+    def send(self, who: str, msg: str) -> None:
+        if who in self.vact:
+            send(self.vact[who], msg)
+
+    def sendAll(self, msg: str) -> None:
+        for v in self.vact.values():
+            send(v, msg)
+
+    def sendObservers(self, gid: int, msg: str) -> None:
+        if gid not in self.obs:
+            return
+        for vk in self.obs[gid]:
+            send(self.vact[vk], msg)
+
+
 # -------------------------------------------------------------------------
 #  act - internal currently active users.
 #        A record exists if a user is logged on.
@@ -288,19 +335,11 @@ class ActiveUser:
 #  value is Game
 
 
-# -------------------------------------------------
-# vact - record of an active viewers
-# key is a VID (viewer ID),  val is a socket number
-# -------------------------------------------------
-# obs - a hash indexed by gid - who is viewing?
-# obs( gid ) - a list of viewers of this game
-
 act: dict[str, ActiveUser] = dict()  # users currently logged on
 games: dict[int, Game] = dict()  # currently active games
 id: dict[Client, str] = dict()  # map sockets to user names
 ratingOf: dict[str, str] = dict()  # ratings of any player who logs on
-obs: dict[int, List[str]] = dict()  # index by vid
-vact: dict[str, Client] = dict()  # key=vid, val=socket
+viewers = ViewerList()
 sockets: dict[int, Client] = dict()  # map raw socket to socket
 
 
@@ -335,7 +374,6 @@ def nsend(name: str, msg: str) -> None:
 # -------------------------------------------------
 def infoMsg(msg: str) -> None:
     global act
-    global vact
 
     for v in act.values():
         if v.msg_state != "protocol":
@@ -344,8 +382,7 @@ def infoMsg(msg: str) -> None:
 
     # send message to viewing clients also
     # -------------------------------------
-    for v2 in vact.values():
-        send(v2, f"info {msg}")
+    viewers.sendAll(f"info {msg}")
 
 
 # routines to rate the games
@@ -556,8 +593,6 @@ def rating(who: str) -> str:
 def gameover(gid: int, sc: str, err: str) -> None:
     global games
     global act
-    global vact
-    global obs
     global id
     global db
     global dbrec
@@ -585,19 +620,10 @@ def gameover(gid: int, sc: str, err: str) -> None:
 
     # send gameover announcements to viewing clients
     # ----------------------------------------------
-    for v in vact.values():
-        try:
-            send(v, f"gameover {gid} {sc} {wtu} {btu}")
-        except:
-            pass
+    viewers.sendAll(f"gameover {gid} {sc} {wtu} {btu}")
 
-    if gid in obs:
-        for vk in obs[gid]:
-            try:
-                send(vact[vk], f"update {gid} {sc}")
-            except:
-                pass
-        del obs[gid]
+    viewers.sendObservers(gid, f"update {gid} {sc}")
+    viewers.removeObservers(gid)
 
     sgfString = sgf(
         game=game,
@@ -636,10 +662,8 @@ def gameover(gid: int, sc: str, err: str) -> None:
 
 def viewer_respond(sock: Client) -> None:
 
-    global vact
     global id
     global games
-    global obs
     global dbrec
 
     who = id[sock]
@@ -655,7 +679,7 @@ def viewer_respond(sock: Client) -> None:
 
         logger.error(f"[{who}] disconnected")
 
-        del vact[who]
+        viewers.remove(who)
         del id[sock]
         del sockets[sock.fileno]
         return
@@ -663,7 +687,7 @@ def viewer_respond(sock: Client) -> None:
     if data == "quit":
         sock.close()
         logger.info(f"viewer {who} quits")
-        del vact[who]
+        viewers.remove(who)
         del id[sock]
         return
 
@@ -686,11 +710,7 @@ def viewer_respond(sock: Client) -> None:
             msg = f"setup {gid} - - {cfg.boardsize} {cfg.komi} {w} {b} {cfg.level} {joinMoves(game.mvs)}"
             send(sock, msg)
 
-            if gid in obs:
-                if who not in obs[gid]:
-                    obs[gid].append(who)
-            else:
-                obs[gid] = [who]
+            viewers.addObserver(gid, who)
         else:
             rec = dbrec.execute(
                 "SELECT dta FROM games WHERE gid = ?", (gid,)
@@ -760,7 +780,7 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
 
     if msg[0:2] == "v1":
         del act[who]
-        vact[who] = sock
+        viewers.add(who, sock)
 
         # close down current handler, open a new handler
         # ----------------------------------------------
@@ -1068,12 +1088,7 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
         else:
             # nsend $w "play b $mv $brt"
             vmsg = f"{mv} {brt}"
-        if gid in obs:
-            for s in obs[gid]:
-                try:
-                    send(vact[s], f"update {gid} {vmsg}")
-                except:
-                    pass
+        viewers.sendObservers(gid, f"update {gid} {vmsg}")
         gameover(gid, over, "")
         return
     else:
@@ -1112,12 +1127,7 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
         nsend(game.w, f"play b {mv} {brt}")
         vmsg = f"{mv} {brt}"
 
-    if gid in obs:
-        for s in obs[gid]:
-            try:
-                send(vact[s], f"update {gid} {vmsg}")
-            except:
-                pass
+    viewers.sendObservers(gid, f"update {gid} {vmsg}")
 
     # game over due to natural causes?
     # --------------------------------
@@ -1225,7 +1235,6 @@ def schedule_games() -> None:
 
     global SKIP
     global act
-    global vact
     global games
     global last_game_count
     global workdir
@@ -1434,8 +1443,7 @@ def schedule_games() -> None:
                         nsend(bp, msg_out)
 
                         vmsg = f"match {gid} - - {cfg.boardsize} {cfg.komi} {wp}({wr}) {bp}({br}) -"
-                        for vv in vact.values():
-                            send(vv, vmsg)
+                        viewers.sendAll(vmsg)
 
                         logger.info(f"starting {wp} {wr} {bp} {br}")
 
@@ -1444,7 +1452,7 @@ def schedule_games() -> None:
 
                 time.sleep(3000 / 1000)
 
-                view_count = len(vact)
+                view_count = len(viewers.vact)
                 logger.info(f"Active viewers: {view_count}")
 
                 # gentlemen, start your clocks!
@@ -1511,7 +1519,7 @@ def server_loop() -> None:
                         who = id[sock]
                         # print(f"Recv client from {who}")
 
-                        if who in vact:
+                        if who in viewers.vact:
                             # print(f"handle viewer {who}")
                             viewer_respond(sock)
                         else:
