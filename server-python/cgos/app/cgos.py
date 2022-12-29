@@ -705,12 +705,6 @@ def viewer_respond(sock: Socket) -> None:
 def player_respond(sock: Socket) -> None:
     global act
     global id
-    global games
-    global ratingOf
-    global leeway
-    global sid
-    global vact
-    global obs
 
     who = id[sock]
     user = act[who]
