@@ -32,9 +32,20 @@ import socket
 import random
 import re
 import select
+import logging
 from typing import Any, List, Tuple
 
 from ..gogame import GoGame, Game, sgf
+
+
+# Setup logger
+logger = logging.getLogger("cgos_server")
+logger.setLevel(logging.INFO)
+logHandler = logging.StreamHandler()
+logHandler.setLevel(logging.INFO)
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logHandler.setFormatter(formatter)
+logger.addHandler(logHandler)
 
 
 SKIP = 4
@@ -77,7 +88,7 @@ class Configs:
                 config.read_file(f)
                 cfg = config["cgos-server"]
             except Exception as e:
-                print("Error reading config file", e, str(e))
+                logger.error("Error reading config file", e, str(e))
                 sys.exit(0)
 
         self.serverName = str(cfg["serverName"])
@@ -131,7 +142,7 @@ else:
 
     tme = now_string()
 
-    print(f'"{cfg.serverName}" up and running at {tme} GMT')
+    logger.info(f'"{cfg.serverName}" up and running at {tme} GMT')
 
 # remove any existing kill file
 # -----------------------------
@@ -139,14 +150,14 @@ if os.path.exists(cfg.killFile):
     os.remove(cfg.killFile)
 
 workdir = os.path.dirname(cfg.web_data_file)
-print(f"datafile:'{cfg.web_data_file}' -> workdir:'{workdir}'")
+logger.info(f"datafile:'{cfg.web_data_file}' -> workdir:'{workdir}'")
 
 # make GameDir directory if it doesn't exist
 # -------------------------------------------
 try:
     os.makedirs(cfg.sgfDir, exist_ok=True)
 except:
-    print("error making sgfDir: $gameDir")
+    logger.error(f"error making sgfDir: {cfg.sgfDir}")
     sys.exit(1)
 
 
@@ -192,19 +203,19 @@ def openDatabase() -> None:
     try:
         db = sqlite3.connect(cfg.database_state_file, timeout=40000)
     except sqlite3.Error as e:
-        print(f"Error opening {cfg.database_state_file} datbase.")
+        logger.error(f"Error opening {cfg.database_state_file} datbase.")
         raise Exception(e)
 
     try:
         cgi = sqlite3.connect(cfg.cgi_database, timeout=80000)
     except sqlite3.Error as e:
-        print(f"Error opening {cfg.cgi_database} datbase.")
+        logger.error(f"Error opening {cfg.cgi_database} datbase.")
         raise Exception(e)
 
     try:
         dbrec = sqlite3.connect(cfg.game_archive_database, timeout=40000)
     except sqlite3.Error as e:
-        print(f"Error opening {cfg.game_archive_database} datbase.")
+        logger.error(f"Error opening {cfg.game_archive_database} datbase.")
         raise Exception(e)
 
 
@@ -215,12 +226,13 @@ class Socket:
         self.fileno = s.fileno()
 
     def write(self, message: str) -> None:
+        logger.debug(f"S -> {id.get(self, '<unknown>')}: '{message}'")
         self._socketfile.write(message + "\n")
         self._socketfile.flush()
 
     def read(self) -> str:
         line = self._socketfile.readline()
-        print(f"S <- {id.get(self, '<unknown>')}: '{line}'")
+        logger.debug(f"S <- {id.get(self, '<unknown>')}: '{line}'")
         line = line.strip()
         return line
 
@@ -229,7 +241,7 @@ class Socket:
             self._socketfile.close()
             self._socket.close()
         except Exception as e:
-            log(str(e))
+            logger.error(str(e))
 
 
 # -------------------------------------------------------------------------
@@ -299,13 +311,12 @@ sid = 0
 
 def send(sock: Socket, msg: str) -> None:
     try:
-        print(f"S -> {id.get(sock, '<unknown>')}: '{msg}'")
         sock.write(msg)
     except:
         who = id.get(sock, "<unknown>")
-        log(f"alert: Socket crash for user: {who}")
-        traceback.print_exc()
-        traceback.print_stack()
+        logger.error(f"alert: Socket crash for user: {who}")
+        logger.error(traceback.format_exc())
+        logger.error(traceback.format_stack())
 
 
 # send a message to a player without knowing the socket
@@ -313,11 +324,10 @@ def send(sock: Socket, msg: str) -> None:
 def nsend(name: str, msg: str) -> None:
     global act
     if name in act:
-        print(f"S -> {name}: '{msg}'")
         sok = act[name].sock
         sok.write(msg)
     else:
-        log(f"alert: Cannot find active record for {name}")
+        logger.info(f"alert: Cannot find active record for {name}")
 
 
 # -------------------------------------------------
@@ -336,11 +346,6 @@ def infoMsg(msg: str) -> None:
     # -------------------------------------
     for v2 in vact.values():
         send(v2, f"info {msg}")
-
-
-def log(msg: str) -> None:
-    tme = now_string()
-    print(f"{tme} | {msg}")
 
 
 # routines to rate the games
@@ -560,7 +565,7 @@ def gameover(gid: int, sc: str, err: str) -> None:
     del gme[gid]  # free memory of the game object
 
     game = games[gid]
-    log(f"gameover: {gid} {game.w} {game.b} {sc} {err}")
+    logger.info(f"gameover: {gid} {game.w} {game.b} {sc} {err}")
 
     ctime = datetime.datetime.now(datetime.timezone.utc)
 
@@ -648,7 +653,7 @@ def viewer_respond(sock: Socket) -> None:
     except:
         sock.close()
 
-        log(f"[{who}] disconnected")
+        logger.error(f"[{who}] disconnected")
 
         del vact[who]
         del id[sock]
@@ -657,7 +662,7 @@ def viewer_respond(sock: Socket) -> None:
 
     if data == "quit":
         sock.close()
-        log(f"viewer {who} quits")
+        logger.info(f"viewer {who} quits")
         del vact[who]
         del id[sock]
         return
@@ -674,7 +679,7 @@ def viewer_respond(sock: Socket) -> None:
             w = f"{game.w}({game.wrate})"
             b = f"{game.b}({game.brate})"
 
-            log(
+            logger.info(
                 f"sending to viewer: game {gid} - - {cfg.boardsize} {cfg.komi} {w} {b} {cfg.level} ..."
             )
 
@@ -717,7 +722,7 @@ def player_respond(sock: Socket) -> None:
         if not data:
             raise Exception()
     except:
-        log(f"[{who}] disconnected")
+        logger.error(f"[{who}] disconnected")
 
         del act[who]
         del id[sock]
@@ -725,7 +730,7 @@ def player_respond(sock: Socket) -> None:
     if data == "quit":
         return _handle_player_quit(sock, data)
 
-    print("handle", user.msg_state, data)
+    logger.debug(f"handle '{user.msg_state}' '{data}'")
 
     if user.msg_state == "protocol":
         return _handle_player_protocol(sock, data)
@@ -738,14 +743,14 @@ def player_respond(sock: Socket) -> None:
     if user.msg_state == "genmove":
         return _handle_player_genmove(sock, data)
     if user.msg_state == "ok":
-        log(f"[{who}] made illegal respose in ok mode")
+        logger.info(f"[{who}] made illegal respose in ok mode")
 
 
 def _handle_player_quit(sock: Socket, data: str) -> None:
     who = id[sock]
 
     sock.close()
-    log(f"user {who} quits")
+    logger.info(f"user {who} quits")
     del act[who]
     del id[sock]
     return
@@ -767,7 +772,7 @@ def _handle_player_protocol(sock: Socket, data: str) -> None:
         # ----------------------------------------------
 
         with db:
-            log(f"client: {data}")
+            logger.info(f"client: {data}")
             cc = db.execute("select count from clients where name = ?", (data,))
             # if  [string is integer -strict $cc]:
             if cc is not None:
@@ -775,7 +780,7 @@ def _handle_player_protocol(sock: Socket, data: str) -> None:
             else:
                 db.execute("insert into clients values(?, 1)", (data,))
 
-        log(f"[{who}] logged on as viewer")
+        logger.info(f"[{who}] logged on as viewer")
 
         gid: int
 
@@ -793,7 +798,7 @@ def _handle_player_protocol(sock: Socket, data: str) -> None:
         for (gid, rec) in games.items():
             sw = f"{rec.w}({rec.wrate})"
             sb = f"{rec.b}({rec.brate})"
-            log(
+            logger.info(
                 f"sending to viewer: match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb}"
             )
             send(sock, f"match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} -")
@@ -802,7 +807,7 @@ def _handle_player_protocol(sock: Socket, data: str) -> None:
 
     if msg[0:2] == "e1":
         with db:
-            log(f"client: {data}")
+            logger.info(f"client: {data}")
             cc = db.execute("select count from clients where name = ?", (data,))
             # if  [string is integer -strict $cc] :
             if cc == 0:
@@ -863,7 +868,7 @@ def _handle_player_username(sock: Socket, data: str) -> None:
                 xsoc.close()
             except:
                 pass
-            log(f"Error: user {user_name} apparently lost old connection")
+            logger.error(f"Error: user {user_name} apparently lost old connection")
             del act[user_name]
             del id[xsoc]
         else:
@@ -907,7 +912,7 @@ def _handle_player_password(sock: Socket, data: str) -> None:
     res = cur.fetchone()
 
     if res is None:
-        log(f"[{who}] new user")
+        logger.info(f"[{who}] new user")
         db.execute(
             """INSERT INTO password VALUES(?, ?, 0, ?, ?, "2000-01-01 00:00")""",
             (
@@ -935,29 +940,29 @@ def _handle_player_password(sock: Socket, data: str) -> None:
         del id[sock]
         return
 
-    log(f"[{who}] logged on")
+    logger.info(f"[{who}] logged on")
 
     act[who].rating = rat
     act[who].k = k
     act[who].msg_state = "waiting"
 
-    log(f"is {who} currently playing a game?")
+    logger.info(f"is {who} currently playing a game?")
 
     # determine if there are any games pending
     # ----------------------------------------
     for (gid, inf) in games.items():
 
-        log(f"testing {gid} {inf.w} {inf.b}")
+        logger.info(f"testing {gid} {inf.w} {inf.b}")
 
         # is this player involved in a game?
         # ----------------------------------
         if inf.w == who or inf.b == who:
-            log("YES!")
+            logger.info("YES!")
             wr = ratingOf[inf.w]
             br = ratingOf[inf.b]
 
             msg_out = f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {inf.w}({wr}) {inf.b}({br}) {joinMoves(inf.mvs)}"
-            log(msg_out)
+            logger.info(msg_out)
 
             # determine who's turn to play
             # ----------------------------
@@ -1006,7 +1011,7 @@ def _handle_player_gameover(sock: Socket, data: str) -> None:
     else:
         act[who].msg_state = "gameover"
 
-    log(f"[{who}] gave improper response to gameover: {msg}")
+    logger.info(f"[{who}] gave improper response to gameover: {msg}")
 
 
 def _handle_player_genmove(sock: Socket, data: str) -> None:
@@ -1275,7 +1280,7 @@ def schedule_games() -> None:
                 count += 1
 
     if count != last_game_count:
-        log(f"Games in progress: {count}")
+        logger.info(f"Games in progress: {count}")
         last_game_count = count
 
     # send progress message
@@ -1296,7 +1301,7 @@ def schedule_games() -> None:
     # --------------------------------------------
     if count == 0:
 
-        log("Batch rating")
+        logger.info("Batch rating")
         batchRate()
 
         tmpf = os.path.join(workdir, "dta.cgos.tmp")
@@ -1332,7 +1337,7 @@ def schedule_games() -> None:
                 wd.close()
                 os.rename(tmpf, cfg.web_data_file)
                 db.close()
-                log("KILL FILE FOUND - EXIT CGOS")
+                logger.info("KILL FILE FOUND - EXIT CGOS")
                 sys.exit(0)
 
             # dynamically computer ELO RANGE
@@ -1366,13 +1371,13 @@ def schedule_games() -> None:
             if e <= 0:
                 max_interval = 2000.0
 
-            log(f"maximum skip elo: {max_interval}")
+            logger.info(f"maximum skip elo: {max_interval}")
             max_interval = max_interval * 1.50
 
             if max_interval > RANGE:
                 RANGE = max_interval
 
-            log(f"ELO permutation factor to be used: {RANGE}")
+            logger.info(f"ELO permutation factor to be used: {RANGE}")
 
             # now permute the players up to RANGE amount
             # ------------------------------------------
@@ -1389,7 +1394,7 @@ def schedule_games() -> None:
 
             if len(lst) > 1:
 
-                log(f"will schedule: {len(lst)} players")
+                logger.info(f"will schedule: {len(lst)} players")
 
                 lst_pairs = iter(lst)
                 for (aa, bb) in zip(lst_pairs, lst_pairs):
@@ -1438,7 +1443,7 @@ def schedule_games() -> None:
                         for vv in vact.values():
                             send(vv, vmsg)
 
-                        log(f"starting {wp} {wr} {bp} {br}")
+                        logger.info(f"starting {wp} {wr} {bp} {br}")
 
                 # add a 5 second delay to let all programs complete setup.
                 # ------------------------------------------------------
@@ -1446,7 +1451,7 @@ def schedule_games() -> None:
                 time.sleep(3000 / 1000)
 
                 view_count = len(vact)
-                log(f"Active viewers: {view_count}")
+                logger.info(f"Active viewers: {view_count}")
 
                 # gentlemen, start your clocks!
                 # -------------------------------------
@@ -1454,7 +1459,7 @@ def schedule_games() -> None:
                 # [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S" -timezone :UTC]
                 for (gid, rec) in games.items():
                     # wp, bp = rec
-                    log(
+                    logger.info(
                         f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })"
                     )
                     nsend(rec.b, f"genmove b {cfg.level}")  # the game's afoot
@@ -1501,7 +1506,7 @@ def server_loop() -> None:
                 if s is server_socket:
                     client_socket, address = server_socket.accept()
                     read_list.append(client_socket)
-                    log(f"Connection from {address}")
+                    logger.info(f"Connection from {address}")
                     sock = Socket(client_socket)
                     sockets[sock.fileno] = sock
                     accept_connection(sock)
@@ -1533,7 +1538,7 @@ if __name__ == "__main__":
         initDatabase()
         openDatabase()
     except Exception:
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         sys.exit(1)
 
     server_loop()
