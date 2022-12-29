@@ -40,33 +40,66 @@ from ..gogame import GoGame, Game, sgf
 SKIP = 4
 ENCODING = "utf-8"
 
-serverName: str
-boardsize: int
-komi: float
-level: int
-portNumber: int
-timeGift: float
-database_state_file: str
-cgi_database: str
-game_archive_database: str
-web_data_file: str
-defaultRating: float
-minK: float
-maxK: float
-htmlDir: str
-sgfDir: str
-provisionalAge: float
-establishedAge: float
-killFile: str
-tools_dir: str
-bin_dir: str
-leeway: int
-
 db: sqlite3.Connection
 dbrec: sqlite3.Connection
 cgi: sqlite3.Connection
 
 gme: dict[int, GoGame] = dict()
+
+
+class Configs:
+    serverName: str
+    boardsize: int
+    komi: float
+    level: int
+    portNumber: int
+    timeGift: float
+    database_state_file: str
+    cgi_database: str
+    game_archive_database: str
+    web_data_file: str
+    defaultRating: float
+    minK: float
+    maxK: float
+    htmlDir: str
+    sgfDir: str
+    provisionalAge: float
+    establishedAge: float
+    killFile: str
+    tools_dir: str
+    bin_dir: str
+    leeway: int
+
+    def load(self, path: str) -> None:
+        config = configparser.ConfigParser()
+        with open(path) as f:
+            try:
+                config.read_file(f)
+                cfg = config["cgos-server"]
+            except Exception as e:
+                print("Error reading config file", e, str(e))
+                sys.exit(0)
+
+        self.serverName = str(cfg["serverName"])
+        self.portNumber = int(cfg["portNumber"])
+        self.boardsize = int(cfg["boardsize"])
+        self.komi = float(cfg["komi"])
+        self.level = int(cfg["level"]) * 1000
+        self.timeGift = float(cfg["timeGift"])
+        self.database_state_file = str(cfg["database_state_file"])
+        self.cgi_database = str(cfg["cgi_database"])
+        self.game_archive_database = str(cfg["game_archive_database"])
+        self.web_data_file = str(cfg["web_data_file"])
+        self.defaultRating = float(cfg["defaultRating"])
+        self.minK = float(cfg["minK"])
+        self.maxK = float(cfg["maxK"])
+        self.htmlDir = str(cfg["htmlDir"])
+        self.sgfDir = str(cfg["sgfDir"])
+        self.provisionalAge = float(cfg["provisionalAge"])
+        self.establishedAge = float(cfg["establishedAge"])
+        self.killFile = str(cfg["killFile"])
+        self.tools_dir = str(cfg["tools_dir"])
+        self.bin_dir = str(cfg["bin_dir"])
 
 
 def now_string() -> str:
@@ -92,112 +125,87 @@ if len(sys.argv) < 2:
     print("Must specify a configuration file.")
     sys.exit(1)
 else:
-    config = configparser.ConfigParser()
-    with open(sys.argv[1]) as f:
-        try:
-            config.read_file(f)
-            cfg = config["cgos-server"]
-        except Exception as e:
-            print("Error reading config file", e, str(e))
-            sys.exit(0)
-
-    serverName = str(cfg["serverName"])
-    portNumber = int(cfg["portNumber"])
-    boardsize = int(cfg["boardsize"])
-    komi = float(cfg["komi"])
-    level = int(cfg["level"]) * 1000
-    timeGift = float(cfg["timeGift"])
-    database_state_file = str(cfg["database_state_file"])
-    cgi_database = str(cfg["cgi_database"])
-    game_archive_database = str(cfg["game_archive_database"])
-    web_data_file = str(cfg["web_data_file"])
-    defaultRating = float(cfg["defaultRating"])
-    minK = float(cfg["minK"])
-    maxK = float(cfg["maxK"])
-    htmlDir = str(cfg["htmlDir"])
-    sgfDir = str(cfg["sgfDir"])
-    provisionalAge = float(cfg["provisionalAge"])
-    establishedAge = float(cfg["establishedAge"])
-    killFile = str(cfg["killFile"])
-    tools_dir = str(cfg["tools_dir"])
-    bin_dir = str(cfg["bin_dir"])
-
-    leeway = int(timeGift * 1000.0)
+    cfg = Configs()
+    cfg.load(sys.argv[1])
+    leeway = int(cfg.timeGift * 1000.0)
 
     tme = now_string()
 
-    print(f'"{serverName}" up and running at {tme} GMT')
+    print(f'"{cfg.serverName}" up and running at {tme} GMT')
 
 # remove any existing kill file
 # -----------------------------
-if os.path.exists(killFile):
-    os.remove(killFile)
+if os.path.exists(cfg.killFile):
+    os.remove(cfg.killFile)
 
-workdir = os.path.dirname(web_data_file)
-print(f"datafile:'{web_data_file}' -> workdir:'{workdir}'")
+workdir = os.path.dirname(cfg.web_data_file)
+print(f"datafile:'{cfg.web_data_file}' -> workdir:'{workdir}'")
 
 # make GameDir directory if it doesn't exist
 # -------------------------------------------
 try:
-    os.makedirs(sgfDir, exist_ok=True)
+    os.makedirs(cfg.sgfDir, exist_ok=True)
 except:
     print("error making sgfDir: $gameDir")
     sys.exit(1)
 
 
 def initDatabase() -> None:
-    if not os.path.exists(cgi_database):
-        conn = sqlite3.connect(cgi_database)
+    if not os.path.exists(cfg.cgi_database):
+        conn = sqlite3.connect(cfg.cgi_database)
 
-        conn.execute("""create table games(gid int, w, wr,  b, br,  dte, res)""")
-        conn.execute("""create index white on games(w)""")
-        conn.execute("""create index black on games(b)""")
+        conn.execute("create table games(gid int, w, wr,  b, br,  dte, res)")
+        conn.execute("create index white on games(w)")
+        conn.execute("create index black on games(b)")
 
         conn.close()
 
-    if not os.path.exists(game_archive_database):
-        conn = sqlite3.connect(game_archive_database)
-        conn.execute("""create table games(gid int, dta)""")
+    if not os.path.exists(cfg.game_archive_database):
+        conn = sqlite3.connect(cfg.game_archive_database)
+        conn.execute("create table games(gid int, dta)")
         conn.close()
 
-    if not os.path.exists(database_state_file):
+    if not os.path.exists(cfg.database_state_file):
 
-        conn = sqlite3.connect(database_state_file)
+        conn = sqlite3.connect(cfg.database_state_file)
 
-        conn.execute("""create table gameid(gid int)""")
+        conn.execute("create table gameid(gid int)")
         conn.execute(
-            """create table password(name, pass, games int, rating, K, last_game, primary key(name) )"""
+            "create table password(name, pass, games int, rating, K, last_game, primary key(name) )"
         )
         conn.execute(
-            """create table games(gid int, w, wr, b, br, dte, wtu, btu, res, final, primary key(gid))"""
+            "create table games(gid int, w, wr, b, br, dte, wtu, btu, res, final, primary key(gid))"
         )
-        conn.execute("""create table anchors(name, rating, primary key(name))""")
-        conn.execute("""create table clients( name, count )""")
-        conn.execute("""INSERT into gameid VALUES(1)""")
+        conn.execute("create table anchors(name, rating, primary key(name))")
+        conn.execute("create table clients(name, count)")
+        conn.execute("INSERT into gameid VALUES(1)")
 
         conn.close()
 
 
-initDatabase()
+def openDatabase() -> None:
+    global db
+    global cgi
+    global dbrec
 
-# set up a long timeout for transactions
-try:
-    db = sqlite3.connect(database_state_file, timeout=40000)
-except sqlite3.Error:
-    print(f"Error opening {database_state_file} datbase.")
-    sys.exit(1)
+    # set up a long timeout for transactions
+    try:
+        db = sqlite3.connect(cfg.database_state_file, timeout=40000)
+    except sqlite3.Error as e:
+        print(f"Error opening {cfg.database_state_file} datbase.")
+        raise Exception(e)
 
-try:
-    cgi = sqlite3.connect(cgi_database, timeout=80000)
-except sqlite3.Error:
-    print(f"Error opening {cgi_database} datbase.")
-    sys.exit(1)
+    try:
+        cgi = sqlite3.connect(cfg.cgi_database, timeout=80000)
+    except sqlite3.Error as e:
+        print(f"Error opening {cfg.cgi_database} datbase.")
+        raise Exception(e)
 
-try:
-    dbrec = sqlite3.connect(game_archive_database, timeout=40000)
-except sqlite3.Error:
-    print(f"Error opening {game_archive_database} datbase.")
-    sys.exit(1)
+    try:
+        dbrec = sqlite3.connect(cfg.game_archive_database, timeout=40000)
+    except sqlite3.Error as e:
+        print(f"Error opening {cfg.game_archive_database} datbase.")
+        raise Exception(e)
 
 
 class Socket:
@@ -355,16 +363,16 @@ def newrating(cur_rating: float, opp_rating: float, res: float, K: float) -> flo
 # ---------------------------
 def seeRecord(gid: int, res: str, dte: Any, tme: str) -> str:
 
-    global boardsize
-    global komi
-    global level
+    # global boardsize
+    # global komi
+    # obal level
     global games
 
     game = games[gid]
 
     s = ""
 
-    s += f"{tme} {boardsize} {komi} {game.w}({game.wrate}) {game.b}({game.brate}) {level} {joinMoves(game.mvs)} "
+    s += f"{tme} {cfg.boardsize} {cfg.komi} {game.w}({game.wrate}) {game.b}({game.brate}) {cfg.level} {joinMoves(game.mvs)} "
     s += res
 
     return s
@@ -372,8 +380,6 @@ def seeRecord(gid: int, res: str, dte: Any, tme: str) -> str:
 
 def batchRate() -> None:
 
-    global minK
-    global maxK
     global act
     global ratingOf
     global db
@@ -388,7 +394,7 @@ def batchRate() -> None:
 
     batch = db.execute('SELECT gid, w, b, res, dte  FROM games WHERE final == "n"')
 
-    kRange = maxK - minK
+    kRange = cfg.maxK - cfg.minK
 
     for gid, w, b, res, dte in batch:
         wr, wk = db.execute(
@@ -398,16 +404,16 @@ def batchRate() -> None:
             "SELECT rating, K FROM password WHERE name = ?", (b,)
         ).fetchone()
 
-        if wk < minK:
-            wk = minK
-        if bk < minK:
-            bk = minK
+        if wk < cfg.minK:
+            wk = cfg.minK
+        if bk < cfg.minK:
+            bk = cfg.minK
 
         # calculate white and black K strength (percentage of total K range)
         # used to calculate effective K for individual games and K reduction
         # ------------------------------------------------------------------
-        wks = 1.0 - (wk - minK) / kRange
-        bks = 1.0 - (bk - minK) / kRange
+        wks = 1.0 - (wk - cfg.minK) / kRange
+        bks = 1.0 - (bk - cfg.minK) / kRange
 
         weK = wk * bks  # white effective K for this game
         beK = bk * wks  # black effective K for this game
@@ -438,19 +444,19 @@ def batchRate() -> None:
 
         # limit K to minimum value
         # ------------------------
-        if nbK < minK:
-            nbK = minK
-        if nwK < minK:
-            nwK = minK
+        if nbK < cfg.minK:
+            nbK = cfg.minK
+        if nwK < cfg.minK:
+            nwK = cfg.minK
 
         # make sure anchors retain their ratings
         # --------------------------------------
         if w in anchors:
             nwr = anchors[w]
-            nwK = minK
+            nwK = cfg.minK
         if b in anchors:
             nbr = anchors[b]
-            nbK = minK
+            nbK = cfg.minK
 
         # update act record too
         # ---------------------
@@ -544,13 +550,11 @@ def rating(who: str) -> str:
 
 def gameover(gid: int, sc: str, err: str) -> None:
     global games
-    global level
     global act
     global vact
-    global sgfDir
-    global htmlDir
     global obs
     global id
+    global db
     global dbrec
 
     del gme[gid]  # free memory of the game object
@@ -571,8 +575,8 @@ def gameover(gid: int, sc: str, err: str) -> None:
         nsend(game.b, f"gameover {dte} {sc} {err}")
         act[game.b].msg_state = "gameover"
 
-    wtu = level - game.wrt
-    btu = level - game.brt
+    wtu = cfg.level - game.wrt
+    btu = cfg.level - game.brt
 
     # send gameover announcements to viewing clients
     # ----------------------------------------------
@@ -592,10 +596,10 @@ def gameover(gid: int, sc: str, err: str) -> None:
 
     sgfString = sgf(
         game=game,
-        serverName=serverName,
-        level=level,
-        boardsize=boardsize,
-        komi=komi,
+        serverName=cfg.serverName,
+        level=cfg.level,
+        boardsize=cfg.boardsize,
+        komi=cfg.komi,
         gid=gid,
         res=sc,
         dte=dte,
@@ -604,8 +608,8 @@ def gameover(gid: int, sc: str, err: str) -> None:
     see = seeRecord(gid, sc, dte, tme)
 
     dest_dir = os.path.join(
-        htmlDir,
-        sgfDir,
+        cfg.htmlDir,
+        cfg.sgfDir,
         ctime.strftime("%Y"),
         ctime.strftime("%m"),
         ctime.strftime("%d"),
@@ -630,10 +634,8 @@ def viewer_respond(sock: Socket) -> None:
     global vact
     global id
     global games
-    global boardsize
-    global komi
     global obs
-    global level
+    global dbrec
 
     who = id[sock]
 
@@ -673,10 +675,10 @@ def viewer_respond(sock: Socket) -> None:
             b = f"{game.b}({game.brate})"
 
             log(
-                f"sending to viewer: game {gid} - - {boardsize} {komi} {w} {b} {level} ..."
+                f"sending to viewer: game {gid} - - {cfg.boardsize} {cfg.komi} {w} {b} {cfg.level} ..."
             )
 
-            msg = f"setup {gid} - - {boardsize} {komi} {w} {b} {level} {joinMoves(game.mvs)}"
+            msg = f"setup {gid} - - {cfg.boardsize} {cfg.komi} {w} {b} {cfg.level} {joinMoves(game.mvs)}"
             send(sock, msg)
 
             if gid in obs:
@@ -685,7 +687,9 @@ def viewer_respond(sock: Socket) -> None:
             else:
                 obs[gid] = [who]
         else:
-            rec = dbrec.execute("SELECT dta FROM games WHERE gid = ?", (gid,)).fetchone()
+            rec = dbrec.execute(
+                "SELECT dta FROM games WHERE gid = ?", (gid,)
+            ).fetchone()
             if rec:
                 dta = rec[0]
                 send(sock, f"setup {gid} {dta}")
@@ -697,11 +701,6 @@ def player_respond(sock: Socket) -> None:
     global act
     global id
     global games
-    global level
-    global boardsize
-    global komi
-    global defaultRating
-    global maxK
     global ratingOf
     global leeway
     global sid
@@ -753,6 +752,9 @@ def _handle_player_quit(sock: Socket, data: str) -> None:
 
 
 def _handle_player_protocol(sock: Socket, data: str) -> None:
+    global db
+    global dbrec
+
     who = id[sock]
 
     msg = data.strip()
@@ -791,8 +793,10 @@ def _handle_player_protocol(sock: Socket, data: str) -> None:
         for (gid, rec) in games.items():
             sw = f"{rec.w}({rec.wrate})"
             sb = f"{rec.b}({rec.brate})"
-            log(f"sending to viewer: match {gid} - - {boardsize} {komi} {sw} {sb}")
-            send(sock, f"match {gid} - - {boardsize} {komi} {sw} {sb} -")
+            log(
+                f"sending to viewer: match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb}"
+            )
+            send(sock, f"match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} -")
 
         return
 
@@ -880,6 +884,8 @@ def _handle_player_username(sock: Socket, data: str) -> None:
 
 
 def _handle_player_password(sock: Socket, data: str) -> None:
+    global db
+
     who = id[sock]
 
     pw = data.strip()
@@ -907,13 +913,13 @@ def _handle_player_password(sock: Socket, data: str) -> None:
             (
                 who,
                 pw,
-                defaultRating,
-                maxK,
+                cfg.defaultRating,
+                cfg.maxK,
             ),
         )
         cmp_pw = pw
-        rat = defaultRating
-        k = maxK
+        rat = cfg.defaultRating
+        k = cfg.maxK
         ratingOf[who] = strRate(rat, k)
     else:
         cmp_pw, rat, k = res
@@ -950,7 +956,7 @@ def _handle_player_password(sock: Socket, data: str) -> None:
             wr = ratingOf[inf.w]
             br = ratingOf[inf.b]
 
-            msg_out = f"setup {gid} {boardsize} {komi} {level} {inf.w}({wr}) {inf.b}({br}) {joinMoves(inf.mvs)}"
+            msg_out = f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {inf.w}({wr}) {inf.b}({br}) {joinMoves(inf.mvs)}"
             log(msg_out)
 
             # determine who's turn to play
@@ -986,8 +992,6 @@ def _handle_player_password(sock: Socket, data: str) -> None:
                     act[who].msg_state = "genmove"
                     return
 
-    return
-
 
 def _handle_player_gameover(sock: Socket, data: str) -> None:
     who = id[sock]
@@ -1003,10 +1007,6 @@ def _handle_player_gameover(sock: Socket, data: str) -> None:
         act[who].msg_state = "gameover"
 
     log(f"[{who}] gave improper response to gameover: {msg}")
-    # nsend $who "Error: improper response to gameover"
-
-    # unset act($who)
-    # catch { close $sock }
 
 
 def _handle_player_genmove(sock: Socket, data: str) -> None:
@@ -1124,7 +1124,7 @@ def _handle_player_genmove(sock: Socket, data: str) -> None:
     # --------------------------------
     if gme[gid].twopass():
         sc: float = gme[gid].ttScore()
-        sc = sc - komi
+        sc = sc - cfg.komi
         if sc < 0.0:
             sc = -sc
             over = f"W+{sc}"
@@ -1166,7 +1166,7 @@ def accept_connection(sock: Socket) -> None:
 
     id[sock] = who
 
-    act[who] = ActiveUser(sock, "protocol", 0, defaultRating, maxK)
+    act[who] = ActiveUser(sock, "protocol", 0, cfg.defaultRating, cfg.maxK)
 
     # Set up handler to "respond" when a message comes in
     # ---------------------------------------------------
@@ -1227,15 +1227,9 @@ def schedule_games() -> None:
     global SKIP
     global act
     global vact
-    global boardsize
-    global komi
     global games
-    global level
     global last_game_count
-    global web_data_file
     global workdir
-    global killFile
-    global last_round_time
     global leeway
     global last_est
     global gme
@@ -1334,9 +1328,9 @@ def schedule_games() -> None:
             ):
                 wd.write(f"g {gid} {w} {wr} {b} {br} {dte} {wtu} {btu} {res}\n")
 
-            if os.path.exists(killFile):
+            if os.path.exists(cfg.killFile):
                 wd.close()
-                os.rename(tmpf, web_data_file)
+                os.rename(tmpf, cfg.web_data_file)
                 db.close()
                 log("KILL FILE FOUND - EXIT CGOS")
                 sys.exit(0)
@@ -1424,7 +1418,7 @@ def schedule_games() -> None:
                             "SELECT gid FROM gameid WHERE ROWID=1"
                         ).fetchone()[0]
                         db.execute("UPDATE gameid set gid=gid+1 WHERE ROWID=1")
-                        gme[gid] = GoGame(boardsize)
+                        gme[gid] = GoGame(cfg.boardsize)
 
                         wr = act[wp].rating
                         wk = act[wp].k
@@ -1433,14 +1427,14 @@ def schedule_games() -> None:
                         wr = strRate(wr, wk)
                         br = strRate(br, bk)
 
-                        games[gid] = Game(wp, bp, 0, level, level, wr, br, [])
+                        games[gid] = Game(wp, bp, 0, cfg.level, cfg.level, wr, br, [])
                         act[wp].gid = gid
                         act[bp].gid = gid
-                        msg_out = f"setup {gid} {boardsize} {komi} {level} {wp}({wr}) {bp}({br})"
+                        msg_out = f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {wp}({wr}) {bp}({br})"
                         nsend(wp, msg_out)
                         nsend(bp, msg_out)
 
-                        vmsg = f"match {gid} - - {boardsize} {komi} {wp}({wr}) {bp}({br}) -"
+                        vmsg = f"match {gid} - - {cfg.boardsize} {cfg.komi} {wp}({wr}) {bp}({br}) -"
                         for vv in vact.values():
                             send(vv, vmsg)
 
@@ -1463,14 +1457,14 @@ def schedule_games() -> None:
                     log(
                         f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })"
                     )
-                    nsend(rec.b, f"genmove b {level}")  # the game's afoot
+                    nsend(rec.b, f"genmove b {cfg.level}")  # the game's afoot
                     ct = now_milliseconds()
                     games[gid].lmst = ct
                     act[bp].msg_state = "genmove"
                     act[wp].msg_state = "ok"
                     wd.write(f"s {tmeSch} {gid} {rec}")
 
-        os.rename(tmpf, web_data_file)
+        os.rename(tmpf, cfg.web_data_file)
 
     # after idle [list after 15000 schedule_games]    ;# every 15 seconds
     # t = threading.Timer(15.0, schedule_games)
@@ -1483,7 +1477,7 @@ last_est = now_seconds()
 def server_loop() -> None:
     # Create our server on the expected port
     # ------------------------------------------
-    server_addr = ("", portNumber)
+    server_addr = ("", cfg.portNumber)
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind(server_addr)
     server_socket.listen(5)
@@ -1534,4 +1528,12 @@ def server_loop() -> None:
 
 
 if __name__ == "__main__":
+
+    try:
+        initDatabase()
+        openDatabase()
+    except Exception:
+        traceback.print_exc()
+        sys.exit(1)
+
     server_loop()
