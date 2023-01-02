@@ -220,28 +220,35 @@ def openDatabase() -> None:
 
 
 class Client:
-    def __init__(self, s: socket.socket) -> None:
+    def __init__(self, s: socket.socket, id: str) -> None:
         self._socket = s
+        self.id = id or "<unknown>"
         self._socketfile = self._socket.makefile("rw", encoding=ENCODING)
         self.fileno = s.fileno()
+        clients[self.fileno] = self
 
     def write(self, message: str) -> None:
-        logger.debug(f"S -> {id.get(self, '<unknown>')}: '{message}'")
+        logger.debug(f"S -> {self.id}: '{message}'")
         self._socketfile.write(message + "\n")
         self._socketfile.flush()
 
     def read(self) -> str:
         line = self._socketfile.readline()
-        logger.debug(f"S <- {id.get(self, '<unknown>')}: '{line}'")
+        logger.debug(f"S <- {self.id}: '{line}'")
         line = line.strip()
         return line
 
     def close(self) -> None:
+        if self.fileno in clients:
+            del clients[self.fileno]
         try:
             self._socketfile.close()
             self._socket.close()
         except Exception as e:
             logger.error(str(e))
+
+
+clients: dict[int, Client] = dict()  # map raw socket to socket
 
 
 # -------------------------------------------------
@@ -337,10 +344,8 @@ class ActiveUser:
 
 act: dict[str, ActiveUser] = dict()  # users currently logged on
 games: dict[int, Game] = dict()  # currently active games
-id: dict[Client, str] = dict()  # map sockets to user names
 ratingOf: dict[str, str] = dict()  # ratings of any player who logs on
 viewers = ViewerList()
-sockets: dict[int, Client] = dict()  # map raw socket to socket
 
 
 # a unique and temporary name for each login until a name is established
@@ -352,8 +357,7 @@ def send(sock: Client, msg: str) -> None:
     try:
         sock.write(msg)
     except:
-        who = id.get(sock, "<unknown>")
-        logger.error(f"alert: Client crash for user: {who}")
+        logger.error(f"alert: Client crash for user: {sock.id}")
         logger.error(traceback.format_exc())
         logger.error(traceback.format_stack())
 
@@ -593,7 +597,6 @@ def rating(who: str) -> str:
 def gameover(gid: int, sc: str, err: str) -> None:
     global games
     global act
-    global id
     global db
     global dbrec
 
@@ -662,11 +665,10 @@ def gameover(gid: int, sc: str, err: str) -> None:
 
 def viewer_respond(sock: Client) -> None:
 
-    global id
     global games
     global dbrec
 
-    who = id[sock]
+    who = sock.id
 
     # If we can no longer read from sock, close it.
     # ---------------------------------------------
@@ -676,19 +678,14 @@ def viewer_respond(sock: Client) -> None:
             raise Exception()
     except:
         sock.close()
-
         logger.error(f"[{who}] disconnected")
-
         viewers.remove(who)
-        del id[sock]
-        del sockets[sock.fileno]
         return
 
     if data == "quit":
         sock.close()
         logger.info(f"viewer {who} quits")
         viewers.remove(who)
-        del id[sock]
         return
 
     req, param = data.split(maxsplit=1)
@@ -724,9 +721,8 @@ def viewer_respond(sock: Client) -> None:
 
 def player_respond(sock: Client) -> None:
     global act
-    global id
 
-    who = id[sock]
+    who = sock.id
     user = act[who]
 
     # If we can no longer read from sock, close it.
@@ -738,8 +734,8 @@ def player_respond(sock: Client) -> None:
     except:
         logger.error(f"[{who}] disconnected")
 
+        sock.close()
         del act[who]
-        del id[sock]
         return
     if data == "quit":
         return _handle_player_quit(sock, data)
@@ -761,12 +757,11 @@ def player_respond(sock: Client) -> None:
 
 
 def _handle_player_quit(sock: Client, data: str) -> None:
-    who = id[sock]
+    who = sock.id
 
     sock.close()
     logger.info(f"user {who} quits")
     del act[who]
-    del id[sock]
     return
 
 
@@ -774,7 +769,7 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
     global db
     global dbrec
 
-    who = id[sock]
+    who = sock.id
 
     msg = data.strip()
 
@@ -834,16 +829,12 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
 
     send(sock, "Error: invalid response")
     del act[who]
-    del id[sock]
-    try:
-        sock.close()
-    except:
-        pass
+    sock.close()
     return
 
 
 def _handle_player_username(sock: Client, data: str) -> None:
-    who = id[sock]
+    who = sock.id
 
     data = data.strip()
     err = valid_name(data)  # returns "" or an error message
@@ -853,12 +844,7 @@ def _handle_player_username(sock: Client, data: str) -> None:
     else:
         send(sock, f"Error: {err}")
         del act[who]
-        del id[sock]
-        try:
-            sock.close()
-        except:
-            pass
-
+        sock.close()
         return
 
     # -------------------------------------------------------------------------------------------------------
@@ -878,24 +864,16 @@ def _handle_player_username(sock: Client, data: str) -> None:
         except:
             err_occur = True
         if err_occur:
-            try:
-                xsoc.close()
-            except:
-                pass
+            xsoc.close()
             logger.error(f"Error: user {user_name} apparently lost old connection")
             del act[user_name]
-            del id[xsoc]
         else:
             send(sock, "Error: You are already logged on!  Closing connection.")
             del act[who]
-            del id[sock]
-            try:
-                sock.close()
-            except:
-                pass
+            sock.close()
             return
 
-    id[sock] = user_name
+    sock.id = user_name
     del act[who]
     act[user_name] = ActiveUser(sock, "password", 0, 0, 0)
     send(sock, "password")
@@ -905,7 +883,7 @@ def _handle_player_username(sock: Client, data: str) -> None:
 def _handle_player_password(sock: Client, data: str) -> None:
     global db
 
-    who = id[sock]
+    who = sock.id
 
     pw = data.strip()
     # loginTime = now_seconds()
@@ -914,12 +892,8 @@ def _handle_player_password(sock: Client, data: str) -> None:
 
     if err != "":
         send(sock, f"Error: {err}")
-        try:
-            sock.close()
-        except:
-            pass
+        sock.close()
         del act[who]
-        del id[sock]
         return
 
     cur = db.execute("SELECT pass, rating, K FROM password WHERE name = ?", (who,))
@@ -946,12 +920,8 @@ def _handle_player_password(sock: Client, data: str) -> None:
 
     if cmp_pw != pw:
         send(sock, "Sorry, password doesn't match")
-        try:
-            sock.close()
-        except:
-            pass
+        sock.close()
         del act[who]
-        del id[sock]
         return
 
     logger.info(f"[{who}] logged on")
@@ -1013,7 +983,7 @@ def _handle_player_password(sock: Client, data: str) -> None:
 
 
 def _handle_player_gameover(sock: Client, data: str) -> None:
-    who = id[sock]
+    who = sock.id
 
     msg = data.strip()
     # log "msg recieved from $who is $msg"
@@ -1029,7 +999,7 @@ def _handle_player_gameover(sock: Client, data: str) -> None:
 
 
 def _handle_player_genmove(sock: Client, data: str) -> None:
-    who = id[sock]
+    who = sock.id
 
     ct = now_milliseconds()
     act[who].msg_state = "ok"  # passive state - not expecting a response
@@ -1158,12 +1128,9 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
         games[gid].lmst = now_milliseconds()
 
 
-def accept_connection(sock: Client) -> None:
+def accept_connection(sock: socket.socket) -> Client:
     global act
     global sid
-    global defaultRating
-    global id
-    global maxK
 
     # fconfigure $sock -blocking 0 -buffering line
     # sock._socket.setblocking(False)
@@ -1173,16 +1140,18 @@ def accept_connection(sock: Client) -> None:
     who = str(sid)
     sid += 1
 
-    id[sock] = who
+    client = Client(sock, who)
 
-    act[who] = ActiveUser(sock, "protocol", 0, cfg.defaultRating, cfg.maxK)
+    act[who] = ActiveUser(client, "protocol", 0, cfg.defaultRating, cfg.maxK)
 
     # Set up handler to "respond" when a message comes in
     # ---------------------------------------------------
     # TODO
     # fileevent $sock readable [list player_respond $sock]
 
-    send(sock, "protocol")
+    send(client, "protocol")
+
+    return client
 
 
 def rcmp(a, b) -> int:
@@ -1206,7 +1175,6 @@ def rcmp(a, b) -> int:
 # ---------------------------------------------------------
 def estimateRoundTimeLeft() -> int:
     global games
-    global level
 
     wctl = 0  # worst case time left
     mtme = now_milliseconds()
@@ -1502,21 +1470,19 @@ def server_loop() -> None:
         while True:
             readable: List[socket.socket]
             read_list = [server_socket]
-            read_list += [s._socket for s in id.keys()]
+            read_list += [s._socket for s in clients.values()]
             readable, writable, errored = select.select(read_list, [], [], timeout)
             for s in readable:
                 if s is server_socket:
                     client_socket, address = server_socket.accept()
                     read_list.append(client_socket)
                     logger.info(f"Connection from {address}")
-                    sock = Client(client_socket)
-                    sockets[sock.fileno] = sock
-                    accept_connection(sock)
+                    accept_connection(client_socket)
                 else:
-                    # print(f"Recv client {s.fileno()} in {sockets.keys()}")
-                    if s.fileno() in sockets:
-                        sock = sockets[s.fileno()]
-                        who = id[sock]
+                    # print(f"Recv client {s.fileno()} in {clients.keys()}")
+                    if s.fileno() in clients:
+                        sock = clients[s.fileno()]
+                        who = sock.id
                         # print(f"Recv client from {who}")
 
                         if who in viewers.vact:
