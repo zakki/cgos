@@ -1219,7 +1219,8 @@ def schedule_games() -> None:
 
     count = 0  # number of active games
 
-    for (gid, rec) in games.items():
+    for gid in list(games.keys()):
+        rec = games[gid]
 
         # w, b, lmst, wrt, brt, wrate, brate, mvs = rec
 
