@@ -1,3 +1,11 @@
+# Computer Go Server
+
+## Python Server
+
+python3 -m cgos.app.cgos cgos19.ini
+
+## Original Tcl Server
+
 How to build from source:
 1. Add tclkit to your path
   a. Identify your platform specific tclkit in third_party directory
