@@ -22,7 +22,7 @@
 # THE SOFTWARE.
 
 import re
-from typing import List
+from typing import List, Dict
 
 
 class GoGame:
@@ -35,7 +35,7 @@ class GoGame:
     n1: int
     nn: int
     nnn: int
-    his: dict[int, List[int]]  # a hash of board copies
+    his: Dict[int, List[int]]  # a hash of board copies
     mvs: List[str]  # a hash  of moves
     dir: List[int]  # the 4 possible directions
 

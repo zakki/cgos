@@ -33,7 +33,7 @@ import random
 import re
 import select
 import logging
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Dict
 
 from ..gogame import GoGame, Game, sgf
 
@@ -55,7 +55,7 @@ db: sqlite3.Connection
 dbrec: sqlite3.Connection
 cgi: sqlite3.Connection
 
-gme: dict[int, GoGame] = dict()
+gme: Dict[int, GoGame] = dict()
 
 
 class Configs:
@@ -248,7 +248,7 @@ class Client:
             logger.error(str(e))
 
 
-clients: dict[int, Client] = dict()  # map raw socket to socket
+clients: Dict[int, Client] = dict()  # map raw socket to socket
 
 
 # -------------------------------------------------
@@ -258,10 +258,10 @@ clients: dict[int, Client] = dict()  # map raw socket to socket
 # obs - a hash indexed by gid - who is viewing?
 # obs( gid ) - a list of viewers of this game
 class ViewerList:
-    vact: dict[str, Client] = dict()  # key=vid, val=socket
+    vact: Dict[str, Client] = dict()  # key=vid, val=socket
 
     # obs( gid ) - a list of viewers of this game
-    obs: dict[int, List[str]] = dict()  # index by vid
+    obs: Dict[int, List[str]] = dict()  # index by vid
 
     def __init__(self) -> None:
         pass
@@ -342,9 +342,9 @@ class ActiveUser:
 #  value is Game
 
 
-act: dict[str, ActiveUser] = dict()  # users currently logged on
-games: dict[int, Game] = dict()  # currently active games
-ratingOf: dict[str, str] = dict()  # ratings of any player who logs on
+act: Dict[str, ActiveUser] = dict()  # users currently logged on
+games: Dict[int, Game] = dict()  # currently active games
+ratingOf: Dict[str, str] = dict()  # ratings of any player who logs on
 viewers = ViewerList()
 
 
