@@ -20,6 +20,8 @@ import logging.handlers
 import subprocess
 import sys
 import time
+from typing import Optional, Tuple
+
 from common import Colour
 
 
@@ -186,6 +188,18 @@ class EngineConnector(object):
             and "time_settings" in self._supportedCommands
         )
 
+    def getGenmoveAnalyzeMode(self) -> Optional[str]:
+        """
+        Return true if the engine supports time management.
+        """
+        if "cgos-genmove_analyze" in self._supportedCommands:
+            return "cgos"
+        if "kata-genmove_analyze" in self._supportedCommands:
+            return "kata"
+        if "lz-genmove_analyze" in self._supportedCommands:
+            return "lz"
+        return None
+
     def notifyBoardSize(self, size):
         self._sendNoResponseCommand("boardsize " + str(size))
 
@@ -218,16 +232,34 @@ class EngineConnector(object):
         """
         self._sendNoResponseCommand("play " + gtpColour + " " + gtpCoord)
 
-    def requestGenMove(self, gtpColour):
+    def requestGenMove(self, gtpColour) -> Tuple[str, str]:
         """
         Request move generation from the engine for a particular colour. The colour
         is in GTP format and the result will be a GTP coordinate (including 'pass' or
         'resign')
         """
-        result = self._sendListResponseCommand("genmove " + gtpColour)
-        if len(result) == 0:
-            raise EngineConnectorError("Received invalid response to genmove")
-        return result[0]
+        mode = self.getGenmoveAnalyzeMode()
+        if mode in ["cgos", "kata", "lz"]:
+            if mode == "cgos":
+                result = self._sendListResponseCommand("cgos-genmove_analyze " + gtpColour)
+            elif mode == "kata":
+                result = self._sendListResponseCommand("kata-genmove_analyze " + gtpColour)
+            elif mode == "lz":
+                result = self._sendListResponseCommand("lz-genmove_analyze " + gtpColour)
+            else:
+                raise EngineConnectorError("Invalid genmove mode: " + mode)
+            self.logger.debug("genmove_analyze: " + "#".join(result))
+            move = result[-1].split(" ")[-1]
+            self.logger.debug("move: " + move)
+            analysis = None
+            if len(result) > 1:
+                analysis = result[-2]
+            return move, analysis
+        else:
+            result = self._sendListResponseCommand("genmove " + gtpColour)
+            if len(result) == 0:
+                raise EngineConnectorError("Received invalid response to genmove")
+            return result[0], None
 
     def notifyCGOSOpponentName(self, name):
         """
