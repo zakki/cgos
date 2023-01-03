@@ -169,11 +169,13 @@ def initDatabase() -> None:
         conn.execute("create index white on games(w)")
         conn.execute("create index black on games(b)")
 
+        conn.commit()
         conn.close()
 
     if not os.path.exists(cfg.game_archive_database):
         conn = sqlite3.connect(cfg.game_archive_database)
         conn.execute("create table games(gid int, dta)")
+        conn.commit()
         conn.close()
 
     if not os.path.exists(cfg.database_state_file):
@@ -191,6 +193,7 @@ def initDatabase() -> None:
         conn.execute("create table clients(name, count)")
         conn.execute("INSERT into gameid VALUES(1)")
 
+        conn.commit()
         conn.close()
 
 
@@ -1210,6 +1213,8 @@ def schedule_games() -> None:
     global last_est
     global gme
     global db
+    global cgi
+    global dbrec
 
     RANGE = 500.0  # minmum elo range allowed
 
@@ -1308,7 +1313,15 @@ def schedule_games() -> None:
             if os.path.exists(cfg.killFile):
                 wd.close()
                 os.rename(tmpf, cfg.web_data_file)
+
+                db.commit()
+                cgi.commit()
+                dbrec.commit()
+
                 db.close()
+                cgi.close()
+                dbrec.close()
+
                 logger.info("KILL FILE FOUND - EXIT CGOS")
                 sys.exit(0)
 
