@@ -2,7 +2,7 @@
 
 ## Python Server
 
-python3 -m cgos.app.cgos cgos19.ini
+python3 cgos/server.py cgos19.ini
 
 ## Original Tcl Server
 

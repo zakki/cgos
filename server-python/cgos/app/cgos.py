@@ -35,7 +35,7 @@ import select
 import logging
 from typing import Any, List, Tuple, Dict
 
-from ..gogame import GoGame, Game, sgf
+from gogame import GoGame, Game, sgf
 
 
 # Setup logger
@@ -1501,13 +1501,8 @@ def server_loop() -> None:
         server_socket.close()
 
 
-if __name__ == "__main__":
+def runServer():
 
-    try:
-        initDatabase()
-        openDatabase()
-    except Exception:
-        logger.error(traceback.format_exc())
-        sys.exit(1)
-
+    initDatabase()
+    openDatabase()
     server_loop()
