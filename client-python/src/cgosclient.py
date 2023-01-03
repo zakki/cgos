@@ -31,6 +31,8 @@ from sgf import SGFGame, SGFMove
 from config import ConfigFile
 
 
+ENCODING = "utf-8"
+
 class CGOSClientError(Exception):
     def __init__(self, msg):
         self._msg = msg
@@ -144,7 +146,7 @@ class CGOSClient(object):
             self.logger.error("Connection failed: " + str(e))
             raise CGOSClientError("Connection failed: " + str(e))
 
-        self._socketfile = self._socket.makefile()
+        self._socketfile = self._socket.makefile("rw", encoding=ENCODING)
         self._finished = False
 
         self.logger.info("Connected")
@@ -183,7 +185,7 @@ class CGOSClient(object):
     def _respond(self, message):
         if self._socket is not None:
             self.logger.debug("Responding: " + message)
-            self._socketfile.write(message)
+            self._socketfile.write(message + "\n")
             self._socketfile.flush()
 
     def _handle_info(self, parameters):

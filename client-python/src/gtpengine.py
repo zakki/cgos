@@ -149,7 +149,7 @@ class EngineConnector(object):
         else:
             args = self._programCommandLine.split()
         self._subprocess = subprocess.Popen(
-            args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=False
+            args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=False, text=True
         )
         time.sleep(1)
         self._findSupportedCommands(mandatoryCommands)
@@ -296,6 +296,7 @@ class EngineConnector(object):
 
         self.logger.debug("Sending: " + commandString)
         self._subprocess.stdin.write(commandString + "\n")
+        self._subprocess.stdin.flush()
 
         response = []
         error = None
