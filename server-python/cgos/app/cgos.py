@@ -58,6 +58,7 @@ cgi: sqlite3.Connection
 gme: Dict[int, GoGame] = dict()
 
 
+
 class Configs:
     serverName: str
     boardsize: int
@@ -288,18 +289,18 @@ class ViewerList:
         if gid in self.obs:
             del self.obs[gid]
 
-    def send(self, who: str, msg: str) -> None:
-        if who in self.vact:
-            send(self.vact[who], msg)
-
     def sendAll(self, msg: str) -> None:
-        for v in self.vact.values():
-            send(v, msg)
+        for who, v in list(self.vact.items()):
+            if not send(v, msg):
+                logger.error(f"[{who}] disconnected")
+                self.remove(who)
 
     def sendObservers(self, gid: int, msg: str) -> None:
         if gid not in self.obs:
             return
         for vk in self.obs[gid]:
+            if vk not in self.vact:
+                continue
             send(self.vact[vk], msg)
 
 
@@ -358,13 +359,15 @@ viewers = ViewerList()
 sid = 0
 
 
-def send(sock: Client, msg: str) -> None:
+def send(sock: Client, msg: str) -> bool:
     try:
         sock.write(msg)
+        return True
     except:
         logger.error(f"alert: Client crash for user: {sock.id}")
         logger.error(traceback.format_exc())
         logger.error(traceback.format_stack())
+        return False
 
 
 # send a message to a player without knowing the socket
@@ -373,7 +376,7 @@ def nsend(name: str, msg: str) -> None:
     global act
     if name in act:
         sok = act[name].sock
-        sok.write(msg)
+        send(sok, msg)
     else:
         logger.info(f"alert: Cannot find active record for {name}")
 
@@ -384,10 +387,13 @@ def nsend(name: str, msg: str) -> None:
 def infoMsg(msg: str) -> None:
     global act
 
-    for v in act.values():
+    for (who, v) in list(act.items()):
         if v.msg_state != "protocol":
             soc = v.sock
-            send(soc, f"info {msg}")
+            if not send(soc, f"info {msg}"):
+                logger.error(f"[{who}] disconnected")
+                soc.close()
+                del act[who]
 
     # send message to viewing clients also
     # -------------------------------------
@@ -869,12 +875,8 @@ def _handle_player_username(sock: Client, data: str) -> None:
     if user_name in act:
         # test old connection
         xsoc = act[user_name].sock
-        err_occur = False
-        try:
-            send(xsoc, "info another login is being attempted using this user name")
-        except:
-            err_occur = True
-        if err_occur:
+        xsoc_alive = send(xsoc, "info another login is being attempted using this user name")
+        if not xsoc_alive:
             xsoc.close()
             logger.error(f"Error: user {user_name} apparently lost old connection")
             del act[user_name]
