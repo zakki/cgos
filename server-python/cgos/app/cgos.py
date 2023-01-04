@@ -560,6 +560,9 @@ def batchRate() -> None:
             (gid, w, wsrate, b, bsrate, dte, res),
         )
 
+    db.commit()
+    cgi.commit()
+
 
 def test_password(password: str) -> str:
 
@@ -684,10 +687,12 @@ def gameover(gid: int, sc: str, err: str) -> None:
     os.makedirs(dest_dir, exist_ok=True)  # make directory if it doesn't exist
 
     dbrec.execute("INSERT INTO games VALUES(?, ?)", (gid, see))
+    dbrec.commit()
     db.execute(
         """INSERT INTO games VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, "n" )""",
         (gid, game.w, game.wrate, game.b, game.brate, tme, wtu, btu, sc),
     )
+    db.commit()
     with open(f"{dest_dir}/{gid}.sgf", "w") as f:
         f.write(sgfString)
 
@@ -813,14 +818,14 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
         # close down current handler, open a new handler
         # ----------------------------------------------
 
-        with db:
-            logger.info(f"client: {data}")
-            cc = db.execute("select count from clients where name = ?", (data,))
-            # if  [string is integer -strict $cc]:
-            if cc is not None:
-                db.execute("update clients set count=count+1 where name = ?", (data,))
-            else:
-                db.execute("insert into clients values(?, 1)", (data,))
+        logger.info(f"client: {data}")
+        cc = db.execute("select count from clients where name = ?", (data,)).fetchone()
+        # if  [string is integer -strict $cc]:
+        if cc is not None:
+            db.execute("update clients set count=count+1 where name = ?", (data,))
+        else:
+            db.execute("insert into clients values(?, 1)", (data,))
+        db.commit()
 
         logger.info(f"[{who}] logged on as viewer")
 
@@ -848,14 +853,14 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
         return
 
     if msg[0:2] == "e1":
-        with db:
-            logger.info(f"client: {data}")
-            cc = db.execute("select count from clients where name = ?", (data,))
-            # if  [string is integer -strict $cc] :
-            if cc == 0:
-                db.execute("update clients set count=count+1 where name = ?", (data,))
-            else:
-                db.execute("insert into clients values(?, 1)", (data,))
+        logger.info(f"client: {data}")
+        cc = db.execute("select count from clients where name = ?", (data,)).fetchone()
+        # if  [string is integer -strict $cc] :
+        if cc is not None:
+            db.execute("update clients set count=count+1 where name = ?", (data,))
+        else:
+            db.execute("insert into clients values(?, 1)", (data,))
+        db.commit()
         act[who].msg_state = "username"
         send(sock, "username")
         return
@@ -941,6 +946,7 @@ def _handle_player_password(sock: Client, data: str) -> None:
                 cfg.maxK,
             ),
         )
+        db.commit()
         cmp_pw = pw
         rat = defaultRatingAverage
         k = cfg.maxK
@@ -1496,6 +1502,8 @@ def schedule_games() -> None:
                         viewers.sendAll(vmsg)
 
                         logger.info(f"starting {wp} {wr} {bp} {br}")
+
+                db.commit()
 
                 # add a 5 second delay to let all programs complete setup.
                 # ------------------------------------------------------
