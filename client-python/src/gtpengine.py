@@ -20,6 +20,8 @@ import logging.handlers
 import subprocess
 import sys
 import time
+import threading
+import queue
 from common import Colour
 
 
@@ -74,6 +76,20 @@ class GTPTools(object):
         except ValueError as IndexError:
             raise EngineConnectorError("Invalid coordinate: '" + coordstr + "'")
 
+class Query:
+    def __init__(self, commandString):
+        self.commandString = commandString
+        self.result = None
+        self.response = list()
+
+    def __str__(self):
+        out = str()
+        for line in self.response:
+            out += ("{}\n".format(line))
+        # Remove the GTP token '=' or '?'.
+        out = out[1:]
+        return out.strip()
+
 
 class EngineConnector(object):
     """
@@ -111,6 +127,18 @@ class EngineConnector(object):
 
         self.logger = logging.getLogger(logger)
         self.logger.setLevel(logging.DEBUG)
+
+        self._queryQueue = queue.Queue()
+        self._waitingQueue = queue.Queue()
+        self._finishedQueue = queue.Queue()
+
+        self._running = True
+        self._sendQueryThread = threading.Thread(target=self._sendQueryLoop, daemon=True)
+        self._handleGtpThread = threading.Thread(target=self._handleGtpLoop, daemon=True)
+        self._threadLock = threading.Lock()
+
+        for t in [self._sendQueryThread, self._handleGtpThread]:
+            t.start()
 
         if len(self.logger.handlers) == 0:
             self.handler = logging.FileHandler(logfile)
@@ -176,6 +204,80 @@ class EngineConnector(object):
                     break
 
             self._subprocess = None
+
+            self.__running = False
+            for t in [self._sendQueryThread, self._handleGtpThread]:
+                t.join()
+
+    def _sendQueryLoop(self):
+        """
+        Keep sending the GTP command to engine.
+        """
+        while self._running:
+            try:
+                query = self._queryQueue.get(block=True, timeout=0.1)
+            except queue.Empty:
+                continue
+
+            with self._threadLock:
+                commandString = query.commandString
+
+                try:
+                    self._subprocess.stdin.write(commandString + "\n")
+                    self._subprocess.stdin.flush()
+                    self._waitingQueue.put(query)
+                except OSError as e:
+                    return
+
+    def _handleGtpLoop(self):
+        """
+        Keep receiving the GTP reponse from engine.
+        """
+        handlingQuery = None
+        while self._running:
+            if handlingQuery is None:
+                try:
+                    query = self._waitingQueue.get(block=True, timeout=0.1)
+                    handlingQuery = query
+                except queue.Empty:
+                    continue
+
+            with self._threadLock:
+                try:
+                    line = self._subprocess.stdout.readline().strip()
+                except OSError as e:
+                    return
+
+            if not line:
+                self._finishedQueue.put(handlingQuery)
+                handlingQuery = None
+                continue
+
+            if line.split()[0] in ["=", "?"] and \
+                   handlingQuery.result is not None:
+                handlingQuery.result = line.split()[0]
+
+            handlingQuery.response.append(line)
+
+    def pushQuery(self, commandString):
+        """
+        Push the GTP command into queue.
+        """
+        query = Query(commandString)
+        self._queryQueue.put(query)
+
+    def tryGetLastResponse(self, block):
+        """
+        Get GTP reponse from queue. Will get None object if there is no
+        reponse in the queue and 'block' is False.
+        """
+        try:
+            query = self._finishedQueue.get(block=block, timeout=9999)
+        except queue.Empty:
+            if block:
+                raise EngineConnectorError("Can not receive the response")
+            return None, None
+        return query.result, str(query)
 
     def hasTimeControl(self):
         """
@@ -271,7 +373,7 @@ class EngineConnector(object):
 
         If the engine returns an error, EngineConnectorError is raised.
         """
-        self._sendRawGTPCommand(commandString)
+        self._sendSyncRawGTPCommand(commandString)
 
     def _sendListResponseCommand(self, commandString):
         """
@@ -281,9 +383,9 @@ class EngineConnector(object):
 
         If the engine returns an error, EngineConnectorError is raised.
         """
-        return self._sendRawGTPCommand(commandString)
+        return self._sendSyncRawGTPCommand(commandString)
 
-    def _sendRawGTPCommand(self, commandString):
+    def _sendSyncRawGTPCommand(self, commandString):
         """
         Send a GTP command to the engine and return everything up to the next blank
         line as the response. If the response is malformed, EngineConnectorError is raised.
@@ -291,34 +393,16 @@ class EngineConnector(object):
         Don't call this even within this class. Use the other send methods for specific
         command types (list response, etc.)
         """
+
         if self._subprocess.poll() is not None:
             raise EngineConnectorError("Cannot send GTP command. Engine has terminated")
 
         self.logger.debug("Sending: " + commandString)
-        self._subprocess.stdin.write(commandString + "\n")
-        self._subprocess.stdin.flush()
+        self.pushQuery(commandString)
 
-        response = []
-        error = None
-
-        while True:
-            line = self._subprocess.stdout.readline()
-
-            if len(line.strip()) == 0:
-                break
-
-            if line[0] == "=":
-                line = line[1:]
-            elif line[0] == "?":
-                error = line[1:].strip()
-
-            line = line.strip()
-            if len(line) > 0:
-                response.append(line)
+        result, response = self.tryGetLastResponse(block=True)
+        if result == "?":
+            raise EngineConnectorError("GTP command rejected: " + response)
 
         self.logger.debug("Response: " + str(response))
-
-        if error is not None:
-            raise EngineConnectorError("GTP command rejected: " + error)
-
         return response
