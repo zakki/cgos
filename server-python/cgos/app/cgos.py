@@ -590,6 +590,10 @@ def valid_name(user_name: str) -> str:
     if len(user_name) > 18:
         return "User name must be no more than 18 characters long."
 
+    # user "1024" crashed original CGOS.
+    if user_name[0].isdigit():
+        return "User name must start alphabet. Consisting of only numbers is invalid."
+
     return ""
 
 
