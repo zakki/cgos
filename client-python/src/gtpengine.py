@@ -243,7 +243,7 @@ class EngineConnector(object):
             if mode == "cgos":
                 result = self._sendListResponseCommand("cgos-genmove_analyze " + gtpColour)
             elif mode == "kata":
-                result = self._sendListResponseCommand("kata-genmove_analyze " + gtpColour)
+                result = self._sendListResponseCommand("kata-genmove_analyze " + gtpColour + " ownership true")
             elif mode == "lz":
                 result = self._sendListResponseCommand("lz-genmove_analyze " + gtpColour)
             else:
