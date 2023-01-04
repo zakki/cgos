@@ -57,6 +57,7 @@ cgi: sqlite3.Connection
 
 gme: Dict[int, GoGame] = dict()
 
+defaultRatingAverage = 0.0
 
 
 class Configs:
@@ -142,6 +143,8 @@ else:
     cfg = Configs()
     cfg.load(sys.argv[1])
     leeway = int(cfg.timeGift * 1000.0)
+
+    defaultRatingAverage = cfg.defaultRating
 
     tme = now_string()
 
@@ -875,7 +878,9 @@ def _handle_player_username(sock: Client, data: str) -> None:
     if user_name in act:
         # test old connection
         xsoc = act[user_name].sock
-        xsoc_alive = send(xsoc, "info another login is being attempted using this user name")
+        xsoc_alive = send(
+            xsoc, "info another login is being attempted using this user name"
+        )
         if not xsoc_alive:
             xsoc.close()
             logger.error(f"Error: user {user_name} apparently lost old connection")
@@ -919,12 +924,12 @@ def _handle_player_password(sock: Client, data: str) -> None:
             (
                 who,
                 pw,
-                cfg.defaultRating,
+                defaultRatingAverage,
                 cfg.maxK,
             ),
         )
         cmp_pw = pw
-        rat = cfg.defaultRating
+        rat = defaultRatingAverage
         k = cfg.maxK
         ratingOf[who] = strRate(rat, k)
     else:
@@ -1338,6 +1343,7 @@ def schedule_games() -> None:
             # dynamically computer ELO RANGE
             # ------------------------------
             lst: List[Tuple[str, float]] = []
+            r_sum = 0.0
 
             for (name, v) in act.items():
                 # sock, state, gid, rating = v
@@ -1345,12 +1351,20 @@ def schedule_games() -> None:
                 if v.msg_state == "waiting":
                     r = v.rating
                     lst.append((name, r))
+                    r_sum += r
 
             lst.sort(key=lambda e: e[1])
             max_interval = 0.0
 
             ll = len(lst)
             e = ll - SKIP
+
+            if ll > 0:
+                global defaultRatingAverage
+                defaultRatingAverage = r / ll
+                logger.info(
+                    f"defaultRatingAverage: {defaultRatingAverage}  : playes {ll}"
+                )
 
             for i in range(e):
                 cr = lst[i][1]
