@@ -1525,8 +1525,8 @@ def schedule_games() -> None:
                     nsend(rec.b, f"genmove b {cfg.level}")  # the game's afoot
                     ct = now_milliseconds()
                     games[gid].lmst = ct
-                    act[bp].msg_state = "genmove"
-                    act[wp].msg_state = "ok"
+                    act[rec.b].msg_state = "genmove"
+                    act[rec.w].msg_state = "ok"
                     wd.write(f"s {tmeSch} {gid} {rec}")
 
         os.rename(tmpf, cfg.web_data_file)

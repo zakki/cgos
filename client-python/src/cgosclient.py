@@ -475,6 +475,11 @@ class CGOSClient(object):
         """
         while not (self._finished) and not (self._engineSwitching):
             line = self._socketfile.readline()
+            if len(line) == 0:
+                self.logger.error("Empty response")
+                self._finished = True
+                return
+
             line = line.strip()
 
             self.logger.debug("Server sent: " + line)
