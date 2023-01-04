@@ -59,6 +59,8 @@ gme: Dict[int, GoGame] = dict()
 
 defaultRatingAverage = 0.0
 
+badUsers: List[str] = []
+
 
 class Configs:
     serverName: str
@@ -83,6 +85,7 @@ class Configs:
     bin_dir: str
     leeway: int
     anchor_match_rate: float
+    badUsersFile: str
 
     def load(self, path: str) -> None:
         config = configparser.ConfigParser()
@@ -115,6 +118,7 @@ class Configs:
         self.tools_dir = str(cfg["tools_dir"])
         self.bin_dir = str(cfg["bin_dir"])
         self.anchor_match_rate = float(cfg.get("anchor_match_rate", "0.10"))
+        self.badUsersFile = str(cfg["bad_users_file"])
 
 
 def now_string() -> str:
@@ -593,6 +597,9 @@ def valid_name(user_name: str) -> str:
     # user "1024" crashed original CGOS.
     if user_name[0].isdigit():
         return "User name must start alphabet. Consisting of only numbers is invalid."
+
+    if user_name in badUsers:
+        return "Not removing dead stones, many timeout, changed strength, or many similar programs. Change setting and try another name."
 
     return ""
 
@@ -1349,6 +1356,24 @@ def schedule_games() -> None:
 
                 logger.info("KILL FILE FOUND - EXIT CGOS")
                 sys.exit(0)
+
+            # load bad users file
+            global badUsers
+
+            badUsers = []
+            if os.path.exists(cfg.badUsersFile):
+                with open(cfg.badUsersFile, "r") as f:
+                    badUsers = f.read().splitlines()
+                logger.info(f"sizeof bad_users: {len(badUsers)}")
+            else:
+                logger.info("bad_users_file is not found.")
+
+            for (name, v) in list(act.items()):
+                if v.msg_state == "waiting":
+                    if name in badUsers:
+                        logger.info(f"found bad user {name}. kick.")
+                        del act[name]
+                        v.sock.close()
 
             # dynamically computer ELO RANGE
             # ------------------------------
