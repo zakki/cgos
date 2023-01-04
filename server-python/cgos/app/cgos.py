@@ -80,6 +80,7 @@ class Configs:
     tools_dir: str
     bin_dir: str
     leeway: int
+    anchor_match_rate: float
 
     def load(self, path: str) -> None:
         config = configparser.ConfigParser()
@@ -111,6 +112,7 @@ class Configs:
         self.killFile = str(cfg["killFile"])
         self.tools_dir = str(cfg["tools_dir"])
         self.bin_dir = str(cfg["bin_dir"])
+        self.anchor_match_rate = float(cfg.get("anchor_match_rate", "0.10"))
 
 
 def now_string() -> str:
@@ -427,6 +429,15 @@ def seeRecord(gid: int, res: str, dte: Any, tme: str) -> str:
     return s
 
 
+def getAnchors() -> Dict[str, float]:
+    global db
+
+    anchors = dict()
+    for (nme, rat) in db.execute("SELECT name, rating FROM anchors"):
+        anchors[nme] = rat
+    return anchors
+
+
 def batchRate() -> None:
 
     global act
@@ -434,12 +445,9 @@ def batchRate() -> None:
     global db
     global cgi
 
-    anchors = dict()
+    anchors = getAnchors()
 
     tme = now_string()
-
-    for (nme, rat) in db.execute("SELECT name, rating FROM anchors"):
-        anchors[nme] = rat
 
     batch = db.execute('SELECT gid, w, b, res, dte  FROM games WHERE final == "n"')
 
@@ -1381,6 +1389,8 @@ def schedule_games() -> None:
 
                 logger.info(f"will schedule: {len(lst)} players")
 
+                anchors = getAnchors()
+
                 lst_pairs = iter(lst)
                 for (aa, bb) in zip(lst_pairs, lst_pairs):
 
@@ -1390,6 +1400,13 @@ def schedule_games() -> None:
                         # ------------------------------
                         wp = aa[0]  # actual player names
                         bp = bb[0]  # actual player names
+
+                        # delte anchor vs anchor
+                        if aa in anchors and bb in anchors:
+                            r = random.random()
+                            if r > cfg.anchor_match_rate:
+                                logger.info(f"delete this match. {wp}, {bp}, r={r}")
+                                continue
 
                         wco = db.execute(
                             "SELECT count(*) FROM games WHERE w==? AND b==?", (wp, bp)
