@@ -486,8 +486,10 @@ def batchRate() -> None:
 
         if res[0] == "W":
             wres = 1.0
-        else:
+        elif res[0] == "B":
             wres = 0.0
+        else:
+            wres = 0.5
         bres = 1.0 - wres
 
         nwr = newrating(wr, br, wres, weK)
@@ -1127,8 +1129,12 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
             over = f"W+{sc}"
             gameover(gid, over, "")
             return
-        else:
+        elif sc > 0.0:
             over = f"B+{sc}"
+            gameover(gid, over, "")
+            return
+        else:
+            over = "Draw"
             gameover(gid, over, "")
             return
 
