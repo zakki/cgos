@@ -138,6 +138,10 @@ def joinMoves(mvs: List[Tuple[str, int, Optional[str]]]) -> str:
     return " ".join([f"{m} {t}" for (m, t, i) in mvs])
 
 
+def joinAnalysis(mvs: List[Tuple[str, int, Optional[str]]]) -> str:
+    return "\n".join([i or "" for (m, t, i) in mvs])
+
+
 # READ the configuration file
 # ---------------------------
 if len(sys.argv) < 2:
@@ -184,9 +188,10 @@ def initDatabase() -> None:
 
     if not os.path.exists(cfg.game_archive_database):
         conn = sqlite3.connect(cfg.game_archive_database)
-        conn.execute("create table games(gid int, dta)")
+        conn.execute("create table games(gid int, dta, analysis)")
         conn.commit()
         conn.close()
+        # conn.execute("ALTER TABLE games ADD COLUMN analysis")
 
     if not os.path.exists(cfg.database_state_file):
 
@@ -427,7 +432,7 @@ def newrating(cur_rating: float, opp_rating: float, res: float, K: float) -> flo
 
 # write an SGF game record
 # ---------------------------
-def seeRecord(gid: int, res: str, dte: Any, tme: str) -> str:
+def seeRecord(gid: int, res: str, dte: Any, tme: str) -> Tuple[str, str]:
 
     # global boardsize
     # global komi
@@ -441,7 +446,9 @@ def seeRecord(gid: int, res: str, dte: Any, tme: str) -> str:
     s += f"{tme} {cfg.boardsize} {cfg.komi} {game.w}({game.wrate}) {game.b}({game.brate}) {cfg.level} {joinMoves(game.mvs)} "
     s += res
 
-    return s
+    a = joinAnalysis(game.mvs)
+
+    return s, a
 
 
 def getAnchors() -> Dict[str, float]:
@@ -677,7 +684,7 @@ def gameover(gid: int, sc: str, err: str) -> None:
         dte=dte,
         err=err,
     )
-    see = seeRecord(gid, sc, dte, tme)
+    see, see2 = seeRecord(gid, sc, dte, tme)
 
     dest_dir = os.path.join(
         cfg.htmlDir,
@@ -688,7 +695,7 @@ def gameover(gid: int, sc: str, err: str) -> None:
     )
     os.makedirs(dest_dir, exist_ok=True)  # make directory if it doesn't exist
 
-    dbrec.execute("INSERT INTO games VALUES(?, ?)", (gid, see))
+    dbrec.execute("INSERT INTO games VALUES(?, ?, ?)", (gid, see, see2))
     dbrec.commit()
     db.execute(
         """INSERT INTO games VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, "n" )""",
