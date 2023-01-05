@@ -1623,16 +1623,17 @@ Board.default = {
 		left: 0,
 	},
 
-	//background: WGo.DIR+"wood1.jpg",    // Original version, tileing
+	background: WGo.DIR+"wood1.jpg",    // Original version, tileing
 	//background: WGo.DIR+"wood_512.jpg", // Mobile friendly, low resolution
-	background: WGo.DIR+"wood_1024.jpg",  // High resolution version, use with REALISTIC handler
+	//background: WGo.DIR+"wood_1024.jpg",  // High resolution version, use with REALISTIC handler
 
 	//whiteStoneGraphic: [ WGo.DIR+"white_128.png" ], // Single image only, hires
 	//blackStoneGraphic: [ WGo.DIR+"black_128.png" ], // Single image only, hires
 
-	//whiteStoneGraphic: [ WGo.DIR+"white_64.png" ], // Single image only, lowres
-	//blackStoneGraphic: [ WGo.DIR+"black_64.png" ], // Single image only, lowres
+	whiteStoneGraphic: [ WGo.DIR+"white_64.png" ], // Single image only, lowres
+	blackStoneGraphic: [ WGo.DIR+"black_64.png" ], // Single image only, lowres
 
+	/*
 	whiteStoneGraphic: [  WGo.DIR + "stones/white00_128.png",
 												WGo.DIR + "stones/white01_128.png",
 												WGo.DIR + "stones/white02_128.png",
@@ -1650,6 +1651,7 @@ Board.default = {
 												WGo.DIR + "stones/black02_128.png",
 												WGo.DIR + "stones/black03_128.png"
 										 ],
+	*/
 
 	theme: {}
 }
