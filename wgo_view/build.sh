@@ -48,6 +48,7 @@ java -jar $GODIR/compiler/compiler.jar \
 		basicplayer.commentbox.js \
 		basicplayer.control.js \
 		player.editable.js \
+		player.cgos.js \
 		scoremode.js \
 		player.permalink.js
 

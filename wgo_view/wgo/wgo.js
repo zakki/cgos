@@ -346,6 +346,7 @@ var redraw_layer = function(board, layer) {
 		if(handler[layer]) handler[layer].draw.call(board[layer].getContext(obj.args), obj.args, board);
 	}
 }
+WGo.redraw_layer = redraw_layer;
 
 // shell stone helping functions
 
