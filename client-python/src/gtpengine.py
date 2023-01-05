@@ -232,7 +232,7 @@ class EngineConnector(object):
         """
         self._sendNoResponseCommand("play " + gtpColour + " " + gtpCoord)
 
-    def requestGenMove(self, gtpColour) -> Tuple[str, str]:
+    def requestGenMove(self, gtpColour) -> Tuple[str, Optional[str]]:
         """
         Request move generation from the engine for a particular colour. The colour
         is in GTP format and the result will be a GTP coordinate (including 'pass' or
@@ -245,15 +245,23 @@ class EngineConnector(object):
             elif mode == "kata":
                 result = self._sendListResponseCommand("kata-genmove_analyze " + gtpColour + " ownership true")
             elif mode == "lz":
-                result = self._sendListResponseCommand("lz-genmove_analyze " + gtpColour)
+                # Leela Zero doesn't output info unless interval mode
+                result = self._sendListResponseCommand("lz-genmove_analyze " + gtpColour + " 100000")
             else:
                 raise EngineConnectorError("Invalid genmove mode: " + mode)
             self.logger.debug("genmove_analyze: " + "#".join(result))
-            move = result[-1].split(" ")[-1]
-            self.logger.debug("move: " + move)
+            move = None
             analysis = None
-            if len(result) > 1:
-                analysis = result[-2]
+            for line in result:
+                if line.startswith("play "):
+                    move = line.split(" ")[-1]
+                    break
+                else:
+                    analysis = line
+            if move is None:
+                self.logger.error("no move")
+                raise Exception("no move")
+            self.logger.debug("move: " + move + " analysis:" + analysis)
             return move, analysis
         else:
             result = self._sendListResponseCommand("genmove " + gtpColour)
