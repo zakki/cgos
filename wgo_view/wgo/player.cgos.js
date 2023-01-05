@@ -227,6 +227,40 @@
     return [x, size - y];
   }
 
+  var winrateGraph = {
+    // draw on grid layer
+    grid: {
+      draw: function (args, board) {
+        var ch, t, xright, xleft, ytop, ybottom;
+
+        this.fillStyle = "rgba(0,0,0,0.7)";
+        this.textBaseline = "middle";
+        this.textAlign = "center";
+        this.font = board.stoneRadius + "px " + (board.font || "");
+
+        xright = board.getX(-0.75);
+        xleft = board.getX(board.size - 0.25);
+        ytop = board.getY(-0.75);
+        ybottom = board.getY(board.size - 0.25);
+
+        for (var i = 0; i < board.size; i++) {
+          ch = i + "A".charCodeAt(0);
+          if (ch >= "I".charCodeAt(0)) ch++;
+
+          t = board.getY(i);
+          this.fillText(board.size - i, xright, t);
+          this.fillText(board.size - i, xleft, t);
+
+          t = board.getX(i);
+          this.fillText(String.fromCharCode(ch), t, ytop);
+          this.fillText(String.fromCharCode(ch), t, ybottom);
+        }
+
+        this.fillStyle = "black";
+      },
+    },
+  };
+
   WGo.Player.Cgos = {};
 
   /**
@@ -237,6 +271,17 @@
     this.player = player;
     this.board = board;
     this.cgosMode = false;
+  };
+
+  WGo.Player.Cgos.prototype.setGraph = function (b) {
+    if (!this.coordinates && b) {
+      this.board.setSection(-0.5, -0.5, -0.5, -10.5);
+      this.board.addCustomObject(winrateGraph);
+    } else if (this.coordinates && !b) {
+      this.board.setSection(0, 0, 0, 0);
+      this.board.removeCustomObject(winrateGraph);
+    }
+    this.graph = b;
   };
 
   WGo.Player.Cgos.prototype.set = function (set) {
@@ -258,6 +303,7 @@
 
       this.cgosMode = false;
     }
+    // this.setGraph(this.cgosMode)
   };
 
   if (WGo.BasicPlayer && WGo.BasicPlayer.component.Control) {
@@ -288,4 +334,136 @@
   }
 
   WGo.i18n.en["cgos"] = "CGOS mode";
+})(WGo);
+
+(function () {
+  "use strict";
+
+  var prepare_dom = function () {
+    prepare_dom_box.call(this, "winrate");
+    this.element.appendChild(this.winrate.box);
+  };
+
+  var prepare_dom_box = function (type) {
+    this[type] = {};
+    var t = this[type];
+    t.box = document.createElement("div");
+    t.box.className = "wgo-box-wrapper wgo-player-wrapper wgo-" + type;
+
+    t.graph = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    t.graph.setAttribute("width", "490");
+    t.graph.setAttribute("height", "100");
+    t.graph.setAttribute("viewbox", "-5 -5 410 110");
+    t.graph.setAttribute("style", "background-color:#cccccc;");
+    t.box.appendChild(t.graph);
+
+    var line = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    line.setAttribute("x", 0);
+    line.setAttribute("y", 0);
+    line.setAttribute("width", 490);
+    line.setAttribute("height", 50);
+    line.setAttribute("stroke", "#666666");
+    line.setAttribute("fill", "#336633");
+    t.graph.appendChild(line);
+
+    var line = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    line.setAttribute("x", 0);
+    line.setAttribute("y", 50);
+    line.setAttribute("width", 490);
+    line.setAttribute("height", 50);
+    line.setAttribute("stroke", "#666666");
+    line.setAttribute("fill", "#99cc99");
+    t.graph.appendChild(line);
+
+    var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", 0);
+    line.setAttribute("y1", 50);
+    line.setAttribute("x2", 490);
+    line.setAttribute("y2", 50);
+    line.setAttribute("stroke", "#666666");
+    line.setAttribute("stroke-width", 2);
+    t.graph.appendChild(line);
+
+    var blackWinrate = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "polyline"
+    );
+    blackWinrate.setAttribute("points", "0,0 0,0");
+    blackWinrate.setAttribute("stroke", "#330000");
+    blackWinrate.setAttribute("stroke-width", 3);
+    blackWinrate.setAttribute("fill", "none");
+    t.blackWinrate = blackWinrate;
+    t.graph.appendChild(blackWinrate);
+
+    var whiteWinrate = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "polyline"
+    );
+    whiteWinrate.setAttribute("points", "0,0 0,0");
+    whiteWinrate.setAttribute("stroke", "#ccccff");
+    whiteWinrate.setAttribute("stroke-width", 3);
+    whiteWinrate.setAttribute("fill", "none");
+    t.whiteWinrate = whiteWinrate;
+    t.graph.appendChild(whiteWinrate);
+  };
+
+  function winrate(str) {
+    var tokens = str.split(" ");
+    for (var i = 0; i < tokens.length; i++) {
+      if (tokens[i] == "winrate") {
+        var r = parseFloat(tokens[i + 1]);
+        if (r == +r && r > 1) r /= 10000;
+        return r * 100;
+      }
+    }
+    return null;
+  }
+
+  var kifu_loaded = function (e) {
+    var info = e.kifu.info || {};
+
+    this.black = [];
+    this.white = [];
+  };
+
+  var update = function (e) {
+    var list, graph;
+    if (!e.node || !e.node.move || !e.path) return;
+    if (e.node.move.c == WGo.B) {
+      list = this.black;
+      graph = this.winrate.blackWinrate;
+    } else {
+      list = this.white;
+      graph = this.winrate.whiteWinrate;
+    }
+    while (e.path.m >= list.length) {
+      list.push("");
+    }
+    rate = winrate(e.node.comment);
+    if (e.node.move.c == WGo.B) rate = 100 - rate;
+    list[list.length - 1] = e.path.m + "," + rate;
+    graph.setAttribute("points", list.join(" "));
+  };
+
+  var AnalyzeBox = WGo.extendClass(
+    WGo.BasicPlayer.component.Component,
+    function (player) {
+      this.super(player);
+      this.element.className = "wgo-analyzebox";
+
+      prepare_dom.call(this);
+
+      player.addEventListener("kifuLoaded", kifu_loaded.bind(this));
+      player.addEventListener("update", update.bind(this));
+    }
+  );
+
+  var bp_layouts = WGo.BasicPlayer.layouts;
+  if (!bp_layouts["right_top"].bottom) bp_layouts["right_top"].bottom = [];
+  bp_layouts["right_top"].bottom.push("AnalyzeBox");
+  //bp_layouts["right"].right.push("AnalyzeBox");
+  //bp_layouts["one_column"].top.push("AnalyzeBox");
+  //bp_layouts["no_comment"].top.push("AnalyzeBox");
+
+  WGo.BasicPlayer.component.AnalyzeBox = AnalyzeBox;
 })(WGo);
