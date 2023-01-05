@@ -22,6 +22,7 @@ import sys
 import time
 import threading
 import queue
+import copy
 from common import Colour
 
 
@@ -82,6 +83,15 @@ class Query:
         self.result = None
         self.response = list()
 
+    def getList(self):
+        out = list()
+        for line in self.response:
+            out.append(copy.deepcopy(line))
+        if len(out) != 0:
+            # Remove the GTP token '=' or '?'.
+            out[0] = out[0][1:].strip()
+        return out
+
     def __str__(self):
         out = str()
         for line in self.response:
@@ -135,7 +145,6 @@ class EngineConnector(object):
         self._running = True
         self._sendQueryThread = threading.Thread(target=self._sendQueryLoop, daemon=True)
         self._handleGtpThread = threading.Thread(target=self._handleGtpLoop, daemon=True)
-        self._threadLock = threading.Lock()
 
         for t in [self._sendQueryThread, self._handleGtpThread]:
             t.start()
@@ -219,15 +228,13 @@ class EngineConnector(object):
             except queue.Empty:
                 continue
 
-            with self._threadLock:
-                commandString = query.commandString
-
-                try:
-                    self._subprocess.stdin.write(commandString + "\n")
-                    self._subprocess.stdin.flush()
-                    self._waitingQueue.put(query)
-                except OSError as e:
-                    return
+            commandString = query.commandString
+            try:
+                self._subprocess.stdin.write(commandString + "\n")
+                self._subprocess.stdin.flush()
+                self._waitingQueue.put(query)
+            except OSError as e:
+                return
 
     def _handleGtpLoop(self):
         """
@@ -242,11 +249,10 @@ class EngineConnector(object):
                 except queue.Empty:
                     continue
 
-            with self._threadLock:
-                try:
-                    line = self._subprocess.stdout.readline().strip()
-                except OSError as e:
-                    return
+            try:
+                line = self._subprocess.stdout.readline().strip()
+            except OSError as e:
+                return
 
             if not line:
                 self._finishedQueue.put(handlingQuery)
@@ -277,7 +283,7 @@ class EngineConnector(object):
             if block:
                 raise EngineConnectorError("Can not receive the response")
             return None, None
-        return query.result, str(query)
+        return query.result, query.getList()
 
     def hasTimeControl(self):
         """
