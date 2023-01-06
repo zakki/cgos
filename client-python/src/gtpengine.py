@@ -260,7 +260,7 @@ class EngineConnector(object):
                 continue
 
             if line.split()[0] in ["=", "?"] and \
-                   handlingQuery.result is not None:
+                   handlingQuery.result is None:
                 handlingQuery.result = line.split()[0]
 
             handlingQuery.response.append(line)
