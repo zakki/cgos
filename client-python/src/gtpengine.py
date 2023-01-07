@@ -241,33 +241,74 @@ class EngineConnector(object):
         mode = self.getGenmoveAnalyzeMode()
         if mode in ["cgos", "kata", "lz"]:
             if mode == "cgos":
-                result = self._sendListResponseCommand("cgos-genmove_analyze " + gtpColour)
+                move, analysis = self.genmoveCgos(gtpColour)
             elif mode == "kata":
-                result = self._sendListResponseCommand("kata-genmove_analyze " + gtpColour + " ownership true")
+                move, analysis = self.genmoveKata(gtpColour)
             elif mode == "lz":
-                # Leela Zero doesn't output info unless interval mode
-                result = self._sendListResponseCommand("lz-genmove_analyze " + gtpColour + " 100000")
+                move, analysis = self.genmoveLz(gtpColour)
             else:
                 raise EngineConnectorError("Invalid genmove mode: " + mode)
-            self.logger.debug("genmove_analyze: " + "#".join(result))
-            move = None
-            analysis = None
-            for line in result:
-                if line.startswith("play "):
-                    move = line.split(" ")[-1]
-                    break
-                else:
-                    analysis = line
             if move is None:
                 self.logger.error("no move")
                 raise Exception("no move")
-            self.logger.debug("move: " + move + " analysis:" + analysis)
+            self.logger.debug(f"move: {move} analysis: {analysis}")
             return move, analysis
         else:
             result = self._sendListResponseCommand("genmove " + gtpColour)
             if len(result) == 0:
                 raise EngineConnectorError("Received invalid response to genmove")
             return result[0], None
+
+    def genmoveCgos(self, gtpColour: str) -> Tuple[Optional[str], Optional[str]]:
+        result = self._sendListResponseCommand("cgos-genmove_analyze " + gtpColour)
+        self.logger.debug("genmove_analyze: " + "#".join(result))
+        move: Optional[str] = None
+        analysis: Optional[str] = None
+        for line in result:
+            if line.startswith("play "):
+                move = line.split(" ")[-1]
+                break
+            else:
+                analysis = line
+        return move, analysis
+
+    def genmoveKata(self, gtpColour: str) -> Tuple[Optional[str], Optional[str]]:
+        result = self._sendListResponseCommand("kata-genmove_analyze " + gtpColour + " ownership true")
+        self.logger.debug("genmove_analyze: " + "#".join(result))
+        move: Optional[str] = None
+        analysis: Optional[str] = None
+        for line in result:
+            if line.startswith("play "):
+                move = line.split(" ")[-1]
+                break
+            else:
+                analysis = line
+        return move, analysis
+
+    def genmoveLz(self, gtpColour: str) -> Tuple[Optional[str], Optional[str]]:
+        # Leela Zero doesn't output info unless interval mode
+        result = self._sendListResponseCommand("lz-genmove_analyze " + gtpColour + " 100000")
+        self.logger.debug("genmove_analyze: " + "#".join(result))
+        move: Optional[str] = None
+        analysis: Optional[str] = None
+        for line in result:
+            if line.startswith("play "):
+                move = line.split(" ")[-1]
+                break
+            else:
+                analysis = line
+        if analysis is not None:
+            tokens = analysis.split(" ")
+            for i, t in enumerate(tokens):
+                if t == "winrate" or t == "prior" or t == "lcb":
+                    try:
+                        w = int(tokens[i + 1])
+                        tokens[i + 1] = str(w / 10000)
+                    except:
+                        pass
+            analysis = " ".join(tokens)
+        return move, analysis
+
 
     def notifyCGOSOpponentName(self, name):
         """

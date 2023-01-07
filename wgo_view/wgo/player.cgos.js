@@ -412,7 +412,6 @@
     for (var i = 0; i < tokens.length; i++) {
       if (tokens[i] == "winrate") {
         var r = parseFloat(tokens[i + 1]);
-        if (r == +r && r > 1) r /= 10000;
         return r * 100;
       }
     }
