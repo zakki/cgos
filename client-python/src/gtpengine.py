@@ -22,7 +22,6 @@ import sys
 import time
 import threading
 import queue
-import copy
 from typing import Optional, Tuple
 from common import Colour
 
@@ -79,26 +78,21 @@ class GTPTools(object):
             raise EngineConnectorError("Invalid coordinate: '" + coordstr + "'")
 
 class Query:
-    def __init__(self, commandString):
+    def __init__(self, commandString, queryType="normal"):
         self.commandString = commandString
+
+        # should be in ["normal", "lz-analyze", "kata-analyze", "ogs-analyze"]
+        self.queryType = queryType
         self.result = None
         self.response = list()
 
     def getList(self):
-        out = list()
-        for line in self.response:
-            out.append(copy.deepcopy(line))
-        if len(out) != 0:
-            # Remove the GTP token '=' or '?'.
-            out[0] = out[0][1:].strip()
-        return out
+        return response
 
     def __str__(self):
         out = str()
         for line in self.response:
             out += ("{}\n".format(line))
-        # Remove the GTP token '=' or '?'.
-        out = out[1:]
         return out.strip()
 
 
@@ -139,6 +133,7 @@ class EngineConnector(object):
         self.logger = logging.getLogger(logger)
         self.logger.setLevel(logging.DEBUG)
 
+        self._analysisQueue = queue.Queue()
         self._queryQueue = queue.Queue()
         self._waitingQueue = queue.Queue()
         self._finishedQueue = queue.Queue()
@@ -258,19 +253,33 @@ class EngineConnector(object):
             if not line:
                 self._finishedQueue.put(handlingQuery)
                 handlingQuery = None
+                self._analysisQueue.put(
+                    {"type": "end", "line" : None}
+                )
                 continue
 
             if line.split()[0] in ["=", "?"] and \
                    handlingQuery.result is None:
                 handlingQuery.result = line.split()[0]
+                line = line[1:].strip()
+
+            if handlingQuery.queryType.find("analyze"):
+                if "play" in line:
+                    self._analysisQueue.put(
+                        {"type": "play", "line" : line}
+                    )
+                else:
+                    self._analysisQueue.put(
+                        {"type": handlingQuery.queryType, "line" : line}
+                    )
 
             handlingQuery.response.append(line)
 
-    def pushQuery(self, commandString):
+    def pushQuery(self, commandString, queryType):
         """
         Push the GTP command into queue.
         """
-        query = Query(commandString)
+        query = Query(commandString, queryType)
         self._queryQueue.put(query)
 
     def tryGetLastResponse(self, block):
@@ -285,6 +294,15 @@ class EngineConnector(object):
                 raise EngineConnectorError("Can not receive the response")
             return None, None
         return query.result, query.getList()
+
+    def tryGetLastAnalysisLine(self, block):
+        try:
+            line = self._analysisQueue.get(block=block, timeout=9999)
+        except queue.Empty:
+            if block:
+                raise EngineConnectorError("Can not receive the analysis line")
+            return None, None
+        return line
 
     def hasTimeControl(self):
         """
@@ -338,6 +356,18 @@ class EngineConnector(object):
         colour and coord a GTP coordinate.
         """
         self._sendNoResponseCommand("play " + gtpColour + " " + gtpCoord)
+
+    def requestAsyncGenMove(self, gtpColour) -> Tuple[str, Optional[str]]:
+        mode = self.getGenmoveAnalyzeMode()
+        interval = 100
+        if mode in ["cgos", "kata", "lz"]:
+            analyze_cmd = "{}-genmove_analyze".format(mode)
+            self._sendAsyncRawGTPCommand(
+                "{} {} {}".format(analyze_cmd, gtpColour, interval),
+                queryType=analyze_cmd)
+        else:
+            self._sendAsyncRawGTPCommand("genmove " + gtpColour)
+
 
     def requestGenMove(self, gtpColour) -> Tuple[str, Optional[str]]:
         """
@@ -480,11 +510,7 @@ class EngineConnector(object):
         command types (list response, etc.)
         """
 
-        if self._subprocess.poll() is not None:
-            raise EngineConnectorError("Cannot send GTP command. Engine has terminated")
-
-        self.logger.debug("Sending: " + commandString)
-        self.pushQuery(commandString)
+        self._sendAsyncRawGTPCommand(commandString)
 
         result, response = self.tryGetLastResponse(block=True)
         if result == "?":
@@ -492,3 +518,9 @@ class EngineConnector(object):
 
         self.logger.debug("Response: " + str(response))
         return response
+
+    def _sendAsyncRawGTPCommand(self, commandString, queryType="normal"):
+        if self._subprocess.poll() is not None:
+            raise EngineConnectorError("Cannot send GTP command. Engine has terminated")
+        self.logger.debug("Sending: " + commandString)
+        self.pushQuery(commandString, queryType)
