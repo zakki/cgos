@@ -33,7 +33,7 @@ import random
 import re
 import select
 import logging
-from typing import Any, List, Tuple, Dict
+from typing import Any, List, Tuple, Dict, Optional
 
 from gogame import GoGame, Game, sgf
 
@@ -134,8 +134,12 @@ def now_milliseconds() -> int:
     return time.time_ns() // 1_000_000
 
 
-def joinMoves(mvs: List[Tuple[str, int]]) -> str:
-    return " ".join([f"{m} {t}" for (m, t) in mvs])
+def joinMoves(mvs: List[Tuple[str, int, Optional[str]]]) -> str:
+    return " ".join([f"{m} {t}" for (m, t, i) in mvs])
+
+
+def joinAnalysis(mvs: List[Tuple[str, int, Optional[str]]]) -> str:
+    return "\n".join([i or "" for (m, t, i) in mvs])
 
 
 # READ the configuration file
@@ -184,9 +188,10 @@ def initDatabase() -> None:
 
     if not os.path.exists(cfg.game_archive_database):
         conn = sqlite3.connect(cfg.game_archive_database)
-        conn.execute("create table games(gid int, dta)")
+        conn.execute("create table games(gid int, dta, analysis)")
         conn.commit()
         conn.close()
+        # conn.execute("ALTER TABLE games ADD COLUMN analysis")
 
     if not os.path.exists(cfg.database_state_file):
 
@@ -331,6 +336,7 @@ class ActiveUser:
     gid: int
     rating: float
     k: float
+    useAnalyze: bool
 
     def __init__(
         self,
@@ -345,6 +351,7 @@ class ActiveUser:
         self.gid = gid
         self.rating = rating
         self.k = k
+        self.useAnalyze = False
 
 
 # -----------------------------------------------
@@ -425,7 +432,7 @@ def newrating(cur_rating: float, opp_rating: float, res: float, K: float) -> flo
 
 # write an SGF game record
 # ---------------------------
-def seeRecord(gid: int, res: str, dte: Any, tme: str) -> str:
+def seeRecord(gid: int, res: str, dte: Any, tme: str) -> Tuple[str, str]:
 
     # global boardsize
     # global komi
@@ -439,7 +446,9 @@ def seeRecord(gid: int, res: str, dte: Any, tme: str) -> str:
     s += f"{tme} {cfg.boardsize} {cfg.komi} {game.w}({game.wrate}) {game.b}({game.brate}) {cfg.level} {joinMoves(game.mvs)} "
     s += res
 
-    return s
+    a = joinAnalysis(game.mvs)
+
+    return s, a
 
 
 def getAnchors() -> Dict[str, float]:
@@ -675,7 +684,7 @@ def gameover(gid: int, sc: str, err: str) -> None:
         dte=dte,
         err=err,
     )
-    see = seeRecord(gid, sc, dte, tme)
+    see, see2 = seeRecord(gid, sc, dte, tme)
 
     dest_dir = os.path.join(
         cfg.htmlDir,
@@ -686,7 +695,7 @@ def gameover(gid: int, sc: str, err: str) -> None:
     )
     os.makedirs(dest_dir, exist_ok=True)  # make directory if it doesn't exist
 
-    dbrec.execute("INSERT INTO games VALUES(?, ?)", (gid, see))
+    dbrec.execute("INSERT INTO games VALUES(?, ?, ?)", (gid, see, see2))
     dbrec.commit()
     db.execute(
         """INSERT INTO games VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, "n" )""",
@@ -853,6 +862,7 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
         return
 
     if msg[0:2] == "e1":
+        parameters = msg.split()
         logger.info(f"client: {data}")
         cc = db.execute("select count from clients where name = ?", (data,)).fetchone()
         # if  [string is integer -strict $cc] :
@@ -861,6 +871,7 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
         else:
             db.execute("insert into clients values(?, 1)", (data,))
         db.commit()
+        act[who].useAnalyze = "genmove_analyze" in parameters
         act[who].msg_state = "username"
         send(sock, "username")
         return
@@ -910,8 +921,10 @@ def _handle_player_username(sock: Client, data: str) -> None:
             return
 
     sock.id = user_name
+    client = act[who]
     del act[who]
     act[user_name] = ActiveUser(sock, "password", 0, 0, 0)
+    act[user_name].useAnalyze = client.useAnalyze
     send(sock, "password")
     return
 
@@ -961,7 +974,7 @@ def _handle_player_password(sock: Client, data: str) -> None:
         del act[who]
         return
 
-    logger.info(f"[{who}] logged on")
+    logger.info(f"[{who}] logged on analyze: {act[who].useAnalyze}")
 
     act[who].rating = rat
     act[who].k = k
@@ -1055,6 +1068,13 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
     maybe = ["W+", "B+"][ctm & 1]  # opponent wins if there is an error
 
     mv = data.strip()
+    analysis = None
+    if act[who].useAnalyze:
+        # parse and sanitize analyze info
+        tokens = mv.split(None, 1)
+        mv = tokens[0]
+        if len(tokens) > 1:
+            analysis = re.sub("[^- 0-9a-zA-Z._-]", "", tokens[1])
     over = ""
 
     # w, b, lmst, wrt, brt, wrate, brate, mvs = games[gid]
@@ -1122,9 +1142,9 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
     # record the moves and times
     # --------------------------
     if ctm & 1:
-        game.mvs.append((data, wrt))
+        game.mvs.append((mv, wrt, analysis))
     else:
-        game.mvs.append((data, brt))
+        game.mvs.append((mv, brt, analysis))
     games[gid].mvs = game.mvs
 
     if game.w == who:
@@ -1190,7 +1210,7 @@ def accept_connection(sock: socket.socket) -> Client:
     # TODO
     # fileevent $sock readable [list player_respond $sock]
 
-    send(client, "protocol")
+    send(client, "protocol genmove_analyze")
 
     return client
 
