@@ -412,7 +412,6 @@
     for (var i = 0; i < tokens.length; i++) {
       if (tokens[i] == "winrate") {
         var r = parseFloat(tokens[i + 1]);
-        if (r == +r && r > 1) r /= 10000;
         return r * 100;
       }
     }
@@ -428,7 +427,7 @@
 
   var update = function (e) {
     var list, graph;
-    if (!e.node || !e.node.move || !e.path) return;
+    if (!e.node || !e.node.move || !e.path || !e.node.comment) return;
     if (e.node.move.c == WGo.B) {
       list = this.black;
       graph = this.winrate.blackWinrate;
@@ -440,9 +439,11 @@
       list.push("");
     }
     rate = winrate(e.node.comment);
-    if (e.node.move.c == WGo.B) rate = 100 - rate;
-    list[list.length - 1] = e.path.m + "," + rate;
-    graph.setAttribute("points", list.join(" "));
+    if (rate != null) {
+      if (e.node.move.c == WGo.B) rate = 100 - rate;
+      list[e.path.m] = e.path.m + "," + rate;
+      graph.setAttribute("points", list.join(" "));
+    }
   };
 
   var AnalyzeBox = WGo.extendClass(
