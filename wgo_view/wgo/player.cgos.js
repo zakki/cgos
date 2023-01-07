@@ -171,7 +171,7 @@
           } else if (key == "winrate") {
             winrate = parseFloat(value);
             i++;
-          } else if (key == "scoreMean") {
+          } else if (key == "scoreLead") {
             score = parseFloat(value);
             i++;
           } else if (key == "pv") {
