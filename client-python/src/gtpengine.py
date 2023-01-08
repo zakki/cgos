@@ -81,13 +81,14 @@ class Query:
     def __init__(self, commandString, queryType="normal"):
         self.commandString = commandString
 
-        # should be in ["normal", "lz-analyze", "kata-analyze", "ogs-analyze"]
+        # should be one of [
+        # "normal", "lz-analyze", "kata-analyze", "ogs-analyze"]
         self.queryType = queryType
         self.result = None
         self.response = list()
 
     def getList(self):
-        return response
+        return self.response
 
     def __str__(self):
         out = str()
@@ -357,14 +358,17 @@ class EngineConnector(object):
         """
         self._sendNoResponseCommand("play " + gtpColour + " " + gtpCoord)
 
-    def requestAsyncGenMove(self, gtpColour) -> Tuple[str, Optional[str]]:
+    def requestAsyncGenMove(self, gtpColour):
         mode = self.getGenmoveAnalyzeMode()
         interval = 100
         if mode in ["cgos", "kata", "lz"]:
-            analyze_cmd = "{}-genmove_analyze".format(mode)
+            analyze_base = "{}-genmove_analyze".format(mode)
+            analyze_cmd = "{} {} {}".format(analyze_base, gtpColour, interval)
+            if mode == "kata":
+                analyze_cmd = "{} ownership true".format(analyze_cmd)
             self._sendAsyncRawGTPCommand(
-                "{} {} {}".format(analyze_cmd, gtpColour, interval),
-                queryType=analyze_cmd)
+                analyze_cmd,
+                queryType=analyze_base)
         else:
             self._sendAsyncRawGTPCommand("genmove " + gtpColour)
 
