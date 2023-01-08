@@ -21,17 +21,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import asyncio
 import logging
-import socket
 import traceback
-from typing import Dict, Optional
+from typing import Optional
 
 
 # Setup logger
 logger = logging.getLogger("cgos_server")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 logHandler = logging.StreamHandler()
-logHandler.setLevel(logging.INFO)
+logHandler.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logHandler.setFormatter(formatter)
 logger.addHandler(logHandler)
@@ -41,44 +41,23 @@ ENCODING = "utf-8"
 
 
 class Client:
-    def __init__(self, s: socket.socket, id: str) -> None:
-        self._socket = s
+    def __init__(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, id: str
+    ) -> None:
+        self._reader = reader
+        self._writer = writer
+        self._readQueue: asyncio.Queue[str] = asyncio.Queue()
+        self._writeQueue: asyncio.Queue[str] = asyncio.Queue()
         self.id = id or "<unknown>"
-        self._socketfile = self._socket.makefile("rw", encoding=ENCODING)
-        self.fileno = s.fileno()
-        clients[self.fileno] = self
-
-    def _write(self, message: str) -> None:
-        logger.debug(f"S -> {self.id}: '{message}'")
-        self._socketfile.write(message + "\n")
-        self._socketfile.flush()
-
-    def _read(self) -> str:
-        line = self._socketfile.readline()
-        if len(line) == 0:
-            raise Exception("EOF")
-        logger.debug(f"S <- {self.id}: '{line}'")
-        line = line.strip()
-        return line
+        self.alive = True
 
     def close(self) -> None:
-        if self.fileno in clients:
-            del clients[self.fileno]
-        try:
-            self._socketfile.close()
-            self._socket.close()
-        except Exception as e:
-            logger.error(str(e))
+        self.alive = False
 
-    def recvLine(self) -> Optional[str]:
+    def send(self, message: str) -> bool:
         try:
-            return self._read()
-        except:
-            return None
-
-    def send(self, msg: str) -> bool:
-        try:
-            self._write(msg)
+            logger.debug(f"S -> {self.id}: '{message}'")
+            self._writeQueue.put_nowait(message + "\n")
             return True
         except:
             logger.error(f"alert: Client crash for user: {self.id}")
@@ -86,5 +65,40 @@ class Client:
             logger.error(traceback.format_stack())
             return False
 
+    def readLine_nowait(self) -> Optional[str]:
+        try:
+            return self._readQueue.get_nowait()
+        except asyncio.QueueEmpty:
+            return None
 
-clients: Dict[int, Client] = dict()  # map raw socket to socket
+    async def readLine(self) -> str:
+        line = await self._readQueue.get()
+        logger.debug(f"S <- {self.id}: '{line}'")
+        return line
+
+    async def writeTask(self) -> None:
+        while self.alive:
+            try:
+                msg = await self._writeQueue.get()
+                logger.debug(f"S ==> {self.id}: '{msg}'")
+                self._writer.write(bytes(msg, encoding=ENCODING))
+                await self._writer.drain()
+            except:
+                logger.info(f"writer exception {self.id}")
+                self.alive = False
+            logger.info(f"send queue {self.id}: {self._writeQueue.qsize()} {msg}")
+        logger.info(f"writer ended {self.id}")
+
+    async def readTask(self) -> None:
+        while self.alive:
+            try:
+                line = await self._reader.readline()
+                if len(line) == 0:
+                    self.alive = False
+                    break
+                logger.debug(f"S <== {self.id}: '{str(line, ENCODING)}'")
+                await self._readQueue.put(str(line, encoding=ENCODING))
+            except:
+                logger.info(f"reader exception {self.id}")
+                self.alive = False
+        logger.info(f"reader ended {self.id}")
