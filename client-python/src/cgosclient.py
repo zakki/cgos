@@ -360,6 +360,11 @@ class CGOSClient(object):
           - GTP colour
           - Time left in msec
         """
+
+        useExperimentalAsync = True
+        if self._engine.getGenmoveAnalyzeMode() not in ["cgos", "kata", "lz"]:
+            useExperimentalAsync = False
+
         if len(parameters) != 2:
             raise CGOSClientError("'play' command requires 2 parameters")
 
@@ -382,7 +387,23 @@ class CGOSClient(object):
         timeMSec = int(parameters[1])
 
         self._engine.notifyTimeLeft(colour, timeMSec)
-        result, analyzeInfo = self._engine.requestGenMove(colour)
+
+        if useExperimentalAsync:
+            self._engine.requestAsyncGenMove(colour)
+            
+            line = self._engine.tryGetLastAnalysisLine(True)
+            analyzeInfo = str()
+            while line["type"] is not "play":
+                # TODO: Transfer the lz analysis string.
+                analyzeInfo = line["data"] # Only save the last line
+                line = self._engine.tryGetLastAnalysisLine(True)
+            result = line["data"].split(" ")[-1].lower()
+
+            line = self._engine.tryGetLastAnalysisLine(True) # Pop the end line
+            assert line["type"] == "end", ""
+        else:
+            result, analyzeInfo = self._engine.requestGenMove(colour)
+
         response = result.lower()
         if self._useAnalyze and analyzeInfo is not None:
             response += " " + analyzeInfo

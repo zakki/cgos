@@ -255,7 +255,7 @@ class EngineConnector(object):
                 self._finishedQueue.put(handlingQuery)
                 handlingQuery = None
                 self._analysisQueue.put(
-                    {"type": "end", "line" : None}
+                    {"type": "end", "data" : None}
                 )
                 continue
 
@@ -265,13 +265,13 @@ class EngineConnector(object):
                 line = line[1:].strip()
 
             if handlingQuery.queryType.find("analyze"):
-                if "play" in line:
+                if line.startswith("play "):
                     self._analysisQueue.put(
-                        {"type": "play", "line" : line}
+                        {"type": "play", "data" : line}
                     )
                 else:
                     self._analysisQueue.put(
-                        {"type": handlingQuery.queryType, "line" : line}
+                        {"type": handlingQuery.queryType, "data" : line}
                     )
 
             handlingQuery.response.append(line)
@@ -371,7 +371,6 @@ class EngineConnector(object):
                 queryType=analyze_base)
         else:
             self._sendAsyncRawGTPCommand("genmove " + gtpColour)
-
 
     def requestGenMove(self, gtpColour) -> Tuple[str, Optional[str]]:
         """
