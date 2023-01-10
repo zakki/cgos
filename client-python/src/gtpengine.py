@@ -393,12 +393,12 @@ class EngineConnector(object):
                 self.logger.error("no move")
                 raise Exception("no move")
             self.logger.debug(f"move: {move} analysis: {analysis}")
-            return move, analysis
+            return move.lower(), analysis
         else:
             result = self._sendListResponseCommand("genmove " + gtpColour)
             if len(result) == 0:
                 raise EngineConnectorError("Received invalid response to genmove")
-            return result[0], None
+            return result[0].lower(), None
 
     def genmoveCgos(self, gtpColour: str) -> Tuple[Optional[str], Optional[str]]:
         result = self._sendListResponseCommand("cgos-genmove_analyze " + gtpColour)
