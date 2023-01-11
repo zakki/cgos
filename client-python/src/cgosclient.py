@@ -393,7 +393,7 @@ class CGOSClient(object):
             
             line = self._engine.tryGetLastAnalysisLine(True)
             analyzeInfo = str()
-            while line["type"] is not "play":
+            while line["type"] != "play":
                 # TODO: Transfer the lz analysis string.
                 analyzeInfo = line["data"] # Only save the last line
                 line = self._engine.tryGetLastAnalysisLine(True)
