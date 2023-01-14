@@ -21,31 +21,34 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import traceback
+import asyncio
 import configparser
 import datetime
 import sys
 import time
 import os
 import sqlite3
-import socket
 import random
 import re
-import select
+import traceback
 import logging
 from typing import Any, List, Tuple, Dict, Optional
 
 from gogame import GoGame, Game, sgf
+from .client import Client
 
 
 # Setup logger
 logger = logging.getLogger("cgos_server")
 logger.setLevel(logging.INFO)
+
 logHandler = logging.StreamHandler()
 logHandler.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logHandler.setFormatter(formatter)
 logger.addHandler(logHandler)
+
+# logging.getLogger("asyncio").setLevel(logging.DEBUG)
 
 
 SKIP = 4
@@ -237,38 +240,6 @@ def openDatabase() -> None:
         raise Exception(e)
 
 
-class Client:
-    def __init__(self, s: socket.socket, id: str) -> None:
-        self._socket = s
-        self.id = id or "<unknown>"
-        self._socketfile = self._socket.makefile("rw", encoding=ENCODING)
-        self.fileno = s.fileno()
-        clients[self.fileno] = self
-
-    def write(self, message: str) -> None:
-        logger.debug(f"S -> {self.id}: '{message}'")
-        self._socketfile.write(message + "\n")
-        self._socketfile.flush()
-
-    def read(self) -> str:
-        line = self._socketfile.readline()
-        logger.debug(f"S <- {self.id}: '{line}'")
-        line = line.strip()
-        return line
-
-    def close(self) -> None:
-        if self.fileno in clients:
-            del clients[self.fileno]
-        try:
-            self._socketfile.close()
-            self._socket.close()
-        except Exception as e:
-            logger.error(str(e))
-
-
-clients: Dict[int, Client] = dict()  # map raw socket to socket
-
-
 # -------------------------------------------------
 # vact - record of an active viewers
 # key is a VID (viewer ID),  val is a socket number
@@ -303,7 +274,8 @@ class ViewerList:
 
     def sendAll(self, msg: str) -> None:
         for who, v in list(self.vact.items()):
-            if not send(v, msg):
+            v.send(msg)
+            if not v.alive:
                 logger.error(f"[{who}] disconnected")
                 self.remove(who)
 
@@ -313,7 +285,7 @@ class ViewerList:
         for vk in self.obs[gid]:
             if vk not in self.vact:
                 continue
-            send(self.vact[vk], msg)
+            self.vact[vk].send(msg)
 
 
 # -------------------------------------------------------------------------
@@ -373,24 +345,13 @@ viewers = ViewerList()
 sid = 0
 
 
-def send(sock: Client, msg: str) -> bool:
-    try:
-        sock.write(msg)
-        return True
-    except:
-        logger.error(f"alert: Client crash for user: {sock.id}")
-        logger.error(traceback.format_exc())
-        logger.error(traceback.format_stack())
-        return False
-
-
 # send a message to a player without knowing the socket
 # -----------------------------------------------------
 def nsend(name: str, msg: str) -> None:
     global act
     if name in act:
         sok = act[name].sock
-        send(sok, msg)
+        sok.send(msg)
     else:
         logger.info(f"alert: Cannot find active record for {name}")
 
@@ -404,7 +365,7 @@ def infoMsg(msg: str) -> None:
     for (who, v) in list(act.items()):
         if v.msg_state != "protocol":
             soc = v.sock
-            if not send(soc, f"info {msg}"):
+            if not soc.send(f"info {msg}"):
                 logger.error(f"[{who}] disconnected")
                 soc.close()
                 del act[who]
@@ -710,7 +671,7 @@ def gameover(gid: int, sc: str, err: str) -> None:
     del games[gid]
 
 
-def viewer_respond(sock: Client) -> None:
+def viewer_respond(sock: Client, data: str) -> None:
 
     global games
     global dbrec
@@ -719,11 +680,7 @@ def viewer_respond(sock: Client) -> None:
 
     # If we can no longer read from sock, close it.
     # ---------------------------------------------
-    try:
-        data = sock.read()
-        if not data:
-            raise Exception()
-    except:
+    if len(data) == 0:
         sock.close()
         logger.error(f"[{who}] disconnected")
         viewers.remove(who)
@@ -752,7 +709,7 @@ def viewer_respond(sock: Client) -> None:
             )
 
             msg = f"setup {gid} - - {cfg.boardsize} {cfg.komi} {w} {b} {cfg.level} {joinMoves(game.mvs)}"
-            send(sock, msg)
+            sock.send(msg)
 
             viewers.addObserver(gid, who)
         else:
@@ -761,12 +718,12 @@ def viewer_respond(sock: Client) -> None:
             ).fetchone()
             if rec:
                 dta = rec[0]
-                send(sock, f"setup {gid} {dta}")
+                sock.send(f"setup {gid} {dta}")
             else:
-                send(sock, f"setup {gid} ?")
+                sock.send(f"setup {gid} ?")
 
 
-def player_respond(sock: Client) -> None:
+def player_respond(sock: Client, data: str) -> None:
     global act
 
     who = sock.id
@@ -774,16 +731,13 @@ def player_respond(sock: Client) -> None:
 
     # If we can no longer read from sock, close it.
     # ---------------------------------------------
-    try:
-        data = sock.read()
-        if not data:
-            raise Exception()
-    except:
+    if len(data) == 0:
         logger.error(f"[{who}] disconnected")
 
         sock.close()
         del act[who]
         return
+
     if data == "quit":
         return _handle_player_quit(sock, data)
 
@@ -847,7 +801,7 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
         ):
             dte, tme, bs, kom, w, b, lev, *lst = stuff.split(" ")
             res = lst[-1]
-            send(sock, f"match {gid} {dte} {tme} {bs} {kom} {w} {b} {res}")
+            sock.send(f"match {gid} {dte} {tme} {bs} {kom} {w} {b} {res}")
 
         # send out information about current games
         # ----------------------------------------
@@ -857,7 +811,7 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
             logger.info(
                 f"sending to viewer: match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb}"
             )
-            send(sock, f"match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} -")
+            sock.send(f"match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} -")
 
         return
 
@@ -873,10 +827,10 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
         db.commit()
         act[who].useAnalyze = "genmove_analyze" in parameters
         act[who].msg_state = "username"
-        send(sock, "username")
+        sock.send("username")
         return
 
-    send(sock, "Error: invalid response")
+    sock.send("Error: invalid response")
     del act[who]
     sock.close()
     return
@@ -891,7 +845,7 @@ def _handle_player_username(sock: Client, data: str) -> None:
     if err == "":
         user_name = data
     else:
-        send(sock, f"Error: {err}")
+        sock.send(f"Error: {err}")
         del act[who]
         sock.close()
         return
@@ -907,15 +861,15 @@ def _handle_player_username(sock: Client, data: str) -> None:
     if user_name in act:
         # test old connection
         xsoc = act[user_name].sock
-        xsoc_alive = send(
-            xsoc, "info another login is being attempted using this user name"
+        xsoc_alive = xsoc.send(
+            "info another login is being attempted using this user name"
         )
-        if not xsoc_alive:
+        if not xsoc.alive or not xsoc_alive:
             xsoc.close()
             logger.error(f"Error: user {user_name} apparently lost old connection")
             del act[user_name]
         else:
-            send(sock, "Error: You are already logged on!  Closing connection.")
+            sock.send("Error: You are already logged on!  Closing connection.")
             del act[who]
             sock.close()
             return
@@ -925,7 +879,7 @@ def _handle_player_username(sock: Client, data: str) -> None:
     del act[who]
     act[user_name] = ActiveUser(sock, "password", 0, 0, 0)
     act[user_name].useAnalyze = client.useAnalyze
-    send(sock, "password")
+    sock.send("password")
     return
 
 
@@ -940,7 +894,7 @@ def _handle_player_password(sock: Client, data: str) -> None:
     err = test_password(pw)
 
     if err != "":
-        send(sock, f"Error: {err}")
+        sock.send(f"Error: {err}")
         sock.close()
         del act[who]
         return
@@ -969,7 +923,7 @@ def _handle_player_password(sock: Client, data: str) -> None:
         ratingOf[who] = strRate(rat, k)
 
     if cmp_pw != pw:
-        send(sock, "Sorry, password doesn't match")
+        sock.send("Sorry, password doesn't match")
         sock.close()
         del act[who]
         return
@@ -1008,7 +962,7 @@ def _handle_player_password(sock: Client, data: str) -> None:
 
             # catch up the game
             # ------------------
-            send(sock, msg_out)
+            sock.send(msg_out)
 
             act[who].msg_state = "ok"
             act[who].gid = gid
@@ -1020,14 +974,14 @@ def _handle_player_password(sock: Client, data: str) -> None:
                     # tr = inf.wrt
                     ct = now_milliseconds()
                     tl = inf.wrt - (ct - inf.lmst)
-                    send(sock, f"genmove w {tl}")
+                    sock.send(f"genmove w {tl}")
                     act[who].msg_state = "genmove"
                     return
                 else:
                     # tr = inf.brt
                     ct = now_milliseconds()
                     tl = inf.brt - (ct - inf.lmst)
-                    send(sock, f"genmove b {tl}")
+                    sock.send(f"genmove b {tl}")
                     act[who].msg_state = "genmove"
                     return
 
@@ -1189,42 +1143,71 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
         games[gid].lmst = now_milliseconds()
 
 
-def accept_connection(sock: socket.socket) -> Client:
+async def accept_connection(
+    reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+) -> None:
+
+    address = writer.get_extra_info("peername")
+
+    logger.info(f"Connection from {address}")
+
+    # def accept_connection(sock: socket.socket) -> Client:
     global act
     global sid
-
-    # fconfigure $sock -blocking 0 -buffering line
-    # sock._socket.setblocking(False)
 
     # create a default id till we get user name
     # -----------------------------------------
     who = str(sid)
     sid += 1
 
-    client = Client(sock, who)
+    client = Client(reader, writer, who)
 
     act[who] = ActiveUser(client, "protocol", 0, cfg.defaultRating, cfg.maxK)
 
-    # Set up handler to "respond" when a message comes in
-    # ---------------------------------------------------
-    # TODO
-    # fileevent $sock readable [list player_respond $sock]
+    readTask = asyncio.create_task(client.readTask())
+    writeTask = asyncio.create_task(client.writeTask())
+    handleTask = asyncio.create_task(handle_client(client))
 
-    send(client, "protocol genmove_analyze")
+    tasks = [readTask, writeTask, handleTask]
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
 
-    return client
+    logger.debug(f"client ended: {who} cleanup done:{len(done)} pending:{len(pending)}")
+    for t in pending:
+        try:
+            t.cancel()
+        except:
+            pass
+
+    logger.info(f"disconnected: {who}")
 
 
-def rcmp(a, b) -> int:
-    a1 = a[1]
-    b1 = b[1]
+async def handle_client(client: Client) -> None:
 
-    if a1 < b1:
-        return 1
-    elif a1 > b1:
-        return -1
-    else:
-        return 0
+    who = client.id
+
+    client.send("protocol genmove_analyze")
+
+    try:
+        while client.alive:
+            line = await client.readLine()
+
+            logger.debug(f"got new line: {who}/{client.id} {line}")
+
+            if who in viewers.vact:
+                logger.debug(f"handle viewer {who}: {line}")
+                viewer_respond(client, line)
+            else:
+                logger.debug(f"handle player {who}: {line}")
+                player_respond(client, line)
+    except asyncio.CancelledError:
+        logger.debug(f"cancelled: {who}")
+    except:
+        logger.error(f"Unexpected Error: {who}")
+        logger.error(traceback.format_exc())
+        logger.error(traceback.format_stack())
+
+    if client.id in act:
+        del act[client.id]
 
 
 # --------------------------------------------------------
@@ -1551,67 +1534,41 @@ def schedule_games() -> None:
 
         os.rename(tmpf, cfg.web_data_file)
 
-    # after idle [list after 15000 schedule_games]    ;# every 15 seconds
-    # t = threading.Timer(15.0, schedule_games)
-    # t.start()
+
+async def schedule_games_task() -> None:
+
+    # after 45000ms schedule_games
+    await asyncio.sleep(45.0)
+
+    while True:
+        schedule_games()
+
+        # every 15 seconds
+        await asyncio.sleep(15.0)
 
 
 last_est = now_seconds()
 
 
-def server_loop() -> None:
-    # Create our server on the expected port
-    # ------------------------------------------
-    server_addr = ("", cfg.portNumber)
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(server_addr)
-    server_socket.listen(5)
+async def server_main() -> None:
+    server = await asyncio.start_server(accept_connection, "", cfg.portNumber)
+
+    addrs = ", ".join(str(sock.getsockname()) for sock in server.sockets)
+    logger.info(f"Serving on {addrs}")
 
     # Create a game scheduling event
     # ------------------------------
+    task = asyncio.create_task(schedule_games_task())
 
-    # after 45000ms schedule_games
-    time_schedule_games = now_seconds() + 45.0
+    async with server:
+        await server.serve_forever()
 
-    # the event loop
-    read_list: List[socket.socket] = [server_socket]
-    timeout = 1.0
-    try:
-        while True:
-            readable: List[socket.socket]
-            read_list = [server_socket]
-            read_list += [s._socket for s in clients.values()]
-            readable, writable, errored = select.select(read_list, [], [], timeout)
-            for s in readable:
-                if s is server_socket:
-                    client_socket, address = server_socket.accept()
-                    read_list.append(client_socket)
-                    logger.info(f"Connection from {address}")
-                    accept_connection(client_socket)
-                else:
-                    # print(f"Recv client {s.fileno()} in {clients.keys()}")
-                    if s.fileno() in clients:
-                        sock = clients[s.fileno()]
-                        who = sock.id
-                        # print(f"Recv client from {who}")
-
-                        if who in viewers.vact:
-                            # print(f"handle viewer {who}")
-                            viewer_respond(sock)
-                        else:
-                            # print(f"handle player {who}")
-                            player_respond(sock)
-
-            if now_seconds() >= time_schedule_games:
-                schedule_games()
-                # every 15 seconds
-                time_schedule_games = now_seconds() + 15.0
-    finally:
-        server_socket.close()
+    task.cancel()
 
 
-def runServer():
+def runServer() -> None:
 
     initDatabase()
     openDatabase()
-    server_loop()
+
+    asyncio.run(server_main())
