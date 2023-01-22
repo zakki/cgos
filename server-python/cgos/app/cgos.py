@@ -32,6 +32,7 @@ import random
 import re
 import traceback
 import logging
+import json
 from typing import Any, List, Tuple, Dict, Optional
 
 from gogame import GoGame, Game, sgf
@@ -1024,11 +1025,16 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
     mv = data.strip()
     analysis = None
     if act[who].useAnalyze:
-        # parse and sanitize analyze info
+        # parse and validate analyze info
         tokens = mv.split(None, 1)
         mv = tokens[0]
         if len(tokens) > 1:
-            analysis = re.sub("[^- 0-9a-zA-Z._-]", "", tokens[1])
+            #    analysis = re.sub("[^- 0-9a-zA-Z._-]", "", tokens[1])
+            try:
+                json.loads(tokens[1])
+                analysis = tokens[1]
+            except:
+                logger.info(f"Bad analysis from {who}, '{tokens[1]}'")
     over = ""
 
     # w, b, lmst, wrt, brt, wrate, brate, mvs = games[gid]

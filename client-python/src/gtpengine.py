@@ -15,12 +15,13 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import json
 import logging
 import logging.handlers
 import subprocess
 import sys
 import time
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from common import Colour
 
@@ -31,6 +32,109 @@ class EngineConnectorError(Exception):
 
     def __str__(self):
         return repr(self._msg)
+
+
+def encodeOwnership(ownership: List[float]) -> str:
+    CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+    def encode(r: float) -> str:
+        i = max(0, min((r + 1) / 2, 1))
+        # i = r
+        return CHARS[round(i * 63)]
+
+    return "".join([encode(f) for f in ownership])
+
+
+class AnalyzeResultParser:
+
+    NUMBER_ATTRIBUTES = ["visits", "winrate", "prior", "lcb", "winrate", "prior", "lcb", "utility", "scoreMean", "scoreStdev", "scoreLead", "scoreSelfplay", "utilityLcb", "weight", "order", "pvEdgeVisits", "movesOwnership", "movesOwnershipStdev",]
+
+    def __init__(self, tokens: List[str], logger: logging.Logger, convertLz = False):
+        self.tokens = tokens
+        self.pos = 0
+        self.convertLz = convertLz
+        self.logger = logger
+
+    def _next(self) -> str:
+        t = self.tokens[self.pos]
+        self.pos += 1
+        return t
+
+    def _has_next(self) -> bool:
+        return self.pos < len(self.tokens)
+
+    def _lookahead(self) -> Optional[str]:
+        if self.pos < len(self.tokens):
+            return self.tokens[self.pos]
+        return None
+
+    def _nextNumber(self):
+        t = self._next()
+        try:
+            return int(t)
+        except ValueError:
+            return float(t)
+
+    def _parseInfo(self) -> Dict:
+        m: Dict[str, Any] = dict()
+        while True:
+            t = self._lookahead()
+            if t is None or t == "info" or t == "ownership":
+                return m
+            t = self._next()
+
+            if t not in ["move", "winrate", "score", "scoreMean", "pv", "prior"]:
+                if "custom" not in m:
+                    m["custom"] = dict()
+                if t in AnalyzeResultParser.NUMBER_ATTRIBUTES:
+                    m["custom"][t] = self._nextNumber()
+                else:
+                    m["custom"][t] = self._next()
+                continue
+
+            if t == "pv":
+                pv = []
+                while True:
+                    t = self._next()
+                    pv.append(t)
+                    t = self._lookahead()
+                    if t is None or t == "info" or t == "ownership":
+                        m["pv"] = " ".join(pv)
+                        return m
+
+            if t == "winrate" or t == "prior":
+                f = self._nextNumber()
+                if self.convertLz:
+                    m[t] = f / 10000
+                else:
+                    m[t] = f
+            elif t == "scoreMean":
+                m["score"] = self._nextNumber()
+            elif t in AnalyzeResultParser.NUMBER_ATTRIBUTES:
+                m[t] = self._nextNumber()
+            else:
+                m[t] = self._next()
+
+    def _parseOwnership(self) -> str:
+        l: List[float] = []
+        while self._has_next():
+            l.append(self._nextNumber())
+        return encodeOwnership(l)
+
+    def parse(self) -> Dict:
+        info: Dict[str, Any] = dict()
+        info["moves"] = []
+        while self._has_next():
+            t = self._next()
+            if t == "info":
+                m = self._parseInfo()
+                info["moves"].append(m)
+            elif t == "ownership":
+                info["ownership"] = self._parseOwnership()
+            else:
+                self.logger.info(f"skip unknown element {t} {self._lookahead()}")
+
+        return info
 
 
 class GTPTools(object):
@@ -283,6 +387,10 @@ class EngineConnector(object):
                 break
             else:
                 analysis = line
+        if analysis is not None:
+            tokens = analysis.split(" ")
+            info = AnalyzeResultParser(tokens, self.logger, False).parse()
+            analysis = json.dumps(info, indent=None)
         return move, analysis
 
     def genmoveLz(self, gtpColour: str) -> Tuple[Optional[str], Optional[str]]:
@@ -299,14 +407,8 @@ class EngineConnector(object):
                 analysis = line
         if analysis is not None:
             tokens = analysis.split(" ")
-            for i, t in enumerate(tokens):
-                if t == "winrate" or t == "prior" or t == "lcb":
-                    try:
-                        w = int(tokens[i + 1])
-                        tokens[i + 1] = str(w / 10000)
-                    except:
-                        pass
-            analysis = " ".join(tokens)
+            info = AnalyzeResultParser(tokens, self.logger, True).parse()
+            analysis = json.dumps(info, indent=None)
         return move, analysis
 
 

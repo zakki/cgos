@@ -112,7 +112,7 @@
           for (var i = 0; i < board.size * board.size; i++) {
             var xo = board.getX(i % board.size);
             var yo = board.getY(Math.floor(i / board.size));
-            sr = board.stoneRadius * Math.abs(args.ownership[i]);
+            sr = board.stoneRadius * Math.abs(args.ownership[i]) * 0.8;
 
             if (args.ownership[i] > 0) this.fillStyle = "rgba(0, 0, 0, 0.5)";
             else this.fillStyle = "rgba(255, 255, 255, 0.5)";
@@ -141,8 +141,8 @@
     if (!this._cgos || !this._cgos.cgosMode) return;
 
     // genmove_analyze style comment
-    if (e.node.comment && e.node.comment.length > 0) {
-      var tokens = e.node.comment.split(" ");
+    if (e.node.CGOSC && e.node.CGOSC.length > 0) {
+      var tokens = JSON.parse(e.node.CGOSC);
       infoList = [];
       for (var i = 0; i < tokens.length; i++) {
         var token = tokens[i];
@@ -152,63 +152,66 @@
         infoList[infoList.length - 1].push(token);
       }
       this._cgos.infoList = [];
-      for (var j = 0; j < infoList.length; j++) {
-        var info = infoList[j];
-        var move = null;
-        var winrate = null;
-        var i = 0;
-        var score = null;
-        var pv = [];
-        var ownership = [];
-        while (i < info.length) {
-          if (i >= info.length) break;
-          var key = info[i];
+
+      var ownership = [];
+      if (tokens.ownership) {
+        var CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        for (var j = 0; j < tokens.ownership.length; j++) {
+          var m = CHARS.indexOf(tokens.ownership[j]);
+          if (m < 0) break;
+          m = m / 63 * 2 - 1.0;
+          if (e.node.move.c == WGo.W) m *= -1;
+          ownership.push(m);
           i++;
-          var value = info[i];
-          if (key == "move") {
-            move = parseCoord(this._cgos.board.size, value);
-            i++;
-          } else if (key == "winrate") {
-            winrate = parseFloat(value);
-            i++;
-          } else if (key == "scoreMean") {
-            score = parseFloat(value);
-            i++;
-          } else if (key == "pv") {
-            while (i < info.length) {
-              var m = parseCoord(this._cgos.board.size, info[i]);
+        }
+      }
+
+      if (tokens.moves) {
+        for (var j = 0; j < tokens.moves.length; j++) {
+          var info = tokens.moves[j];
+          var move = null;
+          var winrate = null;
+          var score = null;
+          var pv = [];
+          if (info.move) {
+            move = parseCoord(this._cgos.board.size, info.move);
+          }
+          if (info.winrate) {
+            winrate = info.winrate;
+          }
+          if (info.score) {
+            score = info.score;
+          }
+          if (info.pv) {
+            var moves = info.pv.split(" ");
+            for (var k = 0; k < moves.length; k++) {
+              var m = parseCoord(this._cgos.board.size, moves[k]);
               if (m == null) break;
               pv.push(m);
               i++;
             }
-          } else if (key == "ownership") {
-            while (i < info.length) {
-              var m = parseFloat(info[i]);
-              if (Number.isNaN(m)) break;
-              if (e.node.move.c == WGo.W) m *= -1;
-              ownership.push(m);
-              i++;
-            }
           }
+
+          if (!move) continue;
+          var o = {
+            move: move,
+            label: "[" + (this._cgos.infoList.length + 1) + "]",
+            winrate: winrate,
+            score: score,
+            pv: pv,
+          };
+          this._cgos.infoList.push(o);
+
+          add.push({
+            type: cgosDrawer,
+            winrate: o.winrate,
+            score: o.score,
+            x: o.move[0],
+            y: o.move[1],
+            ownership: ownership,
+            c: this._cgos.board.theme.variationColor || "rgba(0,32,128,0.8)",
+          });
         }
-        if (!move) continue;
-        var o = {
-          move: move,
-          label: "[" + (this._cgos.infoList.length + 1) + "]",
-          winrate: winrate,
-          score: score,
-          pv: pv,
-        };
-        this._cgos.infoList.push(o);
-        add.push({
-          type: cgosDrawer,
-          winrate: o.winrate,
-          score: o.score,
-          x: o.move[0],
-          y: o.move[1],
-          ownership: ownership,
-          c: this._cgos.board.theme.variationColor || "rgba(0,32,128,0.8)",
-        });
       }
     }
 
@@ -344,6 +347,8 @@
     this.element.appendChild(this.winrate.box);
   };
 
+  var WIDTH = 490;
+
   var prepare_dom_box = function (type) {
     this[type] = {};
     var t = this[type];
@@ -351,45 +356,50 @@
     t.box.className = "wgo-box-wrapper wgo-player-wrapper wgo-" + type;
 
     t.graph = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    t.graph.setAttribute("width", "490");
+    t.graph.setAttribute("width", WIDTH);
     t.graph.setAttribute("height", "100");
     t.graph.setAttribute("viewbox", "-5 -5 410 110");
     t.graph.setAttribute("style", "background-color:#cccccc;");
     t.box.appendChild(t.graph);
 
-    var line = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    line.setAttribute("x", 0);
-    line.setAttribute("y", 0);
-    line.setAttribute("width", 490);
-    line.setAttribute("height", 50);
-    line.setAttribute("stroke", "#666666");
-    line.setAttribute("fill", "#336633");
-    t.graph.appendChild(line);
-
-    var line = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    line.setAttribute("x", 0);
-    line.setAttribute("y", 50);
-    line.setAttribute("width", 490);
-    line.setAttribute("height", 50);
-    line.setAttribute("stroke", "#666666");
-    line.setAttribute("fill", "#99cc99");
-    t.graph.appendChild(line);
-
     var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
     line.setAttribute("x1", 0);
     line.setAttribute("y1", 50);
-    line.setAttribute("x2", 490);
+    line.setAttribute("x2", WIDTH);
     line.setAttribute("y2", 50);
     line.setAttribute("stroke", "#666666");
     line.setAttribute("stroke-width", 2);
     t.graph.appendChild(line);
+
+    var blackScore = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "polyline"
+    );
+
+    blackScore.setAttribute("points", "0,0 0,0");
+    blackScore.setAttribute("stroke", "#993300");
+    blackScore.setAttribute("stroke-width", 1);
+    blackScore.setAttribute("fill", "none");
+    t.blackScore = blackScore;
+    t.graph.appendChild(blackScore);
+
+    var whiteScore = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "polyline"
+    );
+    whiteScore.setAttribute("points", "0,0 0,0");
+    whiteScore.setAttribute("stroke", "#009900");
+    whiteScore.setAttribute("stroke-width", 1);
+    whiteScore.setAttribute("fill", "none");
+    t.whiteScore = whiteScore;
+    t.graph.appendChild(whiteScore);
 
     var blackWinrate = document.createElementNS(
       "http://www.w3.org/2000/svg",
       "polyline"
     );
     blackWinrate.setAttribute("points", "0,0 0,0");
-    blackWinrate.setAttribute("stroke", "#330000");
+    blackWinrate.setAttribute("stroke", "#ffaa00");
     blackWinrate.setAttribute("stroke-width", 3);
     blackWinrate.setAttribute("fill", "none");
     t.blackWinrate = blackWinrate;
@@ -400,20 +410,27 @@
       "polyline"
     );
     whiteWinrate.setAttribute("points", "0,0 0,0");
-    whiteWinrate.setAttribute("stroke", "#ccccff");
+    whiteWinrate.setAttribute("stroke", "#33ff33");
     whiteWinrate.setAttribute("stroke-width", 3);
     whiteWinrate.setAttribute("fill", "none");
     t.whiteWinrate = whiteWinrate;
     t.graph.appendChild(whiteWinrate);
   };
 
-  function winrate(str) {
-    var tokens = str.split(" ");
-    for (var i = 0; i < tokens.length; i++) {
-      if (tokens[i] == "winrate") {
-        var r = parseFloat(tokens[i + 1]);
-        return r * 100;
-      }
+  function winrate(tokens) {
+    if (tokens.moves && tokens.moves[0].winrate)
+      return tokens.moves[0].winrate * 100;
+    return null;
+  }
+
+  function score(tokens) {
+    if (tokens.moves && tokens.moves[0].score) {
+      var r = (tokens.moves[0].score / 40 + 0.5);
+      if (r < 0)
+        r = 0;
+      if (r > 1)
+        r = 1;
+      return r * 100;
     }
     return null;
   }
@@ -423,26 +440,66 @@
 
     this.black = [];
     this.white = [];
+    this.blackScore = [];
+    this.whiteScore = [];
+    
+    for (var i = 0; i < e.kifu.nodeCount; i++) {
+      this.black.push("");
+      this.blackScore.push("");
+      this.blackScore.push("");
+      this.blackScore.push("");
+      this.blackScore.push("");
+      this.white.push("");
+      this.whiteScore.push("");
+      this.whiteScore.push("");
+      this.whiteScore.push("");
+      this.whiteScore.push("");
+    }
+
+    this.xScale = WIDTH / Math.max(100, e.kifu.nodeCount + 10)
   };
 
   var update = function (e) {
-    var list, graph;
-    if (!e.node || !e.node.move || !e.path || !e.node.comment) return;
-    if (e.node.move.c == WGo.B) {
-      list = this.black;
-      graph = this.winrate.blackWinrate;
-    } else {
-      list = this.white;
-      graph = this.winrate.whiteWinrate;
-    }
-    while (e.path.m >= list.length) {
-      list.push("");
-    }
-    rate = winrate(e.node.comment);
-    if (rate != null) {
-      if (e.node.move.c == WGo.B) rate = 100 - rate;
-      list[e.path.m] = e.path.m + "," + rate;
-      graph.setAttribute("points", list.join(" "));
+    if (!e.node || !e.path || !e.path.m)
+      return;
+    var node = e.node;
+    var turn = e.path.m;
+    while (node) {
+      var winrateList, scoreList, winrateGraph, scoreGraph;
+      if (!node.move || !node.CGOSC) return;
+      if (node.move.c == WGo.B) {
+        winrateList = this.black;
+        scoreList = this.blackScore;
+        winrateGraph = this.winrate.blackWinrate;
+        scoreGraph = this.winrate.blackScore;
+      } else {
+        winrateList = this.white;
+        scoreList = this.whiteScore;
+        winrateGraph = this.winrate.whiteWinrate;
+        scoreGraph = this.winrate.whiteScore;
+      }
+
+      var info = JSON.parse(node.CGOSC);
+      var rate = winrate(info);
+      if (rate != null) {
+        if (node.move.c == WGo.B)
+          rate = 100 - rate;
+        winrateList[turn] = turn * this.xScale + "," + rate;
+        winrateGraph.setAttribute("points", winrateList.join(" "));
+      }
+      var sc = score(info);
+      if (sc != null) {
+        if (node.move.c == WGo.B)
+          sc = 100 - sc;
+        scoreList[turn*4]   = turn * this.xScale + "," + 50;
+        scoreList[turn*4+1] = turn * this.xScale + "," + sc;
+        scoreList[turn*4+2] = (turn + 0.4) * this.xScale + "," + sc;
+        scoreList[turn*4+3] = (turn + 0.4) * this.xScale + "," + 50;
+        scoreGraph.setAttribute("points", scoreList.join(" "));
+      }
+
+      node = node.parent;
+      turn--;
     }
   };
 

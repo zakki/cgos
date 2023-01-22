@@ -22,6 +22,7 @@
 # THE SOFTWARE.
 
 import re
+import json
 from typing import List, Tuple, Optional
 
 
@@ -69,6 +70,18 @@ class Game:
         self.wrate = wrate
         self.brate = brate
         self.mvs = mvs
+
+
+sgfSpecialChars = str.maketrans(
+    {
+        "]": "\\]",
+        "\\": "\\\\",
+    }
+)
+
+
+def escapeSgfText(s: str) -> str:
+    return s.translate(sgfSpecialChars)
 
 
 # returns an SGF game record
@@ -120,7 +133,11 @@ def sgf(
             rrs = (boardsize - rrs) + 97
             s += f";{colstr[ctm]}[{chr(ccs)}{chr(rrs)}]{colstr[ctm]}L[{tleft}]"
             if analysis is not None:
-                s += f"C[{analysis}]"
+                s += f"CGOSC[{escapeSgfText(analysis)}]\n"
+                v = json.loads(analysis)
+                if "comment" in v:
+                    c = v["comment"]
+                    s += f"C[{escapeSgfText(c)}]"
             tmc += 1
             if tmc > 7:
                 s += "\n"
@@ -128,7 +145,7 @@ def sgf(
         ctm = ctm ^ 1
 
     if comment != "":
-        s += f";C[{comment}]\n"
+        s += f";C[{escapeSgfText(comment)}]\n"
 
     s += ")\n"
 
