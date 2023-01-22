@@ -32,9 +32,15 @@ var prepare_dom_box = function(type) {
 	t.info.caps.val.innerHTML = "0";
 	t.info.time = prepare_dom_info("time");
 	t.info.time.val.innerHTML = "--:--";
+	t.info.win = prepare_dom_info("win");
+	t.info.win.val.innerHTML = "0";
+	t.info.score = prepare_dom_info("score");
+	t.info.score.val.innerHTML = "0";
 	info_wrapper.appendChild(t.info.rank.wrapper);
 	info_wrapper.appendChild(t.info.caps.wrapper);
 	info_wrapper.appendChild(t.info.time.wrapper);
+	info_wrapper.appendChild(t.info.win.wrapper);
+	info_wrapper.appendChild(t.info.score.wrapper);
 }
 
 var prepare_dom_info = function(type) {
@@ -80,7 +86,13 @@ var kifu_loaded = function(e) {
 	
 	this.black.info.caps.val.innerHTML = "0";
 	this.white.info.caps.val.innerHTML = "0";
+
+	this.black.info.win.val.innerHTML = "0";
+	this.white.info.win.val.innerHTML = "0";
 	
+	this.black.info.score.val.innerHTML = "0";
+	this.white.info.score.val.innerHTML = "0";
+
 	if(info.TM) {
 		this.setPlayerTime("black", info.TM);
 		this.setPlayerTime("white", info.TM);
@@ -133,6 +145,21 @@ var update = function(e) {
 	if(e.node.WL) this.setPlayerTime("white", e.node.WL);
 	if(e.position.capCount.black !== undefined) this.black.info.caps.val.innerHTML = e.position.capCount.black;
 	if(e.position.capCount.white !== undefined) this.white.info.caps.val.innerHTML = e.position.capCount.white;
+	if (e.node.CGOSC) {
+		var info = JSON.parse(e.node.CGOSC);
+		if (info.moves && info.moves[0].winrate) {
+			if(e.node.move.c === WGo.B)
+				this.black.info.win.val.innerHTML = (info.moves[0].winrate * 100).toFixed(2);
+			if(e.node.move.c === WGo.W)
+				this.white.info.win.val.innerHTML = (info.moves[0].winrate * 100).toFixed(2);
+		}
+		if (info.moves && info.moves[0].score) {
+			if(e.node.move.c === WGo.B)
+				this.black.info.score.val.innerHTML = info.moves[0].score.toFixed(2);
+			if(e.node.move.c === WGo.W)
+				this.white.info.score.val.innerHTML = info.moves[0].score.toFixed(2);
+		}
+	}
 }
 
 /**
@@ -170,6 +197,8 @@ bp_layouts["no_comment"].top.push("InfoBox");
 WGo.i18n.en["rank"] = "Rank";
 WGo.i18n.en["caps"] = "Caps";
 WGo.i18n.en["time"] = "Time";
+WGo.i18n.en["win"] = "Win";
+WGo.i18n.en["score"] = "Score";
 
 WGo.BasicPlayer.component.InfoBox = InfoBox;
 

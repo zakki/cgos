@@ -442,7 +442,7 @@
     this.white = [];
     this.blackScore = [];
     this.whiteScore = [];
-    
+
     for (var i = 0; i < e.kifu.nodeCount; i++) {
       this.black.push("");
       this.blackScore.push("");

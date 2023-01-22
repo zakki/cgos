@@ -184,7 +184,7 @@
 }
 
 .wgo-player-right .wgo-player-wrapper, .wgo-player-left .wgo-player-wrapper {
-	height: 85px;
+	height: 100px;
 	border-bottom: 0;
 }
 
@@ -366,7 +366,7 @@ a.wgo-move-link {
 	bottom: 0;
 	right: 0;
 	left: 10px;
-	top: 170px;
+	top: 200px;
 }
 
 /* top and bottom modifications */
