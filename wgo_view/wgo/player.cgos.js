@@ -415,6 +415,16 @@
     whiteWinrate.setAttribute("fill", "none");
     t.whiteWinrate = whiteWinrate;
     t.graph.appendChild(whiteWinrate);
+
+    var cursor = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    cursor.setAttribute("x", 0);
+    cursor.setAttribute("y", 0);
+    cursor.setAttribute("width", 1);
+    cursor.setAttribute("height", 100);
+    cursor.setAttribute("stroke", "#3333ff");
+    cursor.setAttribute("fill", "none");
+    t.cursor = cursor;
+    t.graph.appendChild(cursor);
   };
 
   function winrate(tokens) {
@@ -464,6 +474,8 @@
       return;
     var node = e.node;
     var turn = e.path.m;
+    this.winrate.cursor.setAttribute("x", (turn - 1) * this.xScale);
+    this.winrate.cursor.setAttribute("width", 3 * this.xScale);
     while (node) {
       var winrateList, scoreList, winrateGraph, scoreGraph;
       if (!node.move || !node.CGOSC) return;
