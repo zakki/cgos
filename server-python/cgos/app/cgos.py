@@ -1536,7 +1536,8 @@ def schedule_games() -> None:
                     games[gid].lmst = ct
                     act[rec.b].msg_state = "genmove"
                     act[rec.w].msg_state = "ok"
-                    wd.write(f"s {tmeSch} {gid} {rec}")
+                    # "s" dte tme gid w b x wtl btl wr br
+                    wd.write(f"s {tmeSch} {gid} {rec.w} {rec.b} {rec.lmst} {rec.wrt} {rec.brt} {rec.wrate} {rec.brate}")
 
         os.rename(tmpf, cfg.web_data_file)
 
