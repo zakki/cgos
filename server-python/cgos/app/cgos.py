@@ -1032,7 +1032,7 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
             #    analysis = re.sub("[^- 0-9a-zA-Z._-]", "", tokens[1])
             try:
                 info = json.loads(tokens[1])
-                analysis = json.dumps(info, indent=None, separators=(',', ':'))
+                analysis = json.dumps(info, indent=None, separators=(",", ":"))
             except:
                 logger.info(f"Bad analysis from {who}, '{tokens[1]}'")
     over = ""
@@ -1409,12 +1409,14 @@ def schedule_games() -> None:
             ll = len(lst)
             e = ll - SKIP
 
+            global defaultRatingAverage
             if ll > 0:
-                global defaultRatingAverage
-                defaultRatingAverage = r / ll
+                defaultRatingAverage = r_sum / ll
                 logger.info(
                     f"defaultRatingAverage: {defaultRatingAverage}  : playes {ll}"
                 )
+            else:
+                defaultRatingAverage = cfg.defaultRating
 
             for i in range(e):
                 cr = lst[i][1]
@@ -1537,7 +1539,9 @@ def schedule_games() -> None:
                     act[rec.b].msg_state = "genmove"
                     act[rec.w].msg_state = "ok"
                     # "s" dte tme gid w b x wtl btl wr br
-                    wd.write(f"s {tmeSch} {gid} {rec.w} {rec.b} {rec.lmst} {rec.wrt} {rec.brt} {rec.wrate} {rec.brate}")
+                    wd.write(
+                        f"s {tmeSch} {gid} {rec.w} {rec.b} {rec.lmst} {rec.wrt} {rec.brt} {rec.wrate} {rec.brate}"
+                    )
 
         os.rename(tmpf, cfg.web_data_file)
 
