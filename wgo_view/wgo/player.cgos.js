@@ -74,20 +74,23 @@
 
         var text = args.label;
         if (args.winrate !== null) text = (args.winrate * 100).toFixed(1);
-        if (text.length == 1) this.font = Math.round(sr * 1.5) + "px " + font;
-        else if (text.length == 2)
-          this.font = Math.round(sr * 1.2) + "px " + font;
-        else this.font = Math.round(sr) + "px " + font;
 
-        this.beginPath();
-        this.textBaseline = "middle";
-        this.textAlign = "center";
-        this.strokeStyle = "#ffffff";
-        this.strokeText(text, xr, yr - sr * 0.5, 2 * sr);
-        this.strokeStyle = null;
-        this.fillText(text, xr, yr - sr * 0.5, 2 * sr);
+        if (text != null) {
+          if (text.length == 1) this.font = Math.round(sr * 1.5) + "px " + font;
+          else if (text.length == 2)
+            this.font = Math.round(sr * 1.2) + "px " + font;
+          else this.font = Math.round(sr) + "px " + font;
 
-        if (args.score !== null) {
+          this.beginPath();
+          this.textBaseline = "middle";
+          this.textAlign = "center";
+          this.strokeStyle = "#ffffff";
+          this.strokeText(text, xr, yr - sr * 0.5, 2 * sr);
+          this.strokeStyle = null;
+          this.fillText(text, xr, yr - sr * 0.5, 2 * sr);
+        }
+
+        if (args.score != null) {
           var text = args.score.toFixed(1);
           if (text.length == 1) this.font = Math.round(sr * 1.5) + "px " + font;
           else if (text.length == 2)
@@ -104,20 +107,19 @@
         }
       },
     },
-
+  }
+  var cgosOwnershipDrawer = {
     // modifies grid layer too
     grid: {
       draw: function (args, board) {
-        if (args.ownership && args.ownership.length > 0 && !args._nodraw) {
-          for (var i = 0; i < board.size * board.size; i++) {
-            var xo = board.getX(i % board.size);
-            var yo = board.getY(Math.floor(i / board.size));
-            sr = board.stoneRadius * Math.abs(args.ownership[i]) * 0.8;
-
-            if (args.ownership[i] > 0) this.fillStyle = "rgba(0, 0, 0, 0.5)";
-            else this.fillStyle = "rgba(255, 255, 255, 0.5)";
-            this.fillRect(xo - sr, yo - sr, 2 * sr, 2 * sr);
-          }
+        if (args.ownership != null && !args._nodraw) {
+          var xo = board.getX(args.x);
+          var yo = board.getY(args.y);
+          var sr = board.stoneRadius * 0.8;
+          var sr = board.stoneRadius * Math.abs(args.ownership) * 0.8;
+          if (args.ownership > 0) this.fillStyle = "rgba(0, 0, 0, 0.5)";
+          else this.fillStyle = "rgba(255, 255, 255, 0.5)";
+          this.fillRect(xo - sr, yo - sr, 2 * sr, 2 * sr);
         }
       },
       clear: function (args, board) {
@@ -143,17 +145,8 @@
     // genmove_analyze style comment
     if (e.node.CC && e.node.CC.length > 0) {
       var tokens = JSON.parse(e.node.CC);
-      infoList = [];
-      for (var i = 0; i < tokens.length; i++) {
-        var token = tokens[i];
-        if (token == "info") {
-          infoList.push([]);
-        }
-        infoList[infoList.length - 1].push(token);
-      }
       this._cgos.infoList = [];
 
-      var ownership = [];
       if (tokens.ownership) {
         var CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         for (var j = 0; j < tokens.ownership.length; j++) {
@@ -161,8 +154,12 @@
           if (m < 0) break;
           m = m / 62 * 2 - 1.0;
           if (e.node.move.c == WGo.W) m *= -1;
-          ownership.push(m);
-          i++;
+          add.push({
+            type: cgosOwnershipDrawer,
+            x: j % this._cgos.board.size,
+            y: (j / this._cgos.board.size) | 0,
+            ownership: m,
+          });
         }
       }
 
@@ -188,7 +185,6 @@
               var m = parseCoord(this._cgos.board.size, moves[k]);
               if (m == null) break;
               pv.push(m);
-              i++;
             }
           }
 
@@ -208,7 +204,6 @@
             score: o.score,
             x: o.move[0],
             y: o.move[1],
-            ownership: ownership,
             c: this._cgos.board.theme.variationColor || "rgba(0,32,128,0.8)",
           });
         }
