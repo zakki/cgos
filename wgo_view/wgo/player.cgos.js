@@ -342,15 +342,16 @@
 (function () {
   "use strict";
 
-  var prepare_dom = function () {
-    prepare_dom_box.call(this, "winrate");
+  var prepare_dom = function (player) {
+    prepare_dom_box.call(this, "winrate", player);
     this.element.appendChild(this.winrate.box);
   };
 
   var WIDTH = 490;
 
-  var prepare_dom_box = function (type) {
+  var prepare_dom_box = function (type, player) {
     this[type] = {};
+    var self = this;
     var t = this[type];
     t.box = document.createElement("div");
     t.box.className = "wgo-box-wrapper wgo-player-wrapper wgo-" + type;
@@ -361,6 +362,10 @@
     t.graph.setAttribute("viewbox", "-5 -5 410 110");
     t.graph.setAttribute("style", "background-color:#cccccc;");
     t.box.appendChild(t.graph);
+    t.graph.onclick = function (e) {
+      var turn = (e.offsetX / self.xScale) | 0;
+      player.goTo(turn);
+    }
 
     var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
     line.setAttribute("x1", 0);
@@ -521,7 +526,7 @@
       this.super(player);
       this.element.className = "wgo-analyzebox";
 
-      prepare_dom.call(this);
+      prepare_dom.call(this, player);
 
       player.addEventListener("kifuLoaded", kifu_loaded.bind(this));
       player.addEventListener("update", update.bind(this));
