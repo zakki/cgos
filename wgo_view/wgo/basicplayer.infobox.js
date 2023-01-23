@@ -145,8 +145,8 @@ var update = function(e) {
 	if(e.node.WL) this.setPlayerTime("white", e.node.WL);
 	if(e.position.capCount.black !== undefined) this.black.info.caps.val.innerHTML = e.position.capCount.black;
 	if(e.position.capCount.white !== undefined) this.white.info.caps.val.innerHTML = e.position.capCount.white;
-	if (e.node.CGOSC) {
-		var info = JSON.parse(e.node.CGOSC);
+	if (e.node.CC) {
+		var info = JSON.parse(e.node.CC);
 		if (info.moves && info.moves[0].winrate) {
 			if(e.node.move.c === WGo.B)
 				this.black.info.win.val.innerHTML = (info.moves[0].winrate * 100).toFixed(2);
