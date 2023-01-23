@@ -133,7 +133,7 @@ def sgf(
             rrs = (boardsize - rrs) + 97
             s += f";{colstr[ctm]}[{chr(ccs)}{chr(rrs)}]{colstr[ctm]}L[{tleft}]"
             if analysis is not None:
-                s += f"CGOSC[{escapeSgfText(analysis)}]\n"
+                s += f"CC[{escapeSgfText(analysis)}]\n"
                 v = json.loads(analysis)
                 if "comment" in v:
                     c = v["comment"]

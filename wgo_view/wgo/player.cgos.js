@@ -141,8 +141,8 @@
     if (!this._cgos || !this._cgos.cgosMode) return;
 
     // genmove_analyze style comment
-    if (e.node.CGOSC && e.node.CGOSC.length > 0) {
-      var tokens = JSON.parse(e.node.CGOSC);
+    if (e.node.CC && e.node.CC.length > 0) {
+      var tokens = JSON.parse(e.node.CC);
       infoList = [];
       for (var i = 0; i < tokens.length; i++) {
         var token = tokens[i];
@@ -478,7 +478,7 @@
     this.winrate.cursor.setAttribute("width", 3 * this.xScale);
     while (node) {
       var winrateList, scoreList, winrateGraph, scoreGraph;
-      if (!node.move || !node.CGOSC) return;
+      if (!node.move || !node.CC) return;
       if (node.move.c == WGo.B) {
         winrateList = this.black;
         scoreList = this.blackScore;
@@ -491,7 +491,7 @@
         scoreGraph = this.winrate.whiteScore;
       }
 
-      var info = JSON.parse(node.CGOSC);
+      var info = JSON.parse(node.CC);
       var rate = winrate(info);
       if (rate != null) {
         if (node.move.c == WGo.B)
