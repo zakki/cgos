@@ -40,7 +40,7 @@ def encodeOwnership(ownership: List[float]) -> str:
     def encode(r: float) -> str:
         i = max(0, min((r + 1) / 2, 1))
         # i = r
-        return CHARS[round(i * 63)]
+        return CHARS[round(i * 62)]
 
     return "".join([encode(f) for f in ownership])
 
@@ -54,6 +54,7 @@ class AnalyzeResultParser:
         self.pos = 0
         self.convertLz = convertLz
         self.logger = logger
+        self.sendsCustomAttributes = False
 
     def _next(self) -> str:
         t = self.tokens[self.pos]
@@ -84,12 +85,16 @@ class AnalyzeResultParser:
             t = self._next()
 
             if t not in ["move", "winrate", "score", "scoreMean", "pv", "prior"]:
-                if "custom" not in m:
-                    m["custom"] = dict()
-                if t in AnalyzeResultParser.NUMBER_ATTRIBUTES:
-                    m["custom"][t] = self._nextNumber()
+                if self.sendsCustomAttributes:
+                    if "custom" not in m:
+                        m["custom"] = dict()
+                    if t in AnalyzeResultParser.NUMBER_ATTRIBUTES:
+                        m["custom"][t] = self._nextNumber()
+                    else:
+                        m["custom"][t] = self._next()
                 else:
-                    m["custom"][t] = self._next()
+                    v = self._next()
+                    self.logger.debug(f"skip custom attribute {t} {v}")
                 continue
 
             if t == "pv":
@@ -390,7 +395,7 @@ class EngineConnector(object):
         if analysis is not None:
             tokens = analysis.split(" ")
             info = AnalyzeResultParser(tokens, self.logger, False).parse()
-            analysis = json.dumps(info, indent=None)
+            analysis = json.dumps(info, indent=None, separators=(',', ':'))
         return move, analysis
 
     def genmoveLz(self, gtpColour: str) -> Tuple[Optional[str], Optional[str]]:

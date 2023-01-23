@@ -159,7 +159,7 @@
         for (var j = 0; j < tokens.ownership.length; j++) {
           var m = CHARS.indexOf(tokens.ownership[j]);
           if (m < 0) break;
-          m = m / 63 * 2 - 1.0;
+          m = m / 62 * 2 - 1.0;
           if (e.node.move.c == WGo.W) m *= -1;
           ownership.push(m);
           i++;

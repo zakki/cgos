@@ -1031,8 +1031,8 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
         if len(tokens) > 1:
             #    analysis = re.sub("[^- 0-9a-zA-Z._-]", "", tokens[1])
             try:
-                json.loads(tokens[1])
-                analysis = tokens[1]
+                info = json.loads(tokens[1])
+                analysis = json.dumps(info, indent=None, separators=(',', ':'))
             except:
                 logger.info(f"Bad analysis from {who}, '{tokens[1]}'")
     over = ""
