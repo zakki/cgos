@@ -181,6 +181,9 @@
           }
           if (info.pv) {
             var moves = info.pv.split(" ");
+            if (info.move && moves[0] != info.move) {
+              moves.unshift(info.move)
+            }
             for (var k = 0; k < moves.length; k++) {
               var m = parseCoord(this._cgos.board.size, moves[k]);
               if (m == null) break;

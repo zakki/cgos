@@ -104,7 +104,8 @@ class AnalyzeResultParser:
                     pv.append(t)
                     t = self._lookahead()
                     if t is None or t == "info" or t == "ownership":
-                        m["pv"] = " ".join(pv)
+                        if len(pv) > 1:
+                            m["pv"] = " ".join(pv[1:])
                         return m
 
             if t == "winrate" or t == "prior":
