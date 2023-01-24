@@ -84,7 +84,7 @@ class AnalyzeResultParser:
                 return m
             t = self._next()
 
-            if t not in ["move", "winrate", "score", "scoreMean", "pv", "prior"]:
+            if t not in ["move", "winrate", "score", "scoreLead", "pv", "prior"]:
                 if self.sendsCustomAttributes:
                     if "custom" not in m:
                         m["custom"] = dict()
@@ -113,7 +113,7 @@ class AnalyzeResultParser:
                     m[t] = f / 10000
                 else:
                     m[t] = f
-            elif t == "scoreMean":
+            elif t == "scoreLead":
                 m["score"] = self._nextNumber()
             elif t in AnalyzeResultParser.NUMBER_ATTRIBUTES:
                 m[t] = self._nextNumber()
