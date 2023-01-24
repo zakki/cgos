@@ -83,7 +83,9 @@ var CommentBox = WGo.extendClass(WGo.BasicPlayer.component.Component, function(p
 	prepare_dom.call(this);
 	
 	player.addEventListener("kifuLoaded", function(e) {
+		/*
 		if(e.kifu.hasComments()) {
+		*/
 			this.comments_title.innerHTML = WGo.t("comments");
 			this.element.className = "wgo-commentbox";
 			
@@ -92,6 +94,7 @@ var CommentBox = WGo.extendClass(WGo.BasicPlayer.component.Component, function(p
 			}.bind(this);
 			
 			player.addEventListener("update", this._update);
+		/*
 		}
 		else {
 			this.comments_title.innerHTML = WGo.t("gameinfo");
@@ -103,6 +106,7 @@ var CommentBox = WGo.extendClass(WGo.BasicPlayer.component.Component, function(p
 			}
 			this.comment_text.innerHTML = format_info(e.target.getGameInfo());
 		}
+		*/
 	}.bind(this));
 	
 	player.notification = function(text) {
@@ -138,23 +142,64 @@ CommentBox.prototype.setComments = function(e) {
 		msg = format_info(e.target.getGameInfo(), true);
 	}
 	
-	this.comment_text.innerHTML = msg+this.getCommentText(e.node.comment, this.player.config.formatNicks, this.player.config.formatMoves);
+	this.comment_text.innerHTML = msg+this.getCommentText(e.node.comment, this.player.config.formatNicks, this.player.config.formatMoves, e.node.CC);
 
 	if(this.player.config.formatMoves) {
 		if(this.comment_text.childNodes && this.comment_text.childNodes.length) search_nodes(this.comment_text.childNodes, this.player);
 	}
 };
 
-CommentBox.prototype.getCommentText = function(comment, formatNicks, formatMoves) {
+CommentBox.prototype.getCommentText = function(comment, formatNicks, formatMoves, cgos) {
 	// to avoid XSS we must transform < and > to entities, it is highly recomanded not to change it
 	//.replace(/</g,"&lt;").replace(/>/g,"&gt;") : "";
+	var comm = "";
 	if(comment) {
 		var comm =  "<p>"+WGo.filterHTML(comment).replace(/\n/g, "</p><p>")+"</p>";
 		if(formatNicks) comm = comm.replace(/(<p>)([^:]{3,}:)\s/g, '<p><span class="wgo-comments-nick">$2</span> ');
 		if(formatMoves) comm = comm.replace(/\b[a-zA-Z]1?\d\b/g, '<a href="javascript:void(0)" class="wgo-move-link">$&</a>');
-		return comm;
 	}
-	return "";
+	if (cgos) {
+		var analyze = JSON.parse(cgos);
+		if (analyze.visits != null) {
+			comm += "<p>visits:"+(+analyze.visits)+"</p>";
+		}
+		if (analyze.winrate != null) {
+			comm += "<p>win:"+((+analyze.winrate)*100).toFixed(1)+"%</p>";
+		}
+		if (analyze.score != null) {
+			comm += "<p>score:"+(+analyze.score).toFixed(1)+"</p>";
+		}
+		if (analyze.moves) {
+			var info = analyze.moves[0];
+			if (info.move != null) {
+				comm += "<p>move:"+'<a href="javascript:void(0)" class="wgo-move-link">'+WGo.filterHTML(info.move)+"</a></p>";
+			}
+			if (info.visits != null) {
+				comm += "<p>visits:"+(+info.visits)+"</p>";
+			}
+			if (info.winrate != null) {
+				comm += "<p>win:"+(+info.winrate).toFixed(1)+"%</p>";
+			}
+			if (info.score != null) {
+				comm += "<p>score:"+(+info.score).toFixed(1)+"</p>";
+			}
+			if (info.prior != null) {
+				comm += "<p>prior:"+((+info.prior)*100).toFixed(1)+"%</p>";
+			}
+			if (info.pv != null) {
+			  var moves = info.pv.split(" ");
+			  if (info.move && moves[0] != info.move) {
+				moves.unshift(info.move)
+			  }
+			  comm += "<p>pv:";
+			  for (var k = 0; k < moves.length; k++) {
+				comm += " "+(k+1)+":"+'<a href="javascript:void(0)" class="wgo-move-link">'+WGo.filterHTML(moves[k])+"</a>";
+			  }
+			  comm += "</p>";
+			}
+		}
+	}
+	return comm;
 };
 
 /**
