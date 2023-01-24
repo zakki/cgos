@@ -143,7 +143,7 @@ class GoGame:
                             for d in self.dir:
                                 p = d + ix
 
-                                if b[p] == 0 and p in flag:
+                                if b[p] == 0 and p not in flag:
                                     nlst.append(p)
                                     flag[p] = 1
                                 elif b[p] == 1:
@@ -330,3 +330,35 @@ if __name__ == "__main__":
     r = board.make("C2")
     print(r, board.list_moves())
     board.display()
+
+    r = board.make("PASS")
+    r = board.make("C1")
+    r = board.make("PASS")
+    r = board.make("A4")
+    board.display()
+    print(board.twopass())
+    r = board.make("PASS")
+    print(board.twopass())
+    r = board.make("PASS")
+    print(board.twopass())
+
+    print("scroe")
+    scb = board.score_board([])
+    print(scb)
+    for i, c in enumerate(scb):
+        if i % board.n1 == 0:
+            print()
+        print("%3d" % (c), end="")
+    print()
+
+    print("final")
+    tbd = board.getFinalBoard([])
+    print(tbd)
+    for i, c in enumerate(tbd):
+        if i % board.n == 0:
+            print()
+        print("%3d" % (c), end="")
+    print()
+
+    sc = board.ttScore()
+    print("ttScore", sc)
