@@ -9,7 +9,7 @@ var permalink = {
 
 var handle_hash = function(player) {
 	try {
-		permalink.query = JSON.parse('{"'+window.location.hash.substr(1).replace('=', '":')+'}');
+		permalink.query = JSON.parse('{"'+decodeURIComponent(window.location.hash).substring(1).replace('=', '":')+'}');
 	}
 	catch(e) {
 		permalink.query = {};
