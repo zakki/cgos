@@ -84,7 +84,7 @@ class AnalyzeResultParser:
                 return m
             t = self._next()
 
-            if t not in ["move", "winrate", "score", "scoreLead", "pv", "prior"]:
+            if t not in ["move", "winrate", "score", "scoreLead", "pv", "prior", "visits"]:
                 if self.sendsCustomAttributes:
                     if "custom" not in m:
                         m["custom"] = dict()
