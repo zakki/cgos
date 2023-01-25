@@ -1540,7 +1540,7 @@ def schedule_games() -> None:
                     act[rec.w].msg_state = "ok"
                     # "s" dte tme gid w b x wtl btl wr br
                     wd.write(
-                        f"s {tmeSch} {gid} {rec.w} {rec.b} {rec.lmst} {rec.wrt} {rec.brt} {rec.wrate} {rec.brate}"
+                        f"s {tmeSch} {gid} {rec.w} {rec.b} {rec.lmst} {rec.wrt} {rec.brt} {rec.wrate} {rec.brate}\n"
                     )
 
         os.rename(tmpf, cfg.web_data_file)
