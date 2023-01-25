@@ -30,11 +30,13 @@ from typing import Optional
 # Setup logger
 logger = logging.getLogger("cgos_server")
 logger.setLevel(logging.DEBUG)
-logHandler = logging.StreamHandler()
-logHandler.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logHandler.setFormatter(formatter)
-logger.addHandler(logHandler)
+
+if len(logger.handlers) == 0:
+    logHandler = logging.StreamHandler()
+    logHandler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    logHandler.setFormatter(formatter)
+    logger.addHandler(logHandler)
 
 
 ENCODING = "utf-8"

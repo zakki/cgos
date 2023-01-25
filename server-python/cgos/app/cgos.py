@@ -43,11 +43,12 @@ from .client import Client
 logger = logging.getLogger("cgos_server")
 logger.setLevel(logging.INFO)
 
-logHandler = logging.StreamHandler()
-logHandler.setLevel(logging.INFO)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logHandler.setFormatter(formatter)
-logger.addHandler(logHandler)
+if len(logger.handlers) == 0:
+    logHandler = logging.StreamHandler()
+    logHandler.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    logHandler.setFormatter(formatter)
+    logger.addHandler(logHandler)
 
 # logging.getLogger("asyncio").setLevel(logging.DEBUG)
 
