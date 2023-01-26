@@ -1404,7 +1404,7 @@ def schedule_games() -> None:
                     lst.append((name, r))
                     r_sum += r
 
-            lst.sort(key=lambda e: e[1])
+            lst.sort(key=lambda e: -e[1])
             max_interval = 0.0
 
             ll = len(lst)
@@ -1452,7 +1452,7 @@ def schedule_games() -> None:
                     r = v.rating + RANGE * random.random()
                     lst.append((name, r))
 
-            lst.sort(key=lambda e: e[1])
+            lst.sort(key=lambda e: -e[1])
 
             if len(lst) > 1:
 
