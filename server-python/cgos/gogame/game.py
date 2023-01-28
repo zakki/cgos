@@ -21,6 +21,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import datetime
 import re
 import json
 from typing import List, Tuple, Optional
@@ -50,6 +51,7 @@ class Game:
     wrate: float
     brate: float
     mvs: List[Tuple[str, int, Optional[str]]]
+    ctime: datetime.datetime
 
     def __init__(
         self,
@@ -60,7 +62,8 @@ class Game:
         brt: int,
         wrate: float,
         brate: float,
-        mvs: List[Tuple[str, int, Optional[str]]] = [],
+        mvs: List[Tuple[str, int, Optional[str]]],
+        ctime: datetime.datetime,
     ) -> None:
         self.w = w
         self.b = b
@@ -70,6 +73,7 @@ class Game:
         self.wrate = wrate
         self.brate = brate
         self.mvs = mvs
+        self.ctime = ctime
 
 
 sgfSpecialChars = str.maketrans(

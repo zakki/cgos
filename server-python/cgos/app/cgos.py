@@ -624,10 +624,8 @@ def gameover(gid: int, sc: str, err: str) -> None:
     game = games[gid]
     logger.info(f"gameover: {gid} {game.w} {game.b} {sc} {err}")
 
-    ctime = datetime.datetime.now(datetime.timezone.utc)
-
-    dte = ctime.strftime("%Y-%m-%d")
-    tme = ctime.strftime("%Y-%m-%d %H:%M")
+    dte = game.ctime.strftime("%Y-%m-%d")
+    tme = game.ctime.strftime("%Y-%m-%d %H:%M")
 
     if game.w in act:
         nsend(game.w, f"gameover {dte} {sc} {err}")
@@ -663,9 +661,9 @@ def gameover(gid: int, sc: str, err: str) -> None:
     dest_dir = os.path.join(
         cfg.htmlDir,
         cfg.sgfDir,
-        ctime.strftime("%Y"),
-        ctime.strftime("%m"),
-        ctime.strftime("%d"),
+        game.ctime.strftime("%Y"),
+        game.ctime.strftime("%m"),
+        game.ctime.strftime("%d"),
     )
     os.makedirs(dest_dir, exist_ok=True)  # make directory if it doesn't exist
 
@@ -1522,7 +1520,9 @@ def schedule_games() -> None:
                         wr = strRate(wr, wk)
                         br = strRate(br, bk)
 
-                        games[gid] = Game(wp, bp, 0, cfg.level, cfg.level, wr, br, [])
+                        games[gid] = Game(
+                            wp, bp, 0, cfg.level, cfg.level, wr, br, [], ctme
+                        )
                         act[wp].gid = gid
                         act[bp].gid = gid
                         msg_out = f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {wp}({wr}) {bp}({br})"
