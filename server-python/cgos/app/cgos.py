@@ -93,6 +93,7 @@ class Configs:
     leeway: int
     anchor_match_rate: float
     badUsersFile: str
+    moveIntervalBetweenSave: int
 
     def load(self, path: str) -> None:
         config = configparser.ConfigParser()
@@ -129,6 +130,7 @@ class Configs:
         self.bin_dir = str(cfg["bin_dir"])
         self.anchor_match_rate = float(cfg.get("anchor_match_rate", "0.10"))
         self.badUsersFile = str(cfg["bad_users_file"])
+        self.moveIntervalBetweenSave = int(cfg["moveIntervalBetweenSave"])
 
 
 def now_string() -> str:
@@ -613,6 +615,38 @@ def rating(who: str) -> str:
     return strRate(u.rating, u.k)
 
 
+def saveSgf(gid: int, sc: str, err: str) -> None:
+    global games
+
+    game = games[gid]
+
+    dte = game.ctime.strftime("%Y-%m-%d")
+
+    sgfString = sgf(
+        game=game,
+        serverName=cfg.serverName,
+        level=cfg.level,
+        boardsize=cfg.boardsize,
+        komi=cfg.komi,
+        gid=gid,
+        res=sc,
+        dte=dte,
+        err=err,
+    )
+
+    dest_dir = os.path.join(
+        cfg.htmlDir,
+        cfg.sgfDir,
+        game.ctime.strftime("%Y"),
+        game.ctime.strftime("%m"),
+        game.ctime.strftime("%d"),
+    )
+    os.makedirs(dest_dir, exist_ok=True)  # make directory if it doesn't exist
+
+    with open(f"{dest_dir}/{gid}.sgf", "w") as f:
+        f.write(sgfString)
+
+
 def gameover(gid: int, sc: str, err: str) -> None:
     global games
     global act
@@ -645,27 +679,7 @@ def gameover(gid: int, sc: str, err: str) -> None:
     viewers.sendObservers(gid, f"update {gid} {sc}")
     viewers.removeObservers(gid)
 
-    sgfString = sgf(
-        game=game,
-        serverName=cfg.serverName,
-        level=cfg.level,
-        boardsize=cfg.boardsize,
-        komi=cfg.komi,
-        gid=gid,
-        res=sc,
-        dte=dte,
-        err=err,
-    )
     see, see2 = seeRecord(gid, sc, dte, tme)
-
-    dest_dir = os.path.join(
-        cfg.htmlDir,
-        cfg.sgfDir,
-        game.ctime.strftime("%Y"),
-        game.ctime.strftime("%m"),
-        game.ctime.strftime("%d"),
-    )
-    os.makedirs(dest_dir, exist_ok=True)  # make directory if it doesn't exist
 
     if dbrec:
         dbrec.execute("INSERT INTO games VALUES(?, ?, ?)", (gid, see, see2))
@@ -676,8 +690,8 @@ def gameover(gid: int, sc: str, err: str) -> None:
         (gid, game.w, game.wrate, game.b, game.brate, tme, wtu, btu, sc),
     )
     db.commit()
-    with open(f"{dest_dir}/{gid}.sgf", "w") as f:
-        f.write(sgfString)
+
+    saveSgf(gid, sc, err)
 
     # we can kill the active game record now.
     # ----------------------------------------
@@ -1131,6 +1145,12 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
         vmsg = f"{mv} {brt}"
 
     viewers.sendObservers(gid, f"update {gid} {vmsg}")
+
+    if (
+        cfg.moveIntervalBetweenSave > 0
+        and len(game.mvs) % cfg.moveIntervalBetweenSave == 0
+    ):
+        saveSgf(gid, "?", "")
 
     # game over due to natural causes?
     # --------------------------------
