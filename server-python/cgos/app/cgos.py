@@ -46,7 +46,9 @@ logger.setLevel(logging.INFO)
 if len(logger.handlers) == 0:
     logHandler = logging.StreamHandler()
     logHandler.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
     logHandler.setFormatter(formatter)
     logger.addHandler(logHandler)
 
@@ -57,7 +59,7 @@ SKIP = 4
 ENCODING = "utf-8"
 
 db: sqlite3.Connection
-dbrec: sqlite3.Connection
+dbrec: Optional[sqlite3.Connection]
 cgi: sqlite3.Connection
 
 gme: Dict[int, GoGame] = dict()
@@ -76,7 +78,7 @@ class Configs:
     timeGift: float
     database_state_file: str
     cgi_database: str
-    game_archive_database: str
+    game_archive_database: Optional[str]
     web_data_file: str
     defaultRating: float
     minK: float
@@ -110,7 +112,10 @@ class Configs:
         self.timeGift = float(cfg["timeGift"])
         self.database_state_file = str(cfg["database_state_file"])
         self.cgi_database = str(cfg["cgi_database"])
-        self.game_archive_database = str(cfg["game_archive_database"])
+        if "game_archive_database" in cfg:
+            self.game_archive_database = str(cfg["game_archive_database"])
+        else:
+            self.game_archive_database = None
         self.web_data_file = str(cfg["web_data_file"])
         self.defaultRating = float(cfg["defaultRating"])
         self.minK = float(cfg["minK"])
@@ -191,7 +196,9 @@ def initDatabase() -> None:
         conn.commit()
         conn.close()
 
-    if not os.path.exists(cfg.game_archive_database):
+    if cfg.game_archive_database is not None and not os.path.exists(
+        cfg.game_archive_database
+    ):
         conn = sqlite3.connect(cfg.game_archive_database)
         conn.execute("create table games(gid int, dta, analysis)")
         conn.commit()
@@ -235,11 +242,15 @@ def openDatabase() -> None:
         logger.error(f"Error opening {cfg.cgi_database} datbase.")
         raise Exception(e)
 
-    try:
-        dbrec = sqlite3.connect(cfg.game_archive_database, timeout=40000)
-    except sqlite3.Error as e:
-        logger.error(f"Error opening {cfg.game_archive_database} datbase.")
-        raise Exception(e)
+    if cfg.game_archive_database is not None:
+        try:
+            dbrec = sqlite3.connect(cfg.game_archive_database, timeout=40000)
+        except sqlite3.Error as e:
+            logger.error(f"Error opening {cfg.game_archive_database} datbase.")
+            raise Exception(e)
+    else:
+        logger.error("Skip game_archive_database")
+        dbrec = None
 
 
 # -------------------------------------------------
@@ -658,8 +669,10 @@ def gameover(gid: int, sc: str, err: str) -> None:
     )
     os.makedirs(dest_dir, exist_ok=True)  # make directory if it doesn't exist
 
-    dbrec.execute("INSERT INTO games VALUES(?, ?, ?)", (gid, see, see2))
-    dbrec.commit()
+    if dbrec:
+        dbrec.execute("INSERT INTO games VALUES(?, ?, ?)", (gid, see, see2))
+        dbrec.commit()
+
     db.execute(
         """INSERT INTO games VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, "n" )""",
         (gid, game.w, game.wrate, game.b, game.brate, tme, wtu, btu, sc),
@@ -715,12 +728,15 @@ def viewer_respond(sock: Client, data: str) -> None:
 
             viewers.addObserver(gid, who)
         else:
-            rec = dbrec.execute(
-                "SELECT dta FROM games WHERE gid = ?", (gid,)
-            ).fetchone()
-            if rec:
-                dta = rec[0]
-                sock.send(f"setup {gid} {dta}")
+            if dbrec:
+                rec = dbrec.execute(
+                    "SELECT dta FROM games WHERE gid = ?", (gid,)
+                ).fetchone()
+                if rec:
+                    dta = rec[0]
+                    sock.send(f"setup {gid} {dta}")
+                else:
+                    sock.send(f"setup {gid} ?")
             else:
                 sock.send(f"setup {gid} ?")
 
@@ -798,12 +814,13 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
 
         # send out information about a few previous games
         # -----------------------------------------------
-        for (gid, stuff) in dbrec.execute(
-            "select gid, dta from games where gid > (select max(gid) from games) - 40 order by gid"
-        ):
-            dte, tme, bs, kom, w, b, lev, *lst = stuff.split(" ")
-            res = lst[-1]
-            sock.send(f"match {gid} {dte} {tme} {bs} {kom} {w} {b} {res}")
+        if dbrec:
+            for (gid, stuff) in dbrec.execute(
+                "select gid, dta from games where gid > (select max(gid) from games) - 40 order by gid"
+            ):
+                dte, tme, bs, kom, w, b, lev, *lst = stuff.split(" ")
+                res = lst[-1]
+                sock.send(f"match {gid} {dte} {tme} {bs} {kom} {w} {b} {res}")
 
         # send out information about current games
         # ----------------------------------------
@@ -1364,11 +1381,13 @@ def schedule_games() -> None:
 
                 db.commit()
                 cgi.commit()
-                dbrec.commit()
 
                 db.close()
                 cgi.close()
-                dbrec.close()
+
+                if dbrec:
+                    dbrec.commit()
+                    dbrec.close()
 
                 logger.info("KILL FILE FOUND - EXIT CGOS")
                 sys.exit(0)
