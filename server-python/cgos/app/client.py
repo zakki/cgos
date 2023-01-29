@@ -43,6 +43,8 @@ if len(logger.handlers) == 0:
 
 ENCODING = "utf-8"
 
+MAX_QUEUE_SIZE = 10
+
 
 class Client:
     def __init__(
@@ -50,8 +52,8 @@ class Client:
     ) -> None:
         self._reader = reader
         self._writer = writer
-        self._readQueue: asyncio.Queue[str] = asyncio.Queue()
-        self._writeQueue: asyncio.Queue[str] = asyncio.Queue()
+        self._readQueue: asyncio.Queue[str] = asyncio.Queue(MAX_QUEUE_SIZE)
+        self._writeQueue: asyncio.Queue[str] = asyncio.Queue(MAX_QUEUE_SIZE)
         self.id = id or "<unknown>"
         self.user_name: Optional[str] = None
         self.alive = True
@@ -68,6 +70,7 @@ class Client:
             logger.error(f"alert: Client crash for user: {self.id}")
             logger.error(traceback.format_exc())
             logger.error(traceback.format_stack())
+            self.alive = False
             return False
 
     def readLine_nowait(self) -> Optional[str]:
