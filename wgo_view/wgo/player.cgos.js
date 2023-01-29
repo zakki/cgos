@@ -518,7 +518,11 @@
     this.winrate.cursor.setAttribute("width", 3 * this.xScale);
     while (node) {
       var winrateList, scoreList, winrateGraph, scoreGraph;
-      if (!node.move || !node.CC) return;
+      if (!node.move || !node.CC) {
+        node = node.parent;
+        turn--;
+        continue;
+      }
       if (node.move.c == WGo.B) {
         winrateList = this.black;
         scoreList = this.blackScore;
