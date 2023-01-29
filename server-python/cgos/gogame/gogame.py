@@ -25,6 +25,9 @@ import re
 from typing import List, Dict
 
 
+RE_MOVE = re.compile(r"^[a-z]\d+")
+
+
 class GoGame:
 
     __LEGAL_COORDINATES = "abcdefghjklmnopqrstuvwxyz"
@@ -64,7 +67,7 @@ class GoGame:
         if m[0:2] == "pa":
             return 0
 
-        match = re.search(r"^[a-z]\d+", m)
+        match = re.search(RE_MOVE, m)
         if match is not None:
             y = self.n1 - int(m[1:])  # [string range $m 1 2]]
             if y > self.n:

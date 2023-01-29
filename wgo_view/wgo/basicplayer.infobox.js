@@ -147,13 +147,25 @@ var update = function(e) {
 	if(e.position.capCount.white !== undefined) this.white.info.caps.val.innerHTML = e.position.capCount.white;
 	if (e.node.CC) {
 		var info = JSON.parse(e.node.CC);
-		if (info.moves && info.moves[0].winrate) {
+		var winrate = null;
+		if (info.winrate != undefined) {
+			winrate = info.winrate;
+		} else if (info.moves != undefined && info.moves[0].winrate != undefined) {
+			winrate = info.moves[0].winrate;
+		}
+		if (winrate != null) {
 			if(e.node.move.c === WGo.B)
 				this.black.info.win.val.innerHTML = (info.moves[0].winrate * 100).toFixed(2);
 			if(e.node.move.c === WGo.W)
 				this.white.info.win.val.innerHTML = (info.moves[0].winrate * 100).toFixed(2);
 		}
-		if (info.moves && info.moves[0].score) {
+		var score = null;
+		if (info.score != undefined) {
+			score = info.score;
+		} else if (info.moves != undefined && info.moves[0].score != undefined) {
+			score = info.moves[0].score;
+		}
+		if (score != null) {
 			if(e.node.move.c === WGo.B)
 				this.black.info.score.val.innerHTML = info.moves[0].score.toFixed(2);
 			if(e.node.move.c === WGo.W)

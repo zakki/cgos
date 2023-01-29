@@ -46,7 +46,9 @@ logger.setLevel(logging.INFO)
 if len(logger.handlers) == 0:
     logHandler = logging.StreamHandler()
     logHandler.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
     logHandler.setFormatter(formatter)
     logger.addHandler(logHandler)
 
@@ -57,7 +59,7 @@ SKIP = 4
 ENCODING = "utf-8"
 
 db: sqlite3.Connection
-dbrec: sqlite3.Connection
+dbrec: Optional[sqlite3.Connection]
 cgi: sqlite3.Connection
 
 gme: Dict[int, GoGame] = dict()
@@ -76,7 +78,7 @@ class Configs:
     timeGift: float
     database_state_file: str
     cgi_database: str
-    game_archive_database: str
+    game_archive_database: Optional[str]
     web_data_file: str
     defaultRating: float
     minK: float
@@ -91,6 +93,7 @@ class Configs:
     leeway: int
     anchor_match_rate: float
     badUsersFile: str
+    moveIntervalBetweenSave: int
 
     def load(self, path: str) -> None:
         config = configparser.ConfigParser()
@@ -110,7 +113,10 @@ class Configs:
         self.timeGift = float(cfg["timeGift"])
         self.database_state_file = str(cfg["database_state_file"])
         self.cgi_database = str(cfg["cgi_database"])
-        self.game_archive_database = str(cfg["game_archive_database"])
+        if "game_archive_database" in cfg:
+            self.game_archive_database = str(cfg["game_archive_database"])
+        else:
+            self.game_archive_database = None
         self.web_data_file = str(cfg["web_data_file"])
         self.defaultRating = float(cfg["defaultRating"])
         self.minK = float(cfg["minK"])
@@ -124,6 +130,7 @@ class Configs:
         self.bin_dir = str(cfg["bin_dir"])
         self.anchor_match_rate = float(cfg.get("anchor_match_rate", "0.10"))
         self.badUsersFile = str(cfg["bad_users_file"])
+        self.moveIntervalBetweenSave = int(cfg["moveIntervalBetweenSave"])
 
 
 def now_string() -> str:
@@ -191,7 +198,9 @@ def initDatabase() -> None:
         conn.commit()
         conn.close()
 
-    if not os.path.exists(cfg.game_archive_database):
+    if cfg.game_archive_database is not None and not os.path.exists(
+        cfg.game_archive_database
+    ):
         conn = sqlite3.connect(cfg.game_archive_database)
         conn.execute("create table games(gid int, dta, analysis)")
         conn.commit()
@@ -235,11 +244,15 @@ def openDatabase() -> None:
         logger.error(f"Error opening {cfg.cgi_database} datbase.")
         raise Exception(e)
 
-    try:
-        dbrec = sqlite3.connect(cfg.game_archive_database, timeout=40000)
-    except sqlite3.Error as e:
-        logger.error(f"Error opening {cfg.game_archive_database} datbase.")
-        raise Exception(e)
+    if cfg.game_archive_database is not None:
+        try:
+            dbrec = sqlite3.connect(cfg.game_archive_database, timeout=40000)
+        except sqlite3.Error as e:
+            logger.error(f"Error opening {cfg.game_archive_database} datbase.")
+            raise Exception(e)
+    else:
+        logger.error("Skip game_archive_database")
+        dbrec = None
 
 
 # -------------------------------------------------
@@ -536,11 +549,14 @@ def batchRate() -> None:
     cgi.commit()
 
 
+RE_PASSWORD = re.compile(r"[^\d\w\.-]")
+
+
 def test_password(password: str) -> str:
 
     if password.isascii():
         # e  = "[^\d\w\.-]"
-        if re.search(r"[^\d\w\.-]", password):
+        if re.search(RE_PASSWORD, password):
             return "Password must only alphanumeric, underscore, hyphen, period or digits characters."
     else:
         return "Password must consist of only ascii characters."
@@ -554,11 +570,14 @@ def test_password(password: str) -> str:
     return ""
 
 
+RE_NAME = re.compile(r"[^\d\w\.-]")
+
+
 def valid_name(user_name: str) -> str:
 
     if user_name.isascii():
         # e = "[^\d\w\.-]"
-        if re.search(r"[^\d\w\.-]", user_name):
+        if re.search(RE_NAME, user_name):
             return "User name must only alphanumeric, underscore, hyphen, period or digits characters."
     else:
         return "User name must consist of only ascii characters."
@@ -602,6 +621,38 @@ def rating(who: str) -> str:
     return strRate(u.rating, u.k)
 
 
+def saveSgf(gid: int, sc: str, err: str) -> None:
+    global games
+
+    game = games[gid]
+
+    dte = game.ctime.strftime("%Y-%m-%d")
+
+    sgfString = sgf(
+        game=game,
+        serverName=cfg.serverName,
+        level=cfg.level,
+        boardsize=cfg.boardsize,
+        komi=cfg.komi,
+        gid=gid,
+        res=sc,
+        dte=dte,
+        err=err,
+    )
+
+    dest_dir = os.path.join(
+        cfg.htmlDir,
+        cfg.sgfDir,
+        game.ctime.strftime("%Y"),
+        game.ctime.strftime("%m"),
+        game.ctime.strftime("%d"),
+    )
+    os.makedirs(dest_dir, exist_ok=True)  # make directory if it doesn't exist
+
+    with open(f"{dest_dir}/{gid}.sgf", "w") as f:
+        f.write(sgfString)
+
+
 def gameover(gid: int, sc: str, err: str) -> None:
     global games
     global act
@@ -613,10 +664,8 @@ def gameover(gid: int, sc: str, err: str) -> None:
     game = games[gid]
     logger.info(f"gameover: {gid} {game.w} {game.b} {sc} {err}")
 
-    ctime = datetime.datetime.now(datetime.timezone.utc)
-
-    dte = ctime.strftime("%Y-%m-%d")
-    tme = ctime.strftime("%Y-%m-%d %H:%M")
+    dte = game.ctime.strftime("%Y-%m-%d")
+    tme = game.ctime.strftime("%Y-%m-%d %H:%M")
 
     if game.w in act:
         nsend(game.w, f"gameover {dte} {sc} {err}")
@@ -636,37 +685,19 @@ def gameover(gid: int, sc: str, err: str) -> None:
     viewers.sendObservers(gid, f"update {gid} {sc}")
     viewers.removeObservers(gid)
 
-    sgfString = sgf(
-        game=game,
-        serverName=cfg.serverName,
-        level=cfg.level,
-        boardsize=cfg.boardsize,
-        komi=cfg.komi,
-        gid=gid,
-        res=sc,
-        dte=dte,
-        err=err,
-    )
     see, see2 = seeRecord(gid, sc, dte, tme)
 
-    dest_dir = os.path.join(
-        cfg.htmlDir,
-        cfg.sgfDir,
-        ctime.strftime("%Y"),
-        ctime.strftime("%m"),
-        ctime.strftime("%d"),
-    )
-    os.makedirs(dest_dir, exist_ok=True)  # make directory if it doesn't exist
+    if dbrec:
+        dbrec.execute("INSERT INTO games VALUES(?, ?, ?)", (gid, see, see2))
+        dbrec.commit()
 
-    dbrec.execute("INSERT INTO games VALUES(?, ?, ?)", (gid, see, see2))
-    dbrec.commit()
     db.execute(
         """INSERT INTO games VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, "n" )""",
         (gid, game.w, game.wrate, game.b, game.brate, tme, wtu, btu, sc),
     )
     db.commit()
-    with open(f"{dest_dir}/{gid}.sgf", "w") as f:
-        f.write(sgfString)
+
+    saveSgf(gid, sc, err)
 
     # we can kill the active game record now.
     # ----------------------------------------
@@ -715,12 +746,15 @@ def viewer_respond(sock: Client, data: str) -> None:
 
             viewers.addObserver(gid, who)
         else:
-            rec = dbrec.execute(
-                "SELECT dta FROM games WHERE gid = ?", (gid,)
-            ).fetchone()
-            if rec:
-                dta = rec[0]
-                sock.send(f"setup {gid} {dta}")
+            if dbrec:
+                rec = dbrec.execute(
+                    "SELECT dta FROM games WHERE gid = ?", (gid,)
+                ).fetchone()
+                if rec:
+                    dta = rec[0]
+                    sock.send(f"setup {gid} {dta}")
+                else:
+                    sock.send(f"setup {gid} ?")
             else:
                 sock.send(f"setup {gid} ?")
 
@@ -798,12 +832,13 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
 
         # send out information about a few previous games
         # -----------------------------------------------
-        for (gid, stuff) in dbrec.execute(
-            "select gid, dta from games where gid > (select max(gid) from games) - 40 order by gid"
-        ):
-            dte, tme, bs, kom, w, b, lev, *lst = stuff.split(" ")
-            res = lst[-1]
-            sock.send(f"match {gid} {dte} {tme} {bs} {kom} {w} {b} {res}")
+        if dbrec:
+            for (gid, stuff) in dbrec.execute(
+                "select gid, dta from games where gid > (select max(gid) from games) - 40 order by gid"
+            ):
+                dte, tme, bs, kom, w, b, lev, *lst = stuff.split(" ")
+                res = lst[-1]
+                sock.send(f"match {gid} {dte} {tme} {bs} {kom} {w} {b} {res}")
 
         # send out information about current games
         # ----------------------------------------
@@ -1117,6 +1152,12 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
 
     viewers.sendObservers(gid, f"update {gid} {vmsg}")
 
+    if (
+        cfg.moveIntervalBetweenSave > 0
+        and len(game.mvs) % cfg.moveIntervalBetweenSave == 0
+    ):
+        saveSgf(gid, "?", "")
+
     # game over due to natural causes?
     # --------------------------------
     if gme[gid].twopass():
@@ -1364,11 +1405,13 @@ def schedule_games() -> None:
 
                 db.commit()
                 cgi.commit()
-                dbrec.commit()
 
                 db.close()
                 cgi.close()
-                dbrec.close()
+
+                if dbrec:
+                    dbrec.commit()
+                    dbrec.close()
 
                 logger.info("KILL FILE FOUND - EXIT CGOS")
                 sys.exit(0)
@@ -1503,7 +1546,9 @@ def schedule_games() -> None:
                         wr = strRate(wr, wk)
                         br = strRate(br, bk)
 
-                        games[gid] = Game(wp, bp, 0, cfg.level, cfg.level, wr, br, [])
+                        games[gid] = Game(
+                            wp, bp, 0, cfg.level, cfg.level, wr, br, [], ctme
+                        )
                         act[wp].gid = gid
                         act[bp].gid = gid
                         msg_out = f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {wp}({wr}) {bp}({br})"

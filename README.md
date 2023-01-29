@@ -4,6 +4,14 @@
 
 python3 cgos/server.py cgos19.ini
 
+### genmove_analyze extention
+
+GTP Client can send winrate, score and pv via `cgos-genmove_analyze`, `lz-genmove_analyze` or `kata-genmove_analyze` commands.
+
+And WGo.js show these analysis.
+
+See [Wiki](https://github.com/zakki/cgos/wiki/GTP-tournament-game-expansion).
+
 ## Original Tcl Server
 
 How to build from source:

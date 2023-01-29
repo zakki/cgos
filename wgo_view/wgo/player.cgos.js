@@ -428,54 +428,61 @@
     }
     // legends
     var blackScore = document.createElementNS(SVG, "polygon");
-    blackScore.setAttribute("points", "450,10 480,10, 480,5 450,5");
+    blackScore.setAttribute("points", "50,10 80,10, 80,5 50,5");
     blackScore.setAttribute("stroke", "#993300");
     blackScore.setAttribute("stroke-width", 1);
     blackScore.setAttribute("fill", "none");
     t.graph.appendChild(blackScore);
-    t.graph.appendChild(createLabel('B Score', 400, 10));
+    t.graph.appendChild(createLabel('B Score', 0, 10));
 
     var whiteScore = document.createElementNS(SVG, "polygon");
-    whiteScore.setAttribute("points", "450,20 480,20 480,15 450,15");
+    whiteScore.setAttribute("points", "50,20 80,20 80,15 50,15");
     whiteScore.setAttribute("stroke", "#009900");
     whiteScore.setAttribute("stroke-width", 1);
     whiteScore.setAttribute("fill", "none");
     t.graph.appendChild(whiteScore);
-    t.graph.appendChild(createLabel('W Score', 400, 20));
+    t.graph.appendChild(createLabel('W Score', 0, 20));
 
     var blackWinrate = document.createElementNS(SVG, "polyline");
-    blackWinrate.setAttribute("points", "450,25 480,25");
+    blackWinrate.setAttribute("points", "50,25 80,25");
     blackWinrate.setAttribute("stroke", "#ffaa00");
     blackWinrate.setAttribute("stroke-width", 3);
     blackWinrate.setAttribute("fill", "none");
     t.graph.appendChild(blackWinrate);
-    t.graph.appendChild(createLabel('B Winrate', 400, 30));
+    t.graph.appendChild(createLabel('B Winrate', 0, 30));
 
     var whiteWinrate = document.createElementNS(SVG, "polyline");
-    whiteWinrate.setAttribute("points", "450,35 480,35");
+    whiteWinrate.setAttribute("points", "50,35 80,35");
     whiteWinrate.setAttribute("stroke", "#33ff33");
     whiteWinrate.setAttribute("stroke-width", 3);
     whiteWinrate.setAttribute("fill", "none");
     t.graph.appendChild(whiteWinrate);
-    t.graph.appendChild(createLabel('W Winrate', 400, 40));
+    t.graph.appendChild(createLabel('W Winrate', 0, 40));
   };
 
-  function winrate(tokens) {
-    if (tokens.moves && tokens.moves[0].winrate)
-      return tokens.moves[0].winrate * 100;
+  function winrate(analysis) {
+    if (analysis.winrate != undefined)
+      return analysis.winrate * 100;
+    if (analysis.moves != undefined && analysis.moves[0].winrate)
+      return analysis.moves[0].winrate * 100;
     return null;
   }
 
-  function score(tokens) {
-    if (tokens.moves && tokens.moves[0].score) {
-      var r = (tokens.moves[0].score / 40 + 0.5);
-      if (r < 0)
-        r = 0;
-      if (r > 1)
-        r = 1;
-      return r * 100;
+  function score(analysis) {
+    var score;
+    if (analysis.score != undefined) {
+      score = analysis.score;
+    } else if (analysis.moves != undefined && analysis.moves[0].score) {
+      score = analysis.moves[0].score;
+    } else {
+      return null;
     }
-    return null;
+    var r = (score / 40 + 0.5);
+    if (r < 0)
+      r = 0;
+    if (r > 1)
+      r = 1;
+    return r * 100;
   }
 
   var kifu_loaded = function (e) {
@@ -511,7 +518,11 @@
     this.winrate.cursor.setAttribute("width", 3 * this.xScale);
     while (node) {
       var winrateList, scoreList, winrateGraph, scoreGraph;
-      if (!node.move || !node.CC) return;
+      if (!node.move || !node.CC) {
+        node = node.parent;
+        turn--;
+        continue;
+      }
       if (node.move.c == WGo.B) {
         winrateList = this.black;
         scoreList = this.blackScore;
