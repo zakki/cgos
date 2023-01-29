@@ -47,7 +47,7 @@ def encodeOwnership(ownership: List[float]) -> str:
 
 class AnalyzeResultParser:
 
-    NUMBER_ATTRIBUTES = ["visits", "winrate", "prior", "lcb", "winrate", "prior", "lcb", "utility", "scoreMean", "scoreStdev", "scoreLead", "scoreSelfplay", "utilityLcb", "weight", "order", "pvEdgeVisits", "movesOwnership", "movesOwnershipStdev",]
+    NUMBER_ATTRIBUTES = ["visits", "winrate", "prior", "lcb", "prior", "lcb", "utility", "scoreMean", "scoreStdev", "scoreLead", "scoreSelfplay", "utilityLcb", "weight", "order", "pvEdgeVisits", "movesOwnership", "movesOwnershipStdev",]
 
     def __init__(self, tokens: List[str], logger: logging.Logger, convertLz = False):
         self.tokens = tokens
@@ -130,15 +130,39 @@ class AnalyzeResultParser:
     def parse(self) -> Dict:
         info: Dict[str, Any] = dict()
         info["moves"] = []
+        totalVisits = 0
         while self._has_next():
             t = self._next()
             if t == "info":
                 m = self._parseInfo()
+                if "visits" in m:
+                    totalVisits += m["visits"]
                 info["moves"].append(m)
             elif t == "ownership":
                 info["ownership"] = self._parseOwnership()
             else:
                 self.logger.info(f"skip unknown element {t} {self._lookahead()}")
+
+        # Calculate root win-rate and score weighted average
+        if totalVisits > 0:
+            winrate = 0
+            hasWinrate = False
+            score = 0
+            hasScore = False
+            for m in info["moves"]:
+                if "visits" not in m:
+                    continue
+                if "winrate" in m:
+                    winrate += m["winrate"] * m["visits"] / totalVisits
+                    hasWinrate = True
+                if "score" in m:
+                    score += m["score"] * m["visits"] / totalVisits
+                    hasScore = True
+            info["visits"] = totalVisits
+            if hasWinrate:
+                info["winrate"] = winrate
+            if hasScore:
+                info["score"] = score
 
         return info
 

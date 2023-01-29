@@ -460,22 +460,29 @@
     t.graph.appendChild(createLabel('W Winrate', 400, 40));
   };
 
-  function winrate(tokens) {
-    if (tokens.moves && tokens.moves[0].winrate)
-      return tokens.moves[0].winrate * 100;
+  function winrate(analysis) {
+    if (analysis.winrate != undefined)
+      return analysis.winrate * 100;
+    if (analysis.moves != undefined && analysis.moves[0].winrate)
+      return analysis.moves[0].winrate * 100;
     return null;
   }
 
-  function score(tokens) {
-    if (tokens.moves && tokens.moves[0].score) {
-      var r = (tokens.moves[0].score / 40 + 0.5);
-      if (r < 0)
-        r = 0;
-      if (r > 1)
-        r = 1;
-      return r * 100;
+  function score(analysis) {
+    var score;
+    if (analysis.score != undefined) {
+      score = analysis.score;
+    } else if (analysis.moves != undefined && analysis.moves[0].score) {
+      score = analysis.moves[0].score;
+    } else {
+      return null;
     }
-    return null;
+    var r = (score / 40 + 0.5);
+    if (r < 0)
+      r = 0;
+    if (r > 1)
+      r = 1;
+    return r * 100;
   }
 
   var kifu_loaded = function (e) {
