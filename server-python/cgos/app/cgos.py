@@ -549,11 +549,14 @@ def batchRate() -> None:
     cgi.commit()
 
 
+RE_PASSWORD = re.compile(r"[^\d\w\.-]")
+
+
 def test_password(password: str) -> str:
 
     if password.isascii():
         # e  = "[^\d\w\.-]"
-        if re.search(r"[^\d\w\.-]", password):
+        if re.search(RE_PASSWORD, password):
             return "Password must only alphanumeric, underscore, hyphen, period or digits characters."
     else:
         return "Password must consist of only ascii characters."
@@ -567,11 +570,14 @@ def test_password(password: str) -> str:
     return ""
 
 
+RE_NAME = re.compile(r"[^\d\w\.-]")
+
+
 def valid_name(user_name: str) -> str:
 
     if user_name.isascii():
         # e = "[^\d\w\.-]"
-        if re.search(r"[^\d\w\.-]", user_name):
+        if re.search(RE_NAME, user_name):
             return "User name must only alphanumeric, underscore, hyphen, period or digits characters."
     else:
         return "User name must consist of only ascii characters."

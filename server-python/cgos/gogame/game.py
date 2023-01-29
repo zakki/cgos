@@ -22,7 +22,6 @@
 # THE SOFTWARE.
 
 import datetime
-import re
 import json
 from typing import List, Tuple, Optional
 
@@ -123,7 +122,7 @@ def sgf(
         mv = m.lower()
         tleft = t // 1000
 
-        if re.search(r"^pas", mv):
+        if mv.startswith("pas"):
             s += f";{colstr[ctm]}[]{colstr[ctm]}L[{tleft}]"
             tmc += 1
             if tmc > 7:
