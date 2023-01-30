@@ -458,7 +458,7 @@ class EngineConnector(object):
 
     def notifyCGOSGameover(self, result):
         """
-        Sent cgos-game_over to engine. The calling function must format this
+        Sent cgos-gameover to engine. The calling function must format this
         into B+x.y, B+Resign, B+Time or B+Forfeit to make it SGF compliant.
         """
         if "cgos-gameover" in self._supportedCommands:
