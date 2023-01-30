@@ -53,6 +53,7 @@ class Client:
         self._readQueue: asyncio.Queue[str] = asyncio.Queue()
         self._writeQueue: asyncio.Queue[str] = asyncio.Queue()
         self.id = id or "<unknown>"
+        self.user_name: Optional[str] = None
         self.alive = True
 
     def close(self) -> None:
@@ -91,6 +92,10 @@ class Client:
                 logger.info(f"writer exception {self.id} {str(e)}")
                 self.alive = False
             logger.debug(f"send queue {self.id}: {self._writeQueue.qsize()} {msg}")
+        try:
+            self._writer.close()
+        except:
+            pass
         logger.info(f"writer ended {self.id}")
 
     async def readTask(self) -> None:

@@ -887,35 +887,9 @@ def _handle_player_username(sock: Client, data: str) -> None:
         sock.close()
         return
 
-    # -------------------------------------------------------------------------------------------------------
-    # I think this fixes the connection bug.  When a user logs on, but the system believes he is already
-    # logged on,  test to see if there is a connection by sending an informational message to old connection.
-    # If this fails, then we can properly shut down the old connection and allow the new login.
-    #
-    # I hesitate to simply close the old connection no matter what since the password has not yet been
-    # entered and so getting this right would require a bit more bookeeping.
-    # -------------------------------------------------------------------------------------------------------
-    if user_name in act:
-        # test old connection
-        xsoc = act[user_name].sock
-        xsoc_alive = xsoc.send(
-            "info another login is being attempted using this user name"
-        )
-        if not xsoc.alive or not xsoc_alive:
-            xsoc.close()
-            logger.error(f"Error: user {user_name} apparently lost old connection")
-            del act[user_name]
-        else:
-            sock.send("Error: You are already logged on!  Closing connection.")
-            del act[who]
-            sock.close()
-            return
+    sock.user_name = user_name
 
-    sock.id = user_name
-    client = act[who]
-    del act[who]
-    act[user_name] = ActiveUser(sock, "password", 0, 0, 0)
-    act[user_name].useAnalyze = client.useAnalyze
+    act[who].msg_state = "password"
     sock.send("password")
     return
 
@@ -923,7 +897,14 @@ def _handle_player_username(sock: Client, data: str) -> None:
 def _handle_player_password(sock: Client, data: str) -> None:
     global db
 
-    who = sock.id
+    uid = sock.id
+    who = sock.user_name
+
+    if who is None:
+        sock.send("Error: no user_name")
+        sock.close()
+        del act[uid]
+        return
 
     pw = data.strip()
     # loginTime = now_seconds()
@@ -933,7 +914,7 @@ def _handle_player_password(sock: Client, data: str) -> None:
     if err != "":
         sock.send(f"Error: {err}")
         sock.close()
-        del act[who]
+        del act[uid]
         return
 
     cur = db.execute("SELECT pass, rating, K FROM password WHERE name = ?", (who,))
@@ -962,14 +943,25 @@ def _handle_player_password(sock: Client, data: str) -> None:
     if cmp_pw != pw:
         sock.send("Sorry, password doesn't match")
         sock.close()
-        del act[who]
+        del act[uid]
         return
 
-    logger.info(f"[{who}] logged on analyze: {act[who].useAnalyze}")
+    # Handle user who already logged on
+    if who in act:
+        # cleanup old connection
+        xsoc = act[who].sock
+        xsoc.send("info another login is being attempted using this user name")
+        xsoc.close()
+        logger.error(f"Error: user {who} apparently lost old connection")
+        del act[who]
 
-    act[who].rating = rat
-    act[who].k = k
-    act[who].msg_state = "waiting"
+    sock.id = who
+    client = act[uid]
+    del act[uid]
+
+    act[who] = ActiveUser(sock, msg_state="waiting", gid=0, rating=rat, k=k)
+    act[who].useAnalyze = client.useAnalyze
+    logger.info(f"[{who}] logged on analyze: {act[who].useAnalyze}")
 
     logger.info(f"is {who} currently playing a game?")
 
@@ -1254,7 +1246,7 @@ async def handle_client(client: Client) -> None:
         logger.error(traceback.format_exc())
         logger.error(traceback.format_stack())
 
-    if client.id in act:
+    if client.id in act and act[client.id].sock is client:
         del act[client.id]
 
 
