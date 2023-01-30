@@ -276,7 +276,7 @@ class CGOSClient(object):
         if len(parameters) > 6:
             self.logger.info(
                 "This is a restart. Catching up "
-                + str((len(parameters) - 6) / 2)
+                + str((len(parameters) - 6) // 2)
                 + " moves"
             )
 
@@ -367,7 +367,7 @@ class CGOSClient(object):
                 + str(self._movecount)
                 + " moves generated. "
                 + "Time left: "
-                + str(int(parameters[1]) / 1000)
+                + str(int(parameters[1]) // 1000)
                 + " sec"
             )
 
@@ -545,9 +545,9 @@ class CGOSClient(object):
             duration = currentTime - time.mktime(self._timeStarted)
             self.logger.info(
                 "Client up for "
-                + str(int(duration) / 3600)
+                + str(int(duration) // 3600)
                 + " hours, "
-                + str((int(duration) / 60) % 60)
+                + str((int(duration) // 60) % 60)
                 + " mins, "
                 + str(int(duration) % 60)
                 + " seconds. "
