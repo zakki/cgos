@@ -832,13 +832,14 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
 
         # send out information about a few previous games
         # -----------------------------------------------
+        matchList: List[str] = []
         if dbrec:
             for (gid, stuff) in dbrec.execute(
                 "select gid, dta from games where gid > (select max(gid) from games) - 40 order by gid"
             ):
                 dte, tme, bs, kom, w, b, lev, *lst = stuff.split(" ")
                 res = lst[-1]
-                sock.send(f"match {gid} {dte} {tme} {bs} {kom} {w} {b} {res}")
+                matchList.append(f"match {gid} {dte} {tme} {bs} {kom} {w} {b} {res}")
 
         # send out information about current games
         # ----------------------------------------
@@ -848,7 +849,9 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
             logger.info(
                 f"sending to viewer: match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb}"
             )
-            sock.send(f"match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} -")
+            matchList.append(f"match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} -")
+
+        sock.send(*matchList)
 
         return
 

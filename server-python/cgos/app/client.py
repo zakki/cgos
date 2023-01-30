@@ -61,10 +61,11 @@ class Client:
     def close(self) -> None:
         self.alive = False
 
-    def send(self, message: str) -> bool:
+    def send(self, *messages: str) -> bool:
         try:
-            logger.debug(f"S -> {self.id}: '{message}'")
-            self._writeQueue.put_nowait(message + "\n")
+            logger.debug(f"S -> {self.id}: '{list(messages)}'")
+            message = "\n".join(messages) + "\n"
+            self._writeQueue.put_nowait(message)
             return True
         except:
             logger.error(f"alert: Client crash for user: {self.id}")
