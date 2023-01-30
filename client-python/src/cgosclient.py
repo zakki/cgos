@@ -600,8 +600,8 @@ class CGOSClient(object):
 
             try:
                 self._handlerloop()
-            except socket.error:
-                self.logger.error("Socket error. CGOS connection lost.")
+            except socket.error as e:
+                self.logger.error("Socket error: " + str(e))
                 self.disconnect()
             except CGOSClientError as e:
                 self.logger.error(str(e))
