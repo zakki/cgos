@@ -109,6 +109,8 @@ class CGOSClient(object):
         # movecount is only used for periodically outputting information messages
         self._movecount = 0
 
+        self._useAnalyze = False
+
         self.logger = logging.getLogger("cgosclient.CGOSClient")
         self.logger.setLevel(logging.DEBUG)
 
@@ -195,7 +197,12 @@ class CGOSClient(object):
 
     def _handle_protocol(self, parameters):
         """Event handler: "protocol" command. No parameters."""
-        self._respond(CGOSClient.CLIENT_ID)
+        self._useAnalyze = "genmove_analyze" in parameters
+        if self._useAnalyze:
+            self._respond(CGOSClient.CLIENT_ID + " genmove_analyze")
+        else:
+            self._respond(CGOSClient.CLIENT_ID)
+
 
     def _handle_username(self, parameters):
         """Event handler: "username" command. No parameters."""
@@ -353,6 +360,11 @@ class CGOSClient(object):
           - GTP colour
           - Time left in msec
         """
+
+        useExperimentalAsync = True
+        if self._engine.getGenmoveAnalyzeMode() not in ["cgos", "kata", "lz"]:
+            useExperimentalAsync = False
+
         if len(parameters) != 2:
             raise CGOSClientError("'play' command requires 2 parameters")
 
@@ -375,9 +387,28 @@ class CGOSClient(object):
         timeMSec = int(parameters[1])
 
         self._engine.notifyTimeLeft(colour, timeMSec)
-        result = self._engine.requestGenMove(colour).lower()
 
-        self._respond(result)
+        if useExperimentalAsync:
+            self._engine.requestAsyncGenMove(colour)
+            
+            line = self._engine.tryGetLastAnalysisLine(True)
+            analyzeInfo = str()
+            while line["type"] != "play":
+                # TODO: Transfer the lz analysis string.
+                analyzeInfo = line["data"] # Only save the last line
+                line = self._engine.tryGetLastAnalysisLine(True)
+            result = line["data"].split(" ")[-1].lower()
+
+            line = self._engine.tryGetLastAnalysisLine(True) # Pop the end line
+            assert line["type"] == "end", ""
+        else:
+            result, analyzeInfo = self._engine.requestGenMove(colour)
+
+        response = result.lower()
+        if self._useAnalyze and analyzeInfo is not None:
+            response += " " + analyzeInfo
+
+        self._respond(response)
 
         # Observer (other than resign)
         if self._observer is not None and result != "resign":

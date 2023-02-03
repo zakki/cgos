@@ -22,7 +22,7 @@
 # THE SOFTWARE.
 
 import re
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 
 # -----------------------------------------------
@@ -48,7 +48,7 @@ class Game:
     brt: int
     wrate: float
     brate: float
-    mvs: List[Tuple[str, int]] = []
+    mvs: List[Tuple[str, int, Optional[str]]]
 
     def __init__(
         self,
@@ -59,7 +59,7 @@ class Game:
         brt: int,
         wrate: float,
         brate: float,
-        mvs: List[Tuple[str, int]] = [],
+        mvs: List[Tuple[str, int, Optional[str]]] = [],
     ) -> None:
         self.w = w
         self.b = b
@@ -101,7 +101,7 @@ def sgf(
 
     tmc = 0  # total move count
 
-    for (m, t) in game.mvs:
+    for (m, t, analysis) in game.mvs:
 
         mv = m.lower()
         tleft = t // 1000
@@ -119,6 +119,8 @@ def sgf(
             rrs = int(mv[1:])
             rrs = (boardsize - rrs) + 97
             s += f";{colstr[ctm]}[{chr(ccs)}{chr(rrs)}]{colstr[ctm]}L[{tleft}]"
+            if analysis is not None:
+                s += f"C[{analysis}]"
             tmc += 1
             if tmc > 7:
                 s += "\n"
