@@ -314,9 +314,9 @@
         name: "cgos",
         togglable: true,
         click: function (player) {
-          this._cgos = this._cgos || new WGo.Player.Cgos(player, player.board);
-          this._cgos.set(!this._cgos.cgosMode);
-          return this._cgos.cgosMode;
+          player._cgos = player._cgos || new WGo.Player.Cgos(player, player.board);
+          player._cgos.set(!player._cgos.cgosMode);
+          return player._cgos.cgosMode;
         },
         init: function (player) {
           var _this = this;
@@ -328,13 +328,33 @@
             if (!_this._disabled) _this.enable();
             delete _this._disabled;
           });
-          player.addEventListener("update", update_board.bind(this));
+          this.select();
+          //player.addEventListener("update", update_board.bind(this));
         },
       },
     });
   }
 
   WGo.i18n.en["cgos"] = "CGOS mode";
+
+  var AnalyzeBoard = WGo.extendClass(
+    WGo.BasicPlayer.component.Component,
+    function (player) {
+      this.super(player);
+
+      player._cgos = this._cgos || new WGo.Player.Cgos(player, player.board);
+      player._cgos.set(true);
+
+      player.addEventListener("update", update_board.bind(player));
+    }
+  );
+
+  var bp_layouts = WGo.BasicPlayer.layouts;
+  if (!bp_layouts["right_top"].bottom) bp_layouts["right_top"].bottom = [];
+  bp_layouts["right_top"].bottom.push("AnalyzeBoard");
+
+  WGo.BasicPlayer.component.AnalyzeBoard = AnalyzeBoard;
+
 })(WGo);
 
 (function () {
