@@ -216,6 +216,8 @@
     // add new markers on the board
     this._cgos.temp_marks = add;
     this._cgos.board.addObject(add);
+    // XXX Redraw the entire board as garbage remains
+    this._cgos.board.redraw();
   };
 
   function parseCoord(size, str) {
