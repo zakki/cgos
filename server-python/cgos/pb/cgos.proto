@@ -1,0 +1,62 @@
+syntax = "proto2";
+
+package cgos;
+
+enum Color {
+    BLACK = 0;
+    WHITE = 1;
+}
+
+message Point {
+    optional int32 x = 1;
+    optional int32 y = 2;
+}
+
+message MoveItem {
+    optional Point move = 1;
+    optional int32 move_pos = 8;
+    optional float winrate = 2;
+    optional int32 winratei = 9;
+    optional float score = 3;
+    optional int32 scorei = 10;
+    optional int32 visits = 4;
+    optional float prior = 5;
+    optional int32 priori = 11;
+    repeated Point pv = 6;
+    repeated int32 pv_pos = 7;
+}
+
+message Analysis {
+    optional float winrate = 1;
+    optional int32 winratei = 8;
+    optional float score = 2;
+    optional int32 scorei = 9;
+    optional int32 visits = 3;
+    repeated MoveItem moves = 4;
+    optional bytes ownership = 5;
+    optional string comment = 6;
+    map<string, string> custom = 7;
+}
+
+message Move {
+    optional Color color = 1;
+    optional Point position = 2;
+    optional int32 pos = 5;
+    optional int32 time_left = 3;
+    optional Analysis analysis = 4;
+}
+
+message Game {
+    optional int32 version = 1;
+    optional string rule = 2;
+    optional string time = 3;
+    optional int32 boardsize = 4;
+    optional float komi = 5;
+    optional string white_name = 6;
+    optional float white_rate = 7;
+    optional string black_name = 8;
+    optional float black_rate = 9;
+    optional int32 level = 10;
+    optional string result = 11;
+    repeated Move moves = 12;
+}
