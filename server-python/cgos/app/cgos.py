@@ -44,13 +44,19 @@ logger = logging.getLogger("cgos_server")
 logger.setLevel(logging.INFO)
 
 if len(logger.handlers) == 0:
-    logHandler = logging.StreamHandler()
-    logHandler.setLevel(logging.INFO)
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
+
+    logHandler = logging.StreamHandler()
+    logHandler.setLevel(logging.INFO)
     logHandler.setFormatter(formatter)
     logger.addHandler(logHandler)
+
+    fileHandler = logging.FileHandler("cgos_server.log")
+    fileHandler.setLevel(logging.INFO)
+    fileHandler.setFormatter(formatter)
+    logger.addHandler(fileHandler)
 
 # logging.getLogger("asyncio").setLevel(logging.DEBUG)
 
