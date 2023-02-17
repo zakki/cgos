@@ -103,9 +103,19 @@ class Client:
         logger.info(f"writer ended {self.id}")
 
     async def readTask(self) -> None:
+        # Old python client doesn't send new line
+        first = True
+        pythonClient = True
         while self.alive:
             try:
-                line = await self._reader.readline()
+                if pythonClient:
+                    line = await self._reader.read(10000)
+                    if first:
+                        first = False
+                        pythonClient = str(line, ENCODING).find('\n') < 0
+                        logger.info(f"Client {self.id} old-python-client:{pythonClient} {len(line)}")
+                else:
+                    line = await self._reader.readline()
                 if len(line) == 0:
                     self.alive = False
                     break
