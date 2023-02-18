@@ -22,24 +22,14 @@
 # THE SOFTWARE.
 
 import asyncio
-import logging
 import traceback
 from typing import Optional
 
+from util.logutils import getLogger
+
 
 # Setup logger
-logger = logging.getLogger("cgos_server")
-logger.setLevel(logging.DEBUG)
-
-if len(logger.handlers) == 0:
-    logHandler = logging.StreamHandler()
-    logHandler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    logHandler.setFormatter(formatter)
-    logger.addHandler(logHandler)
-
+logger = getLogger("cgos_server.client")
 
 ENCODING = "utf-8"
 
@@ -112,8 +102,10 @@ class Client:
                     line = await self._reader.read(10000)
                     if first:
                         first = False
-                        pythonClient = str(line, ENCODING).find('\n') < 0
-                        logger.info(f"Client {self.id} old-python-client:{pythonClient} {len(line)}")
+                        pythonClient = str(line, ENCODING).find("\n") < 0
+                        logger.info(
+                            f"Client {self.id} old-python-client:{pythonClient} {len(line)}"
+                        )
                 else:
                     line = await self._reader.readline()
                 if len(line) == 0:

@@ -31,35 +31,16 @@ import sqlite3
 import random
 import re
 import traceback
-import logging
 import json
 from typing import Any, List, Tuple, Dict, Optional
 
 from gogame import GoGame, Game, sgf
 from .client import Client
+from util.logutils import getLogger
 
 
 # Setup logger
-logger = logging.getLogger("cgos_server")
-logger.setLevel(logging.INFO)
-
-if len(logger.handlers) == 0:
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-
-    logHandler = logging.StreamHandler()
-    logHandler.setLevel(logging.INFO)
-    logHandler.setFormatter(formatter)
-    logger.addHandler(logHandler)
-
-    fileHandler = logging.FileHandler("cgos_server.log")
-    fileHandler.setLevel(logging.INFO)
-    fileHandler.setFormatter(formatter)
-    logger.addHandler(fileHandler)
-
-# logging.getLogger("asyncio").setLevel(logging.DEBUG)
-
+logger = getLogger("cgos_server")
 
 SKIP = 4
 ENCODING = "utf-8"

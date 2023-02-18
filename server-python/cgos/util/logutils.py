@@ -1,7 +1,6 @@
 # The MIT License
 #
-# Copyright (C) 2009 Christian Nentwich and contributors
-# Copyright (c) 2022 Kensuke Matsuzaki
+# Copyright (c) 2023 Kensuke Matsuzaki
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,15 +20,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import sys
-import traceback
+import logging
+import logging.config
 
-from app.cgos import runServer
+logging.config.fileConfig("log.ini")
 
 
-if __name__ == "__main__":
-    try:
-        runServer()
-    except Exception:
-        traceback.print_exc()
-        sys.exit(1)
+def getLogger(name: str) -> logging.Logger:
+    return logging.getLogger(name)
