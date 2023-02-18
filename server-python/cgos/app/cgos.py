@@ -54,6 +54,8 @@ gme: Dict[int, GoGame] = dict()
 defaultRatingAverage = 0.0
 
 badUsers: List[str] = []
+leeway: int
+workdir: str
 
 
 class Configs:
@@ -120,6 +122,9 @@ class Configs:
         self.moveIntervalBetweenSave = int(cfg["moveIntervalBetweenSave"])
 
 
+cfg: Configs
+
+
 def now_string() -> str:
     now = datetime.datetime.now(datetime.timezone.utc)
     return now.strftime("%Y-%m-%d %H:%M:%S")
@@ -139,39 +144,6 @@ def joinMoves(moves: List[Tuple[str, int, Optional[str]]]) -> str:
 
 def joinAnalysis(moves: List[Tuple[str, int, Optional[str]]]) -> str:
     return "\n".join([i or "" for (m, t, i) in moves])
-
-
-# READ the configuration file
-# ---------------------------
-if len(sys.argv) < 2:
-    print("Must specify a configuration file.")
-    sys.exit(1)
-else:
-    cfg = Configs()
-    cfg.load(sys.argv[1])
-    leeway = int(cfg.timeGift * 1000.0)
-
-    defaultRatingAverage = cfg.defaultRating
-
-    tme = now_string()
-
-    logger.info(f'"{cfg.serverName}" up and running at {tme} GMT')
-
-# remove any existing kill file
-# -----------------------------
-if os.path.exists(cfg.killFile):
-    os.remove(cfg.killFile)
-
-workdir = os.path.dirname(cfg.web_data_file)
-logger.info(f"datafile:'{cfg.web_data_file}' -> workdir:'{workdir}'")
-
-# make GameDir directory if it doesn't exist
-# -------------------------------------------
-try:
-    os.makedirs(cfg.sgfDir, exist_ok=True)
-except:
-    logger.error(f"error making sgfDir: {cfg.sgfDir}")
-    sys.exit(1)
 
 
 def initDatabase() -> None:
@@ -1581,7 +1553,11 @@ async def schedule_games_task() -> None:
     await asyncio.sleep(45.0)
 
     while True:
-        schedule_games()
+        try:
+            schedule_games()
+        except Exception as e:
+            logger.error(f"Error while scheduling game {str(e)}")
+            logger.error(traceback.format_exc())
 
         # every 15 seconds
         await asyncio.sleep(15.0)
@@ -1607,6 +1583,42 @@ async def server_main() -> None:
 
 
 def runServer() -> None:
+    global cfg
+    global leeway
+    global workdir
+    global defaultRatingAverage
+
+    # READ the configuration file
+    # ---------------------------
+    if len(sys.argv) < 2:
+        print("Must specify a configuration file.")
+        sys.exit(1)
+    else:
+        cfg = Configs()
+        cfg.load(sys.argv[1])
+        leeway = int(cfg.timeGift * 1000.0)
+
+        defaultRatingAverage = cfg.defaultRating
+
+        tme = now_string()
+
+        logger.info(f'"{cfg.serverName}" up and running at {tme} GMT')
+
+    # remove any existing kill file
+    # -----------------------------
+    if os.path.exists(cfg.killFile):
+        os.remove(cfg.killFile)
+
+    workdir = os.path.dirname(cfg.web_data_file)
+    logger.info(f"datafile:'{cfg.web_data_file}' -> workdir:'{workdir}'")
+
+    # make GameDir directory if it doesn't exist
+    # -------------------------------------------
+    try:
+        os.makedirs(cfg.sgfDir, exist_ok=True)
+    except:
+        logger.error(f"error making sgfDir: {cfg.sgfDir}")
+        sys.exit(1)
 
     initDatabase()
     openDatabase()
