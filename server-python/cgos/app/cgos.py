@@ -1308,8 +1308,8 @@ def schedule_games() -> None:
             if tu < 0:
                 tu = 0
             time_left = tr - tu
-            games[gid].wrt = time_left
             if time_left < 0:
+                games[gid].wrt = time_left
                 gameover(gid, "B+Time", "")
                 count += 1  # so that we get to recyle
             else:
@@ -1320,8 +1320,8 @@ def schedule_games() -> None:
             if tu < 0:
                 tu = 0
             time_left = tr - tu
-            games[gid].brt = time_left
             if time_left < 0:
+                games[gid].brt = time_left
                 gameover(gid, "W+Time", "")
                 count += 1  # so that we get to recyle
             else:
