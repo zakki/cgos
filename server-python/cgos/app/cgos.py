@@ -133,12 +133,12 @@ def now_milliseconds() -> int:
     return time.time_ns() // 1_000_000
 
 
-def joinMoves(mvs: List[Tuple[str, int, Optional[str]]]) -> str:
-    return " ".join([f"{m} {t}" for (m, t, i) in mvs])
+def joinMoves(moves: List[Tuple[str, int, Optional[str]]]) -> str:
+    return " ".join([f"{m} {t}" for (m, t, i) in moves])
 
 
-def joinAnalysis(mvs: List[Tuple[str, int, Optional[str]]]) -> str:
-    return "\n".join([i or "" for (m, t, i) in mvs])
+def joinAnalysis(moves: List[Tuple[str, int, Optional[str]]]) -> str:
+    return "\n".join([i or "" for (m, t, i) in moves])
 
 
 # READ the configuration file
@@ -406,10 +406,10 @@ def seeRecord(gid: int, res: str, dte: Any, tme: str) -> Tuple[str, str]:
 
     s = ""
 
-    s += f"{tme} {cfg.boardsize} {cfg.komi} {game.w}({game.wrate}) {game.b}({game.brate}) {cfg.level} {joinMoves(game.mvs)} "
+    s += f"{tme} {cfg.boardsize} {cfg.komi} {game.w}({game.white_rate}) {game.b}({game.black_rate}) {cfg.level} {joinMoves(game.moves)} "
     s += res
 
-    a = joinAnalysis(game.mvs)
+    a = joinAnalysis(game.moves)
 
     return s, a
 
@@ -662,8 +662,8 @@ def gameover(gid: int, sc: str, err: str) -> None:
         nsend(game.b, f"gameover {dte} {sc} {err}")
         act[game.b].msg_state = "gameover"
 
-    wtu = cfg.level - game.wrt
-    btu = cfg.level - game.brt
+    wtu = cfg.level - game.white_remaining_time
+    btu = cfg.level - game.black_remaining_time
 
     # send gameover announcements to viewing clients
     # ----------------------------------------------
@@ -680,7 +680,7 @@ def gameover(gid: int, sc: str, err: str) -> None:
 
     db.execute(
         """INSERT INTO games VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, "n" )""",
-        (gid, game.w, game.wrate, game.b, game.brate, tme, wtu, btu, sc),
+        (gid, game.w, game.white_rate, game.b, game.black_rate, tme, wtu, btu, sc),
     )
     db.commit()
 
@@ -721,14 +721,14 @@ def viewer_respond(sock: Client, data: str) -> None:
 
             game = games[gid]
 
-            w = f"{game.w}({game.wrate})"
-            b = f"{game.b}({game.brate})"
+            w = f"{game.w}({game.white_rate})"
+            b = f"{game.b}({game.black_rate})"
 
             logger.info(
                 f"sending to viewer: game {gid} - - {cfg.boardsize} {cfg.komi} {w} {b} {cfg.level} ..."
             )
 
-            msg = f"setup {gid} - - {cfg.boardsize} {cfg.komi} {w} {b} {cfg.level} {joinMoves(game.mvs)}"
+            msg = f"setup {gid} - - {cfg.boardsize} {cfg.komi} {w} {b} {cfg.level} {joinMoves(game.moves)}"
             sock.send(msg)
 
             viewers.addObserver(gid, who)
@@ -831,8 +831,8 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
         # send out information about current games
         # ----------------------------------------
         for (gid, rec) in games.items():
-            sw = f"{rec.w}({rec.wrate})"
-            sb = f"{rec.b}({rec.brate})"
+            sw = f"{rec.w}({rec.white_rate})"
+            sb = f"{rec.b}({rec.black_rate})"
             logger.info(
                 f"sending to viewer: match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb}"
             )
@@ -968,12 +968,12 @@ def _handle_player_password(sock: Client, data: str) -> None:
             wr = ratingOf[inf.w]
             br = ratingOf[inf.b]
 
-            msg_out = f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {inf.w}({wr}) {inf.b}({br}) {joinMoves(inf.mvs)}"
+            msg_out = f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {inf.w}({wr}) {inf.b}({br}) {joinMoves(inf.moves)}"
             logger.info(msg_out)
 
             # determine who's turn to play
             # ----------------------------
-            ply = len(inf.mvs)
+            ply = len(inf.moves)
             if ply & 1:
                 ctm = inf.w
             else:
@@ -992,14 +992,14 @@ def _handle_player_password(sock: Client, data: str) -> None:
                 if ply & 1:
                     # tr = inf.wrt
                     ct = now_milliseconds()
-                    tl = inf.wrt - (ct - inf.lmst)
+                    tl = inf.white_remaining_time - (ct - inf.last_move_start_time)
                     sock.send(f"genmove w {tl}")
                     act[who].msg_state = "genmove"
                     return
                 else:
-                    # tr = inf.brt
+                    # tr = inf.black_remaining_time
                     ct = now_milliseconds()
-                    tl = inf.brt - (ct - inf.lmst)
+                    tl = inf.black_remaining_time - (ct - inf.last_move_start_time)
                     sock.send(f"genmove b {tl}")
                     act[who].msg_state = "genmove"
                     return
@@ -1055,29 +1055,28 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
                 logger.info(f"Bad analysis from {who}, '{tokens[1]}'")
     over = ""
 
-    # w, b, lmst, wrt, brt, wrate, brate, mvs = games[gid]
     game = games[gid]
-    wrt = game.wrt
-    brt = game.brt
+    wrt = game.white_remaining_time
+    brt = game.black_remaining_time
 
     # make time calc, determine if game over for any reason
     # -----------------------------------------------------
 
-    tt = ct - game.lmst - leeway  # fudge an extra moment
+    tt = ct - game.last_move_start_time - leeway  # fudge an extra moment
 
     if tt < 0:
         tt = 0
 
     if ctm & 1:
         wrt = wrt - tt
-        games[gid].wrt = wrt
+        games[gid].white_remaining_time = wrt
         if wrt < 0:
             over = "B+Time"
             gameover(gid, over, "")
             return
     else:
         brt = brt - tt
-        games[gid].brt = brt
+        games[gid].black_remaining_time = brt
         if brt < 0:
             over = "W+Time"
             gameover(gid, over, "")
@@ -1120,10 +1119,10 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
     # record the moves and times
     # --------------------------
     if ctm & 1:
-        game.mvs.append((mv, wrt, analysis))
+        game.moves.append((mv, wrt, analysis))
     else:
-        game.mvs.append((mv, brt, analysis))
-    games[gid].mvs = game.mvs
+        game.moves.append((mv, brt, analysis))
+    games[gid].moves = game.moves
 
     if game.w == who:
         nsend(game.b, f"play w {mv} {wrt}")
@@ -1136,7 +1135,7 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
 
     if (
         cfg.moveIntervalBetweenSave > 0
-        and len(game.mvs) % cfg.moveIntervalBetweenSave == 0
+        and len(game.moves) % cfg.moveIntervalBetweenSave == 0
     ):
         saveSgf(gid, "?", "")
 
@@ -1165,12 +1164,12 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
         if game.b in act:
             act[game.b].msg_state = "genmove"
             nsend(game.b, f"genmove b {brt}")
-        games[gid].lmst = now_milliseconds()
+        games[gid].last_move_start_time = now_milliseconds()
     else:
         if game.w in act:
             act[game.w].msg_state = "genmove"
             nsend(game.w, f"genmove w {wrt}")
-        games[gid].lmst = now_milliseconds()
+        games[gid].last_move_start_time = now_milliseconds()
 
 
 async def accept_connection(
@@ -1254,7 +1253,11 @@ def estimateRoundTimeLeft() -> int:
     mtme = now_milliseconds()
 
     for v in games.values():
-        tr = v.wrt + v.brt - (mtme - v.lmst)
+        tr = (
+            v.white_remaining_time
+            + v.black_remaining_time
+            - (mtme - v.last_move_start_time)
+        )
         if tr > wctl:
             wctl = tr
 
@@ -1298,30 +1301,28 @@ def schedule_games() -> None:
     for gid in list(games.keys()):
         rec = games[gid]
 
-        # w, b, lmst, wrt, brt, wrate, brate, mvs = rec
-
         ctm = gme[gid].colorToMove()
 
         if ctm & 1:
-            tr = rec.wrt
-            tu = ct - rec.lmst - leeway
+            tr = rec.white_remaining_time
+            tu = ct - rec.last_move_start_time - leeway
             if tu < 0:
                 tu = 0
             time_left = tr - tu
             if time_left < 0:
-                games[gid].wrt = time_left
+                games[gid].white_remaining_time = time_left
                 gameover(gid, "B+Time", "")
                 count += 1  # so that we get to recyle
             else:
                 count += 1
         else:
-            tr = rec.brt
-            tu = ct - rec.lmst - leeway
+            tr = rec.black_remaining_time
+            tu = ct - rec.last_move_start_time - leeway
             if tu < 0:
                 tu = 0
             time_left = tr - tu
             if time_left < 0:
-                games[gid].brt = time_left
+                games[gid].black_remaining_time = time_left
                 gameover(gid, "W+Time", "")
                 count += 1  # so that we get to recyle
             else:
@@ -1563,12 +1564,12 @@ def schedule_games() -> None:
                     )
                     nsend(rec.b, f"genmove b {cfg.level}")  # the game's afoot
                     ct = now_milliseconds()
-                    games[gid].lmst = ct
+                    games[gid].last_move_start_time = ct
                     act[rec.b].msg_state = "genmove"
                     act[rec.w].msg_state = "ok"
                     # "s" dte tme gid w b x wtl btl wr br
                     wd.write(
-                        f"s {tmeSch} {gid} {rec.w} {rec.b} {rec.lmst} {rec.wrt} {rec.brt} {rec.wrate} {rec.brate}\n"
+                        f"s {tmeSch} {gid} {rec.w} {rec.b} {rec.last_move_start_time} {rec.white_remaining_time} {rec.black_remaining_time} {rec.white_rate} {rec.black_rate}\n"
                     )
 
         os.rename(tmpf, cfg.web_data_file)

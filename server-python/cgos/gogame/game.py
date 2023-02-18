@@ -31,8 +31,8 @@ from typing import List, Tuple, Optional
 #
 # -----------------------------------------------
 #
-#  0: white  user name
-#  1: black  user name
+#  0: white user name
+#  1: black user name
 #  2: last move start time
 #  3: wrt
 #  4: brt
@@ -44,34 +44,34 @@ from typing import List, Tuple, Optional
 class Game:
     w: str
     b: str
-    lmst: int
-    wrt: int
-    brt: int
-    wrate: float
-    brate: float
-    mvs: List[Tuple[str, int, Optional[str]]]
+    last_move_start_time: int
+    white_remaining_time: int
+    black_remaining_time: int
+    white_rate: float
+    black_rate: float
+    moves: List[Tuple[str, int, Optional[str]]]
     ctime: datetime.datetime
 
     def __init__(
         self,
         w: str,
         b: str,
-        lmst: int,
-        wrt: int,
-        brt: int,
-        wrate: float,
-        brate: float,
-        mvs: List[Tuple[str, int, Optional[str]]],
+        last_move_start_time: int,
+        white_remaining_time: int,
+        black_remaining_time: int,
+        white_rate: float,
+        black_rate: float,
+        moves: List[Tuple[str, int, Optional[str]]],
         ctime: datetime.datetime,
     ) -> None:
         self.w = w
         self.b = b
-        self.lmst = lmst
-        self.wrt = wrt
-        self.brt = brt
-        self.wrate = wrate
-        self.brate = brate
-        self.mvs = mvs
+        self.last_move_start_time = last_move_start_time
+        self.white_remaining_time = white_remaining_time
+        self.black_remaining_time = black_remaining_time
+        self.white_rate = white_rate
+        self.black_rate = black_rate
+        self.moves = moves
         self.ctime = ctime
 
 
@@ -113,11 +113,11 @@ def sgf(
 
     comment = err
 
-    s += f"PW[{game.w}]PB[{game.b}]WR[{game.wrate}]BR[{game.brate}]DT[{dte}]PC[{serverName}]RE[{res}]GN[{gid}]\n"
+    s += f"PW[{game.w}]PB[{game.b}]WR[{game.white_rate}]BR[{game.black_rate}]DT[{dte}]PC[{serverName}]RE[{res}]GN[{gid}]\n"
 
     tmc = 0  # total move count
 
-    for (m, t, analysis) in game.mvs:
+    for (m, t, analysis) in game.moves:
 
         mv = m.lower()
         tleft = t // 1000

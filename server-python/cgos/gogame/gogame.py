@@ -34,28 +34,24 @@ class GoGame:
 
     ctm: int  # where in the game we are
     bd: List[int]
-    n: int
-    n1: int
-    nn: int
-    nnn: int
+    size: int
+    size1: int
     his: Dict[int, List[int]]  # a hash of board copies
-    mvs: List[str]  # a hash  of moves
+    moves: List[str]  # a hash  of moves
     dir: List[int]  # the 4 possible directions
 
     def __init__(self, size: int) -> None:
         self.bd = []
         self.ctm = 0
-        self.n = size
-        self.n1 = size + 1
-        self.nn = size * size
-        self.nnn = (size + 1) * (size + 2)
-        self.dir = [-1, 1, self.n1, -1 * self.n1]
-        self.mvs = []
+        self.size = size
+        self.size1 = size + 1
+        self.dir = [-1, 1, self.size1, -1 * self.size1]
+        self.moves = []
         self.his = dict()
 
-        for y in range(self.n + 2):
-            for x in range(self.n1):
-                if y < 1 or y > self.n or x == 0:
+        for y in range(self.size + 2):
+            for x in range(self.size1):
+                if y < 1 or y > self.size or x == 0:
                     self.bd.append(3)
                 else:
                     self.bd.append(0)
@@ -69,8 +65,8 @@ class GoGame:
 
         match = re.search(RE_MOVE, m)
         if match is not None:
-            y = self.n1 - int(m[1:])  # [string range $m 1 2]]
-            if y > self.n:
+            y = self.size1 - int(m[1:])  # [string range $m 1 2]]
+            if y > self.size:
                 return -4
             try:
                 x = self.__LEGAL_COORDINATES.index(m[0:1]) + 1
@@ -80,7 +76,7 @@ class GoGame:
             # puts "Sorry"
             return -4
 
-        return y * self.n1 + x  # index of point on board
+        return y * self.size1 + x  # index of point on board
 
     # return a list of captured stones
     # --------------------------------
@@ -130,9 +126,9 @@ class GoGame:
             imv = self.mvToIndex(s)
             b[imv] = 0
 
-        for x in range(1, self.n1):
-            for y in range(1, self.n1):
-                i = y * self.n1 + x
+        for x in range(1, self.size1):
+            for y in range(1, self.size1):
+                i = y * self.size1 + x
 
                 if b[i] == 0:  # empty square and hasn't been covered yet
                     lst = [i]
@@ -180,8 +176,7 @@ class GoGame:
         est = fst ^ 3  # enemy stone color
 
         if mv[0:2] == "PA":
-            # self.mvs[self.ctm] = "PASS"
-            self.mvs.append("PASS")
+            self.moves.append("PASS")
             self.ctm += 1
             self.his[self.ctm] = self.bd.copy()
             return 0
@@ -221,8 +216,7 @@ class GoGame:
 
         # ok, the move was apparently valid!  accept it.
         # ----------------------------------------------
-        # self.mvs[self.ctm] = mv
-        self.mvs.append(mv)
+        self.moves.append(mv)
         self.ctm += 1
         self.his[self.ctm] = self.bd.copy()
         return len(clist)
@@ -237,7 +231,10 @@ class GoGame:
 
     def twopass(self) -> bool:
         if self.ctm > 1:
-            if self.mvs[self.ctm - 1] == "PASS" and self.mvs[self.ctm - 2] == "PASS":
+            if (
+                self.moves[self.ctm - 1] == "PASS"
+                and self.moves[self.ctm - 2] == "PASS"
+            ):
                 return True
             else:
                 return False
@@ -248,24 +245,24 @@ class GoGame:
         all = []
 
         for ix in range(self.ctm):
-            all.append(self.mvs[ix])
+            all.append(self.moves[ix])
 
         return all
 
     def displayAll(self) -> None:
-        for y in range(self.n + 2):
+        for y in range(self.size + 2):
             print()
-            for x in range(self.n1):
-                ix = y * self.n1 + x
+            for x in range(self.size1):
+                ix = y * self.size1 + x
                 print("%3d" % (self.bd[ix]), end="")
         print()
 
     def display(self) -> None:
 
-        for y in range(1, self.n + 1):
+        for y in range(1, self.size + 1):
             print()
-            for x in range(1, self.n + 1):
-                ix = y * self.n1 + x
+            for x in range(1, self.size + 1):
+                ix = y * self.size1 + x
                 print("%3d" % (self.bd[ix]), end="")
         print()
 
@@ -273,9 +270,9 @@ class GoGame:
     # ------------------------------------------------
     def getboard(self) -> List[int]:
         board = []
-        for y in range(1, self.n + 1):
-            for x in range(1, self.n + 1):
-                ix = y * self.n1 + x
+        for y in range(1, self.size + 1):
+            for x in range(1, self.size + 1):
+                ix = y * self.size1 + x
                 board.append(self.bd[ix])
         return board
 
@@ -284,9 +281,9 @@ class GoGame:
     def getFinalBoard(self, dead: List[str]) -> List[int]:
         b = self.score_board(dead)
         board = []
-        for y in range(1, self.n + 1):
-            for x in range(1, self.n + 1):
-                ix = y * self.n1 + x
+        for y in range(1, self.size + 1):
+            for x in range(1, self.size + 1):
+                ix = y * self.size1 + x
                 board.append(b[ix])
         return board
 
@@ -349,7 +346,7 @@ if __name__ == "__main__":
     scb = board.score_board([])
     print(scb)
     for i, c in enumerate(scb):
-        if i % board.n1 == 0:
+        if i % board.size1 == 0:
             print()
         print("%3d" % (c), end="")
     print()
@@ -358,7 +355,7 @@ if __name__ == "__main__":
     tbd = board.getFinalBoard([])
     print(tbd)
     for i, c in enumerate(tbd):
-        if i % board.n == 0:
+        if i % board.size == 0:
             print()
         print("%3d" % (c), end="")
     print()
