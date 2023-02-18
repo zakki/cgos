@@ -367,14 +367,9 @@ def newrating(cur_rating: float, opp_rating: float, res: float, K: float) -> flo
 
 # write an SGF game record
 # ---------------------------
-def seeRecord(gid: int, res: str, dte: Any, tme: str) -> Tuple[str, str]:
+def seeRecord(game: Game, res: str, dte: Any, tme: str) -> Tuple[str, str]:
 
-    # global boardsize
-    # global komi
-    # obal level
-    global games
-
-    game = games[gid]
+    global cfg
 
     s = ""
 
@@ -580,10 +575,7 @@ def rating(who: str) -> str:
     return strRate(u.rating, u.k)
 
 
-def saveSgf(gid: int, sc: str, err: str) -> None:
-    global games
-
-    game = games[gid]
+def saveSgf(gid: int, game: Game, sc: str, err: str) -> None:
 
     dte = game.ctime.strftime("%Y-%m-%d")
 
@@ -644,7 +636,7 @@ def gameover(gid: int, sc: str, err: str) -> None:
     viewers.sendObservers(gid, f"update {gid} {sc}")
     viewers.removeObservers(gid)
 
-    see, see2 = seeRecord(gid, sc, dte, tme)
+    see, see2 = seeRecord(games[gid], sc, dte, tme)
 
     if dbrec:
         dbrec.execute("INSERT INTO games VALUES(?, ?, ?)", (gid, see, see2))
@@ -656,7 +648,7 @@ def gameover(gid: int, sc: str, err: str) -> None:
     )
     db.commit()
 
-    saveSgf(gid, sc, err)
+    saveSgf(gid, games[gid], sc, err)
 
     # we can kill the active game record now.
     # ----------------------------------------
@@ -1109,7 +1101,7 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
         cfg.moveIntervalBetweenSave > 0
         and len(game.moves) % cfg.moveIntervalBetweenSave == 0
     ):
-        saveSgf(gid, "?", "")
+        saveSgf(gid, games[gid], "?", "")
 
     # game over due to natural causes?
     # --------------------------------
