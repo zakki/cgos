@@ -115,7 +115,6 @@ class ConfigFile(object):
                 hasEngine = True
 
                 for req in [
-                    "Name",
                     "CommandLine",
                     "ServerHost",
                     "ServerPort",
@@ -125,6 +124,9 @@ class ConfigFile(object):
                 ]:
                     if not (section.hasValue(req)):
                         raise Exception("Mandatory engine attribute missing: " + req)
+
+                if not (section.hasValue("Name")):
+                    section.addValue("Name", section.getValue("ServerUser"))
 
                 try:
                     if int(section.getValue("NumberOfGames")) <= 0:
