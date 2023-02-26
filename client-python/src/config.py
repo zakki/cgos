@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
 import traceback
+import os
 import os.path
 
 
@@ -137,8 +138,11 @@ class ConfigFile(object):
 
                 if section.hasValue("SGFDirectory"):
                     dir = section.getValue("SGFDirectory")
-                    if not (os.path.exists(dir)) or not (os.path.isdir(dir)):
-                        raise Exception("SGF directory " + dir + " does not exist")
+                    if os.path.exists(dir):
+                        if not (os.path.isdir(dir)):
+                            raise Exception("SGF directory " + dir + " is not directory")
+                    else:
+                        os.makedirs(dir, exist_ok=True)
 
             if section.name() == ConfigFile.COMMON_SECTION:
                 hasCommon = True
