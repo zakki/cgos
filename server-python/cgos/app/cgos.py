@@ -1276,9 +1276,6 @@ def schedule_games() -> None:
             if time_left < 0:
                 games[gid].white_remaining_time = time_left
                 gameover(gid, "B+Time", "")
-                count += 1  # so that we get to recyle
-            else:
-                count += 1
         else:
             tr = rec.black_remaining_time
             tu = ct - rec.last_move_start_time - leeway
@@ -1288,9 +1285,8 @@ def schedule_games() -> None:
             if time_left < 0:
                 games[gid].black_remaining_time = time_left
                 gameover(gid, "W+Time", "")
-                count += 1  # so that we get to recyle
-            else:
-                count += 1
+
+        count += 1
 
     if count != last_game_count:
         logger.info(f"Games in progress: {count}")
@@ -1299,7 +1295,6 @@ def schedule_games() -> None:
     # send progress message
     # ---------------------
     if True:
-
         est = estimateRoundTimeLeft()
         estMin = est // 60
         estSec = est % 60
@@ -1453,63 +1448,62 @@ def schedule_games() -> None:
                 lst_pairs = iter(lst)
                 for (aa, bb) in zip(lst_pairs, lst_pairs):
 
-                    if bb is not None:
+                    if bb is None:
+                        continue
 
-                        # set up white and black players
-                        # ------------------------------
-                        wp = aa[0]  # actual player names
-                        bp = bb[0]  # actual player names
+                    # set up white and black players
+                    # ------------------------------
+                    wp = aa[0]  # actual player names
+                    bp = bb[0]  # actual player names
 
-                        # delte anchor vs anchor
-                        if aa in anchors and bb in anchors:
-                            r = random.random()
-                            if r > cfg.anchor_match_rate:
-                                logger.info(f"delete this match. {wp}, {bp}, r={r}")
-                                continue
+                    # delte anchor vs anchor
+                    if aa in anchors and bb in anchors:
+                        r = random.random()
+                        if r > cfg.anchor_match_rate:
+                            logger.info(f"delete this match. {wp}, {bp}, r={r}")
+                            continue
 
-                        wco = db.execute(
-                            "SELECT count(*) FROM games WHERE w==? AND b==?", (wp, bp)
-                        ).fetchone()[0]
-                        bco = db.execute(
-                            "SELECT count(*) FROM games WHERE w==? AND b==?", (bp, wp)
-                        ).fetchone()[0]
+                    wco = db.execute(
+                        "SELECT count(*) FROM games WHERE w==? AND b==?", (wp, bp)
+                    ).fetchone()[0]
+                    bco = db.execute(
+                        "SELECT count(*) FROM games WHERE w==? AND b==?", (bp, wp)
+                    ).fetchone()[0]
 
-                        # swap white and black if black has not been played as many times
-                        if bco < wco:
-                            tmp = bp
-                            bp = wp
-                            wp = tmp
+                    # swap white and black if black has not been played as many times
+                    if bco < wco:
+                        bp, wp = wp, bp
 
-                        gid = db.execute(
-                            "SELECT gid FROM gameid WHERE ROWID=1"
-                        ).fetchone()[0]
-                        db.execute("UPDATE gameid set gid=gid+1 WHERE ROWID=1")
-                        gme[gid] = GoGame(cfg.boardsize)
+                    gid = db.execute(
+                        "SELECT gid FROM gameid WHERE ROWID=1"
+                    ).fetchone()[0]
+                    db.execute("UPDATE gameid set gid=gid+1 WHERE ROWID=1")
+                    gme[gid] = GoGame(cfg.boardsize)
 
-                        wr = act[wp].rating
-                        wk = act[wp].k
-                        br = act[bp].rating
-                        bk = act[bp].k
-                        wr = strRate(wr, wk)
-                        br = strRate(br, bk)
+                    wr = act[wp].rating
+                    wk = act[wp].k
+                    br = act[bp].rating
+                    bk = act[bp].k
+                    wr = strRate(wr, wk)
+                    br = strRate(br, bk)
 
-                        games[gid] = Game(
-                            wp, bp, 0, cfg.level, cfg.level, wr, br, [], ctme
-                        )
-                        act[wp].gid = gid
-                        act[bp].gid = gid
-                        msg_out = f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {wp}({wr}) {bp}({br})"
-                        nsend(wp, msg_out)
-                        nsend(bp, msg_out)
+                    games[gid] = Game(
+                        wp, bp, 0, cfg.level, cfg.level, wr, br, [], ctme
+                    )
+                    act[wp].gid = gid
+                    act[bp].gid = gid
+                    msg_out = f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {wp}({wr}) {bp}({br})"
+                    nsend(wp, msg_out)
+                    nsend(bp, msg_out)
 
-                        vmsg = f"match {gid} - - {cfg.boardsize} {cfg.komi} {wp}({wr}) {bp}({br}) -"
-                        viewers.sendAll(vmsg)
+                    vmsg = f"match {gid} - - {cfg.boardsize} {cfg.komi} {wp}({wr}) {bp}({br}) -"
+                    viewers.sendAll(vmsg)
 
-                        logger.info(f"starting {wp} {wr} {bp} {br}")
+                    logger.info(f"starting {wp} {wr} {bp} {br}")
 
                 db.commit()
 
-                # add a 5 second delay to let all programs complete setup.
+                # add a 3 second delay to let all programs complete setup.
                 # ------------------------------------------------------
 
                 time.sleep(3000 / 1000)
