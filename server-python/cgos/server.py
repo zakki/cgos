@@ -1,6 +1,6 @@
 # The MIT License
 #
-# Copyright (C) 2009 Christian Nentwich and contributors
+# Copyright (C) 2009 Don Dailey and Jason House
 # Copyright (c) 2022 Kensuke Matsuzaki
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
