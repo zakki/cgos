@@ -22,13 +22,15 @@ import traceback
 import time
 import logging
 import logging.handlers
+import os
 import os.path
 import string
 import random
+from typing import Optional
 
 from gtpengine import EngineConnector, EngineConnectorError, GTPTools
 from sgf import SGFGame, SGFMove
-from config import ConfigFile
+from config import ConfigFile, ConfigSection
 
 
 ENCODING = "utf-8"
@@ -58,7 +60,9 @@ class CGOSClient(object):
     __TIME_CHECKPOINT_FREQUENCY = 60 * 30
     """ How often to output stats, etc., in seconds """
 
-    def __init__(self, engineConfigurationSections, killFileName="kill.txt"):
+    def __init__(self, engineConfigurationSections: ConfigSection,
+                 killFileName: str = "kill.txt",
+                 logFileName: Optional[str] = None):
         """
         Initialise the client, without connecting anything yet
           - engineConfigurationSections is a list of ConfigSection objects containing
@@ -114,14 +118,19 @@ class CGOSClient(object):
         self.logger = logging.getLogger("cgosclient.CGOSClient")
         self.logger.setLevel(logging.DEBUG)
 
-        # Log debug output to file
-        handler = logging.FileHandler("cgos.log")
-        handler.setLevel(logging.DEBUG)
-
+        # Logger
         formatter = logging.Formatter("%(asctime)s - %(levelname)s: %(message)s")
-        handler.setFormatter(formatter)
+        handler: logging.Handler
 
-        self.logger.addHandler(handler)
+        # Log debug output to file
+        if logFileName is not None:
+            os.makedirs(os.path.dirname(logFileName), exist_ok=True)
+            handler = logging.FileHandler(logFileName)
+            handler.setLevel(logging.DEBUG)
+
+            handler.setFormatter(formatter)
+
+            self.logger.addHandler(handler)
 
         # Log info output to console
         handler = logging.StreamHandler(sys.stdout)
@@ -653,6 +662,7 @@ class CGOSClient(object):
                 newEngineConfig.getValue("CommandLine"),
                 newEngineConfig.getValue("Name"),
                 logger="EngineConnector" + str(self._currentEngineIndex),
+                logfile=newEngineConfig.getValueOpt("LogFile")
             )
             newEngine.connect()
         except Exception as e:
@@ -702,7 +712,9 @@ def main(argv):
     config.load(argv[0])
 
     engineConfigs = config.getEngineSections()
-    client = CGOSClient(engineConfigs, config.getCommonSection().getValue("KillFile"))
+    client = CGOSClient(engineConfigs,
+                        config.getCommonSection().getValue("KillFile"),
+                        config.getCommonSection().getValueOpt("LogFile"))
 
     # Launch observer (e.g. GoGUI) if any
     observerConfig = config.getObserverSection()
@@ -713,7 +725,7 @@ def main(argv):
             observerConfig.getValue("CommandLine"),
             "Observer",
             logger="ObserverLogger",
-            logfile="observer.log",
+            logfile=observerConfig.getValueOpt("LogFile")
         )
         observerEngine.connect(EngineConnector.MANDATORY_OBSERVE_COMMANDS)
         client.setObserver(observerEngine)

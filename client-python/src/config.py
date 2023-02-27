@@ -19,6 +19,7 @@ import sys
 import traceback
 import os
 import os.path
+from typing import Dict, Optional
 
 
 class ConfigSection(object):
@@ -27,23 +28,26 @@ class ConfigSection(object):
     name/value tuples, e.g. [("host", "cgos.boardspace.net"), ("port", "1919")]
     """
 
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self._name = name
-        self._values = {}
+        self._values: Dict[str, str] = {}
 
-    def addValue(self, name, value):
+    def addValue(self, name: str, value: str) -> None:
         self._values[name] = value
 
-    def getValue(self, name):
+    def getValue(self, name: str) -> str:
         return self._values[name]
 
-    def hasValue(self, name):
+    def getValueOpt(self, name: str, default: Optional[str] = None) -> Optional[str]:
+        return self._values.get(name, default)
+
+    def hasValue(self, name: str) -> bool:
         return name in self._values
 
-    def name(self):
+    def name(self) -> str:
         return self._name
 
-    def values(self):
+    def values(self) -> Dict[str, str]:
         return self._values
 
 

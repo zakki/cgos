@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import json
 import logging
 import logging.handlers
+import os
 import subprocess
 import sys
 import time
@@ -238,26 +239,29 @@ class EngineConnector(object):
     """ Mandatory commands for an engine that can observe a game (like GoGUI). """
 
     def __init__(
-        self, programCommandLine, name, logger="EngineConnector", logfile="engine.log"
+        self, programCommandLine: str, name: str,
+        logger: str = "EngineConnector", logfile: Optional[str] = "engine.log"
     ):
         self._programCommandLine = programCommandLine
         self._name = name
         self._subprocess = None
-        self._supportedCommands = []
+        self._supportedCommands: List[str] = []
 
         self.logger = logging.getLogger(logger)
         self.logger.setLevel(logging.DEBUG)
 
         if len(self.logger.handlers) == 0:
-            self.handler = logging.FileHandler(logfile)
-            self.handler.setLevel(logging.DEBUG)
-
             self.formatter = logging.Formatter(
                 "%(asctime)s - %(levelname)s: %(message)s"
             )
-            self.handler.setFormatter(self.formatter)
 
-            self.logger.addHandler(self.handler)
+            if logfile is not None:
+                os.makedirs(os.path.dirname(logfile), exist_ok=True)
+                self.handler = logging.FileHandler(logfile)
+                self.handler.setLevel(logging.DEBUG)
+                self.handler.setFormatter(self.formatter)
+
+                self.logger.addHandler(self.handler)
 
             # Log info output to console
             handler = logging.StreamHandler(sys.stdout)
