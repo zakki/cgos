@@ -31,6 +31,7 @@ from typing import Any, Dict, List, Tuple
 
 from util.timeutils import now_string
 from app.cgos import Configs
+import jinja2
 
 
 def log(msg: str) -> None:
@@ -40,13 +41,21 @@ def log(msg: str) -> None:
 
 rating: Dict[str, str] = {}
 db: sqlite3.Connection
+template_loader = jinja2.FileSystemLoader("cgos/webuild_template")
+
+standings_template = jinja2.Environment(loader=template_loader).get_template(
+    name="standings.jinja.html"
+)
+crosstable_template = jinja2.Environment(loader=template_loader).get_template(
+    name="crosstable.jinja.html"
+)
 
 
 def formatSgfPath(dte: str, gid: str) -> str:
-    vsgfpath = f"{cfg.boardsize}x{cfg.boardsize}/{cfg.sgfDir}/{dte[0:4]}/{dte[5:7]}/{dte[8:10]}/{gid}.sgf"
-    return vsgfpath
+    return f"{cfg.sgfDir}/{dte[0:4]}/{dte[5:7]}/{dte[8:10]}/{gid}.sgf"
 
 
+# @profile
 def crosstable(who: str) -> None:
 
     global rating
@@ -136,78 +145,34 @@ def crosstable(who: str) -> None:
             raise ValueError(f"error:{r}")
         rr = int(match[1])
 
-        lst.append(["%6d" % rr, n, "%7.2f" % winp, wins[n], draws[n], count[n]])
+        lst.append([rr, n, "%7.2f" % winp, wins[n], draws[n], count[n]])
 
-    lst.sort(key=lambda e: -int(e[0]))
+    lst.sort(key=lambda e: (-e[0], e[1]))
 
     now = datetime.datetime.now(datetime.timezone.utc)
     date = now.strftime("%Y-%m-%d %T")
-
-    # put the css here
-    # --------------------------------------
-    rpt = f"""<html>
-    <title>Crosstable for {who}</title>
-    <head>
-    <style type="text/css">
-    table.solid {{border-style:solid ; border-width: 1px 1px 1px 1px }}
-    tr.solid {{border-style:solid ; border-width: 1px 1px 1px 1px }}
-    .centeredImage {{text-align:center; margin-top:0px; margin-botom:0px; padding:0px;}}
-    </style>
-    </head>
-
-    <body BGCOLOR="#ECECEA" TEXT="#001000" LINK="#406040" ALINK="#80B080" VLINK="#406040"><p>
-    <p class="centeredImage"><img src="../images/cgosLogo.jpg"></p>
-    """
-
-    # append rpt "<FONT COLOR=\"\#004000\"></FONT>\n"
 
     if who in rating:
         rat = rating[who]
     else:
         rat = "??"
 
-    rpt += f"""<H3 ALIGN=CENTER>Cross-table of results for {who}</H3>
-    <H3 ALIGN=CENTER>Rated: {rat}</H3>
-    <H4 ALIGN=CENTER>as of {date}</H4>
-    <p>&nbsp;<p>
-
-    <center><table class=solid cellspacing=0 justify=center>
-    <colgroup span=4><col width=210></col><col width=90></col><col width=120></col><col width=90></col></colgroup>
-
-    <tr BGCOLOR="#708070" style="color:white">
-    <th align=left>Opponent</th>
-    <th align=left>Rating</th>
-    <th align=left>Result</th>
-    <th align=left>Percent</th>
-    </tr>
-    </table>
-
-    <p style="margin: 3px">
-    """
-
-    tog = ["#e0e0e0", "#ffffff"]
-    tcc = 0
-
-    rpt += """<center><table class=solid cellspacing=0 justify=center style="font-family;verdana;font-size:80%">
-    <colgroup span=4><col width=210></col><col width=90><col width=120></col><col width=90></col></colgroup>
-    """
-
-    for rec in lst:
-        rat, opp, winp, twins, tdraws, tgames = rec
-        rpt += f"<tr bgcolor='{tog[tcc]}'>"
-        if tdraws == 0:
-            rpt += f"<td>{opp}</td><td>{rat}</td><td class=solid>{twins} / {tgames}</td><td class=solid>{winp}</td></tr>\n"
-        else:
-            rpt += f"<td>{opp}</td><td>{rat}</td><td class=solid>{twins} / {tdraws} / {tgames}</td><td class=solid>{winp}</td></tr>\n"
-        tcc = tcc ^ 1
-
-    rpt += "</table></center>\n"
+    opponents = [
+        {
+            "rat": rat,
+            "opp": opp,
+            "winp": winp,
+            "twins": twins,
+            "tdraws": tdraws,
+            "tgames": tgames,
+        }
+        for rat, opp, winp, twins, tdraws, tgames in lst
+    ]
 
     view_num = 300
-    v_n = (view_num * 7) - 1  # SELECT gid, b, br, dte, wr, my_time, res  ... 7 list
 
-    wgms_short = wgms[-v_n:]
-    bgms_short = bgms[-v_n:]
+    wgms_short = wgms[-view_num:]
+    bgms_short = bgms[-view_num:]
 
     listgame = []
     for (gid, opp, r, dte, my_r, my_time, res) in wgms_short:
@@ -216,69 +181,44 @@ def crosstable(who: str) -> None:
         listgame.append([int(gid), opp, r, my_r, my_time, *dte.split(" "), res, "B"])
 
     listgamesort = listgame.copy()
-    listgamesort.sort(key=lambda e: -int(e[0]))  # [lsort -decreasing $listgame]
+    listgamesort.sort(key=lambda e: (-int(e[0]), e[1]))  # [lsort -decreasing $listgame]
+    listgamesort = listgamesort[0:view_num]
+    games = [
+        {
+            "gid": gid,
+            "opp": opp,
+            "r": r,
+            "my_r": my_r,
+            "my_time": my_time,
+            "dte": dte,
+            "dte2": dte2,
+            "res": res,
+            "col": col,
+            "sgfpath": "../" + formatSgfPath(dte, gid),
+            "vsgfpath": f"{cfg.boardsize}x{cfg.boardsize}/" + formatSgfPath(dte, gid),
+        }
+        for gid, opp, r, my_r, my_time, dte, dte2, res, col in listgamesort[0:view_num]
+    ]
 
     list_num = len(listgamesort)
     dsp_num = view_num
     if dsp_num > list_num:
         dsp_num = list_num
 
-    loop = 0
-
-    tog = ["#f0f0e0" "#c8d0c8"]
-    rpt += f"""<center><h3>Recent {dsp_num} Games</h3>
-    <table class=solid cellspacing=0 justify=center style="font-family;verdana;font-size:80%">
-    <colgroup span=5><col width=210></col><col width=100><col width=100></col><col width=70></col><col width=70></col></colgroup>
-    <tr><th align=left>Opponent</th><th align=left>Opp rating</th><th align=left>Result</th><th align=left>Time</th><th align=left>Rating</th><th align=left>Game</th></tr>
-    """
-    for rec in listgamesort:
-        gid, opp, r, my_r, my_time, dte, dte2, res, col = rec
-        sgfpath = f"../{cfg.sgfDir}/{dte[0:4]}/{dte[5:7]}/{dte[8:10]}/{gid}.sgf"
-        vsgfpath = formatSgfPath(dte, gid)
-
-        w0 = ""
-        w1 = ""
-        if res[2] == "T":
-            w0 = "<B>"
-            w1 = "</B>"
-        winner = ""
-        if res[0] == col:
-            winner = "winner"
-
-        if res[0] == "D":
-            rpt += '<tr bgcolor="#ccff33">'
-        elif winner == "":
-            rpt += '<tr bgcolor="#ffcccc">'
-        else:
-            rpt += '<tr bgcolor="#f0f0e0">'
-
-        t = my_time / 1000
-        ti = "%02d:%02d" % (t // 60, t % 60)
-
-        rpt += f'<td>{opp}</td><td>{r}</td><td>{w0} {res} {w1}</td><td>{ti}</td><td>{my_r}</td><td><a href="{sgfpath}">{gid}</a> <a href="../../viewer.cgi?{vsgfpath}">View</a></td></tr>\n'
-        #        append rpt "<td>$opp</td><td>$r</td><td>$w0 $res $w1</td><td>$my_r</td><td><a href=\"$sgfpath\">$gid</a></td></tr>\n"
-        #        append rpt "<td>$opp</td><td>$rat</td><td class=solid>$twins / $tdraws / $tgames</td><td class=solid>$winp</td></tr>\n"
-        loop += 1
-        if loop >= view_num:
-            break
-        tcc = tcc ^ 1
-
-    rpt += "</table></center>\n"
-    rpt += "<p>&nbsp;<p>\n"
-    #   foreach {gid opp r dte res} $bgms {        append rpt "$gid / $opp / $r / $res / $dte\n<br>" }
-
-    rpt += "<H4 align=center>"
-    rpt += '<a href="../standings.html">Returns to Current Standings Page.</a>'
-    rpt += "</H4><br>"
-    rpt += "</body>\n"
-    rpt += "</hmtl>\n"
-
-    # return
+    data: Dict[str, Any] = {
+        "who": who,
+        "date": date,
+        "rat": rat,
+        "lst": opponents,
+        "listgamesort": games,
+    }
 
     print(f"trying to open and write: {cfg.htmlDir}/cross/{who}.html")
     os.makedirs(f"{cfg.htmlDir}/cross/", exist_ok=True)
+
+    result = crosstable_template.render(data)
     with open(f"{cfg.htmlDir}/cross/{who}.html", "w") as f:
-        f.write(rpt)
+        f.write(result)
 
 
 def buildWebPage() -> None:
@@ -290,8 +230,6 @@ def buildWebPage() -> None:
     right_now = now.strftime("%Y-%m-%d %H:%M:%S %Z")
 
     f = open(cfg.web_data_file, "r")
-    os.makedirs(os.path.dirname(tmpfile), exist_ok=True)
-    wf = open(tmpfile, "w")
 
     tme = now.strftime("%Y-%m-%d %H:%M")
 
@@ -306,7 +244,7 @@ def buildWebPage() -> None:
 
     for s in f:
         if s[0] == "u":
-            dmy, nme, cnt, rat, dte, tme = s.split(" ")
+            _, nme, cnt, rat, dte, tme = s.split(" ")
             m = re.search("(-?\\d+)\\?", rat)
             usr: List[Any]
             if m:
@@ -317,45 +255,16 @@ def buildWebPage() -> None:
                 players.append(usr)
 
         if s[0] == "g":
-            dmy, gid, w, wr, b, br, dte, tme, wtl, btl, res = s.split(" ")
+            _, gid, w, wr, b, br, dte, tme, wtl, btl, res = s.split(" ")
             gms.append([gid, w, wr, b, br, f"{dte} {tme}", wtl, btl, res])
             bcr[w] = 1
             bcr[b] = 1
 
         if s[0] == "s":
-            dmy, dte, tme, gid, w, b, x, wtl, btl, wr, br = s.split(" ")
+            _, dte, tme, gid, w, b, x, wtl, btl, wr, br = s.split(" ")
             sch.append([gid, w, wr, b, br, f"{dte} {tme}"])
             active[w] = gid
             active[b] = gid
-
-    wf.write(
-        f"""<html>
-    <title>{cfg.serverName}</title>
-    <head>
-    <style type="text/css">
-    table.solid {{border-style:solid ; border-width: 1px 1px 1px 1px }}
-    tr.solid {{border-style:solid ; border-width: 1px 1px 1px 1px }}
-    .centeredImage {{text-align:center; margin-top:0px; margin-botom:0px; padding:0px;}}
-    </style>
-    </head>
-
-    <body BGCOLOR="#ECECEA" TEXT="#001000" LINK="#002000" ALINK="#507050" VLINK="#002000"><p>
-    <p class="centeredImage"><img src="images/cgosLogo.jpg"></p>
-    <FONT COLOR="002000"><H3 ALIGN=CENTER>{cfg.htmlInfoMsg}</H3></FONT>
-    <P>
-    <FONT COLOR=\"002000\"><H4 ALIGN=CENTER>Last Update: {right_now}</H4></FONT>
-    <P>
-
-    <center><H5>
-    <a href="bayes.html">BayesElo</a> is more accurate.<br>
-    <a href="http://senseis.xmp.net/?ComputerGoServer">Sensei's Computer Go Server Page</a></H5></center>
-
-    <p><p>
-
-    <center><table border=1 cellpadding=4 cellspacing=0 justify=center style="font-family;verdana;font-size:90%">
-    <tr BGCOLOR="#708070" style="color:white"><th>Game</th><th>Program Name</th><th>Rating</th><th>Games Played</th><th>Last Game</th></tr>
-    """
-    )
 
     cur_time = datetime.datetime.now(datetime.timezone.utc)
     # provisional age
@@ -368,6 +277,7 @@ def buildWebPage() -> None:
     )
 
     players.sort(key=lambda e: -int(e[0]))
+    render_players = []
     for rec in players:
         rat, k, nme, cnt, dte, tme = rec
 
@@ -386,58 +296,28 @@ def buildWebPage() -> None:
             if dtime < ecut:
                 continue
 
-        bg = "#ffffff"
         if k == 0:
-            bg = "#ffff80"
             rat = f"{rat}?"
 
         if nme in active:
             status = active[nme]
         else:
             status = "&mdash;"
-
-        wf.write(f'<tr bgcolor="{bg}"><td align=center>{status}</td>')
-        wf.write(
-            f'<td><a href="cross/{nme}.html">{nme}</a></td><td>{rat}</td><td align=center>{cnt}</td><td>{dte} {tme}</td></tr>'
+        render_players.append(
+            {
+                "k": k,
+                "status": status,
+                "nme": nme,
+                "rat": rat,
+                "cnt": cnt,
+                "dte": dte,
+                "tme": tme,
+            }
         )
-
-    wf.write(
-        """</table></center>
-    <P>&nbsp;<P>"""
-    )
-
-    # -------------------------------------------------------------------------------------------------------------------
-
-    wf.write(
-        """<H4 ALIGN=CENTER>Recent Games</H4>
-    <center><table class=solid cellspacing=0 justify=center style="font-family;verdana;font-size:90%">
-    <colgroup span=5><col width=80></col><col width=200></col><col width=80></col>
-    <col width=200></col><col width=80></col><col width=110></col></colgroup>
-
-    <tr BGCOLOR="#708070" style="color:white">
-    <th align=center>Game</th>
-    <th align=left>White</th>
-    <th align=left>Time</th>
-    <th align=left>Black</th>
-    <th align=left>Time</th>
-    <th align=left>Result</th>
-    </tr>
-    </table></center>
-
-    <p style="margin: 3px">
-
-    <center><table class=solid cellspacing=0 justify=center style="font-family;verdana;font-size:75%">
-    <colgroup span=5><col width=80></col><col width=200></col><col width=80></col>
-    <col width=200></col><col width=80><col width=110></col></colgroup>
-    """
-    )
-
-    # set tog [list "\#f0f0d0" "\#c0d0c0" ]
-    tog = ["#f0f0e0", "#c8d0c8"]
-    tcc = 0
 
     # insert games being played in this round
     # ---------------------------------------
+    plaing_games = []
     for rec in sch:
         gid, w, wr, b, br, dte = rec
         wn = f"{w}({wr})"
@@ -448,21 +328,26 @@ def buildWebPage() -> None:
         tw = "&mdash;"
         tb = "&mdash;"
 
-        vsgfpath = formatSgfPath(dte, gid)
+        sgfpath = formatSgfPath(dte, gid)
 
-        wf.write(
-            f"""<tr bgcolor="{tog[tcc]}">
-<td align=center>{gid}</td><td>{wn}</td><td>{tw}</td><td>{bn}</td><td>{tb}</td>
-<td>{res} <a href="../../viewer.cgi?{vsgfpath}">View</a></td></tr>
-"""
+        plaing_games.append(
+            {
+                "gid": gid,
+                "wn": wn,
+                "tw": tw,
+                "bn": bn,
+                "tb": tb,
+                "res": res,
+                "sgfpath": sgfpath,
+                "vsgfpath": f"{cfg.boardsize}x{cfg.boardsize}/" + sgfpath,
+            }
         )
-
-        tcc = tcc ^ 1
 
     # insert games from previous rounds here
     # ---------------------------------------
 
     gms.sort(key=lambda e: -int(e[0]))
+    games = []
     for rec in gms:
         gid, w, wr, b, br, tme, wtl, btl, res = rec
         wn = f"{w}({wr})"
@@ -474,48 +359,40 @@ def buildWebPage() -> None:
         tw = "%02d:%02d" % (tw_ // 60, tw_ % 60)
         tb = "%02d:%02d" % (tb_ // 60, tb_ % 60)
 
-        wf.write(f'<tr bgcolor="{tog[tcc]}">')
-
         sgfpath = formatSgfPath(tme, gid)
 
-        res_col = f"{res}"
-        if res[2] == "T":
-            res_col = f'<b><font color="red">{res}</font></b>'
-
-        if res[0] == "W":
-            wf.write(
-                f'<td align=center><a href="{sgfpath}">{gid}</a></td><td><b>{wn}</b></td><td>{tw}</td><td>{bn}</td><td>{tb}</td><td>{res_col}</td></tr>\n'
-            )
-        else:
-            wf.write(
-                f'<td align=center><a href="{sgfpath}">{gid}</a></td><td>{wn}</td><td>{tw}</td><td><b>{bn}</b></td><td>{tb}</td><td>{res_col}</td></tr>\n'
-            )
-
-        tcc = tcc ^ 1
-
-    wf.write("</table>\n")
-
-    if cfg.boardsize == 19:
-        wf.write(
-            """<H5>LZ_05db_ELFv2_p800 has been fixed at 3670(from 3102) to match <a href="bayes.html">BayesElo</a>. (2020-06-11)<br>
-        <font color="blue">Real-time game viewer</font> is available on <a href="https://deepleela.com/cgos">DeepLeela</a></H5>"""
+        games.append(
+            {
+                "gid": gid,
+                "wn": wn,
+                "tw": int(wtl),
+                "bn": bn,
+                "tb": int(btl),
+                "res": res,
+                "sgfpath": sgfpath,
+                "vsgfpath": f"{cfg.boardsize}x{cfg.boardsize}/" + sgfpath,
+            }
         )
 
-    wf.write("</center></body>")
+    data: Dict[str, Any] = {
+        "cfg": cfg,
+        "right_now": right_now,
+        "players": render_players,
+        "rat": rat,
+        "gms": games,
+        "sch": plaing_games,
+    }
 
-    # ---------------------------------------------------------------------------------------------------------
+    result = standings_template.render(data)
 
-    wf.write("</html>")
-
-    wf.close()
+    os.makedirs(os.path.dirname(tmpfile), exist_ok=True)
+    with open(tmpfile, "w") as wf:
+        wf.write(result)
 
     os.rename(tmpfile, pageName)
 
     for n in bcr.keys():
         print(f"ready crosstable {n}")
-        #        if n == "Gnugo-3.7.10-a1" && cfg.boardsize == 9:
-        #            continue
-
         crosstable(n)
 
     print("crosstable end...")
@@ -543,7 +420,7 @@ except sqlite3.Error as e:
     raise Exception(e)
 
 
-def update_ratings():
+def update_ratings() -> None:
     global rating
 
     for (nme, rat, k) in db.execute("SELECT name, rating, K FROM password"):

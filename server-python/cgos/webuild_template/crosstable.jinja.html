@@ -1,0 +1,107 @@
+<html>
+<title>Crosstable for {who}</title>
+<head>
+<style type="text/css">
+table.solid { border-collapse: collapse; }
+table.solid thead, tbody {border-style:solid ; border-width: 1px 1px 1px 1px }
+tr.solid {border-style:solid ; border-width: 1px 1px 1px 1px }
+.centeredImage {text-align:center; margin-top:0px; margin-bottom:0px; padding:0px;}
+
+table thead tr th { background-color: #708070; color:white; }
+
+table.players tr td:nth-child(1) { width: 210px; }
+table.players tr td:nth-child(2) { width: 90px; }
+table.players tr td:nth-child(3) { width: 120px; }
+table.players tr td:nth-child(4) { width: 90px; }
+
+table.players tr td { font-family:verdana; font-size:80%; }
+
+table.players tr:nth-child(odd) td { background: #e0e0e0; }
+table.players tr:nth-child(even) td { background: #fff; }
+
+table.games { font-family:verdana; font-size:80%; }
+table.games tr td:nth-child(1) { width: 210px; }
+table.games tr td:nth-child(2) { width: 100px; }
+table.games tr td:nth-child(3) { width: 100px; }
+table.games tr td:nth-child(4) { width: 70px; }
+table.games tr td:nth-child(5) { width: 70px; }
+
+tr.draw { background: #ccff33; }
+tr.lose { background: #ffcccc; }
+tr.win { background: #f0f0e0; }
+</style>
+</head>
+
+<body BGCOLOR="#ECECEA" TEXT="#001000" LINK="#406040" ALINK="#80B080" VLINK="#406040">
+    <p>
+    <p class="centeredImage"><img src="../images/cgosLogo.jpg"></p>
+
+    <H3 ALIGN=CENTER>Cross-table of results for {{who}}</H3>
+    <H3 ALIGN=CENTER>Rated: {{rat}}</H3>
+    <H4 ALIGN=CENTER>as of {{date}}</H4>
+    <p>&nbsp;<p>
+
+    <center>
+    <table class='solid  players' cellspacing=0 justify=center>
+    <thead>
+        <tr>
+        <th align=left>Opponent</th>
+        <th align=left>Rating</th>
+        <th align=left>Result</th>
+        <th align=left>Percent</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for rec in lst %}
+        <tr>
+        <td>{{rec.opp}}</td><td>{{rec.rat}}</td>
+        <td class=solid>
+        {% if rec.tdraws == 0 %}
+            {{rec.twins}} / {{rec.tgames}}
+        {% else %}
+            {{rec.twins}} / {{rec.tdraws}} / {{rec.tgames}}
+        {% endif %}
+        </td>
+        <td class=solid>{{rec.winp}}</td></tr>
+    {% endfor %}
+    </tbody>
+    </table></center>
+
+    <center><h3>Recent {{dsp_num}} Games</h3>
+    <table class='solid games' cellspacing=0 justify=center>
+    <thead>
+    <tr><th align=left>Opponent</th><th align=left>Opp rating</th>
+        <th align=left>Result</th><th align=left>Time</th><th align=left>Rating</th><th align=left>Game</th></tr>
+    </thead>
+    <tbody>
+    {% for rec in listgamesort %}
+    <tr class='
+        {%- if rec.res[0] == "D" -%}
+            draw
+        {%- elif rec.res[0] != rec.col -%}
+            lose
+        {%- else -%}
+            win
+        {%- endif -%}
+        '>
+
+        <td>{{rec.opp}}</td><td>{{rec.r}}</td>
+        <td>
+            {% if rec.res[2] == "T" %}
+                <b>{{rec.res}}</b>
+            {% else %}
+                {{rec.res}}
+            {% endif %}
+        </td>
+        <td>{{ '%02d' % (rec.my_time // 1000 // 60)}}:{{ '%02d' % (rec.my_time // 1000 % 60) }}</td><td>{{rec.my_r}}</td>
+        <td><a href="{{rec.sgfpath}}">{{rec.gid}}</a> <a href="../../viewer.cgi?{{rec.vsgfpath}}">View</a></td></tr>
+    {% endfor %}
+    </tbody>
+    </table></center>
+    <p>&nbsp;<p>
+
+    <H4 align=center>
+    <a href="../standings.html">Returns to Current Standings Page.</a>
+    </H4><br>
+</body>
+</hmtl>
