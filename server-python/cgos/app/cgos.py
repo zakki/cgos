@@ -73,6 +73,7 @@ class Configs:
     minK: float
     maxK: float
     htmlDir: str
+    htmlInfoMsg: str
     sgfDir: str
     provisionalAge: float
     establishedAge: float
@@ -111,6 +112,7 @@ class Configs:
         self.minK = float(cfg["minK"])
         self.maxK = float(cfg["maxK"])
         self.htmlDir = str(cfg["htmlDir"])
+        self.htmlInfoMsg = str(cfg["htmlInfoMsg"])
         self.sgfDir = str(cfg["sgfDir"])
         self.provisionalAge = float(cfg["provisionalAge"])
         self.establishedAge = float(cfg["establishedAge"])
