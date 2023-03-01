@@ -60,6 +60,8 @@ def crosstable(who: str) -> None:
 
     global rating
 
+    view_num = 300
+
     count: Dict[str, int] = {}
     wins: Dict[str, int] = {}
     draws: Dict[str, int] = {}
@@ -68,53 +70,47 @@ def crosstable(who: str) -> None:
 
     with db:
         wgms = db.execute(
-            "SELECT gid, b, br, dte, wr, wtu, res FROM games WHERE w=? ORDER BY gid",
-            (who,),
+            "SELECT gid, b, br, dte, wr, wtu, res FROM games WHERE w=? ORDER BY gid LIMIT ?",
+            (who, view_num),
         ).fetchall()
         bgms = db.execute(
-            "SELECT gid, w, wr, dte, br, btu, res FROM games WHERE b=? ORDER BY gid",
-            (who,),
+            "SELECT gid, w, wr, dte, br, btu, res FROM games WHERE b=? ORDER BY gid LIMIT ?",
+            (who, view_num),
         ).fetchall()
 
-    for (gid, opp, r, dte, my_r, my_time, res) in wgms:
-        if opp not in count:
-            count[opp] = 0
-            wins[opp] = 0
-            draws[opp] = 0
+        for (opp, res, c) in db.execute(
+            "SELECT b, substr(res, 1, 1) as r, count(*) as c FROM games WHERE w=? GROUP BY b, r",
+            (who,),
+        ):
+            if opp not in count:
+                count[opp] = 0
+                wins[opp] = 0
+                draws[opp] = 0
 
-        d = 0
-        w = 0
-        if res[0] == "W":
-            w = 1
-        elif res[0] == "B":
-            w = 0
-        else:
-            d = 1
+            count[opp] += c
+            if res == "W":
+                wins[opp] += c
+            elif res == "B":
+                pass
+            else:
+                draws[opp] += c
 
-        count[opp] += 1
-        wins[opp] += w
-        draws[opp] += d
+        for (opp, res, c) in db.execute(
+            "SELECT w, substr(res, 1, 1) as r, count(*) as c FROM games WHERE b=? GROUP BY w, r",
+            (who,),
+        ):
+            if opp not in count:
+                count[opp] = 0
+                wins[opp] = 0
+                draws[opp] = 0
 
-    for (gid, opp, r, dte, my_r, my_time, res) in bgms:
-        # puts "bgsm: $gid $opp $r $my_r $my_time $res $dte"
-        if opp not in count:
-            count[opp] = 0
-            wins[opp] = 0
-            draws[opp] = 0
-
-        d = 0
-        w = 0
-
-        if res[0] == "B":
-            w = 1
-        elif res[0] == "W":
-            w = 0
-        else:
-            d = 1
-
-        count[opp] += 1
-        wins[opp] += w
-        draws[opp] += d
+            count[opp] += c
+            if res == "B":
+                wins[opp] += c
+            elif res == "W":
+                pass
+            else:
+                draws[opp] += c
 
     olst = count.keys()
 
@@ -153,8 +149,6 @@ def crosstable(who: str) -> None:
         }
         for rat, opp, winp, twins, tdraws, tgames in lst
     ]
-
-    view_num = 300
 
     wgms_short = wgms[-view_num:]
     bgms_short = bgms[-view_num:]
@@ -206,6 +200,7 @@ def crosstable(who: str) -> None:
         f.write(result)
 
 
+# @profile
 def buildWebPage() -> None:
     global tmpfile
     global pageName
