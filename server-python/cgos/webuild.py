@@ -63,8 +63,6 @@ def crosstable(who: str) -> None:
     count: Dict[str, int] = {}
     wins: Dict[str, int] = {}
     draws: Dict[str, int] = {}
-    arate: Dict[str, Tuple[str, str]] = {}
-    brate: Dict[str, Tuple[str, str]] = {}
 
     print(f"building for {who}")
 
@@ -97,9 +95,6 @@ def crosstable(who: str) -> None:
         wins[opp] += w
         draws[opp] += d
 
-        arate[opp] = (gid, r)
-        brate[opp] = (gid, r)
-
     for (gid, opp, r, dte, my_r, my_time, res) in bgms:
         # puts "bgsm: $gid $opp $r $my_r $my_time $res $dte"
         if opp not in count:
@@ -121,22 +116,12 @@ def crosstable(who: str) -> None:
         wins[opp] += w
         draws[opp] += d
 
-        brate[opp] = (gid, r)
-        if opp not in arate:
-            arate[opp] = (gid, r)
-
     olst = count.keys()
 
     lst: List[List[Any]] = []
 
     for n in olst:
-        ga = arate[n][0]
-        gb = brate[n][0]
-
-        if ga > gb:
-            r = arate[n][1]
-        else:
-            r = brate[n][1]
+        r = rating[n]
 
         winp = 100.0 * ((wins[n] + draws[n] * 0.5) / (count[n] + 0.0))
 
