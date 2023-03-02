@@ -164,6 +164,8 @@ def initDatabase() -> None:
     ):
         conn = sqlite3.connect(cfg.game_archive_database)
         conn.execute("create table games(gid int, dta, analysis)")
+        conn.execute("create index white on games(w)")
+        conn.execute("create index black on games(b)")
         conn.commit()
         conn.close()
         # conn.execute("ALTER TABLE games ADD COLUMN analysis")
