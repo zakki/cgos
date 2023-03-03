@@ -37,6 +37,7 @@ from typing import Any, List, Tuple, Dict, Optional
 from gogame import GoGame, Game, sgf
 from .client import Client
 from util.logutils import getLogger
+from util.timeutils import now_string, now_seconds,  now_milliseconds
 
 
 # Setup logger
@@ -125,19 +126,6 @@ class Configs:
 
 
 cfg: Configs
-
-
-def now_string() -> str:
-    now = datetime.datetime.now(datetime.timezone.utc)
-    return now.strftime("%Y-%m-%d %H:%M:%S")
-
-
-def now_seconds() -> int:
-    return time.time_ns() // 1_000_000_000
-
-
-def now_milliseconds() -> int:
-    return time.time_ns() // 1_000_000
 
 
 def joinMoves(moves: List[Tuple[str, int, Optional[str]]]) -> str:

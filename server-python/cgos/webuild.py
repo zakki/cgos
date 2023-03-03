@@ -27,7 +27,7 @@ import datetime
 import re
 import sqlite3
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 from util.timeutils import now_string
 from app.cgos import Configs
