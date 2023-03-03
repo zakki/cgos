@@ -70,11 +70,11 @@ def crosstable(who: str) -> None:
 
     with db:
         wgms = db.execute(
-            "SELECT gid, b, br, dte, wr, wtu, res FROM games WHERE w=? ORDER BY gid LIMIT ?",
+            "SELECT gid, b, br, dte, wr, wtu, res FROM games WHERE w=? ORDER BY gid DESC LIMIT ?",
             (who, view_num),
         ).fetchall()
         bgms = db.execute(
-            "SELECT gid, w, wr, dte, br, btu, res FROM games WHERE b=? ORDER BY gid LIMIT ?",
+            "SELECT gid, w, wr, dte, br, btu, res FROM games WHERE b=? ORDER BY gid DESC LIMIT ?",
             (who, view_num),
         ).fetchall()
 
@@ -150,18 +150,14 @@ def crosstable(who: str) -> None:
         for rat, opp, winp, twins, tdraws, tgames in lst
     ]
 
-    wgms_short = wgms[-view_num:]
-    bgms_short = bgms[-view_num:]
-
     listgame = []
-    for (gid, opp, r, dte, my_r, my_time, res) in wgms_short:
+    for (gid, opp, r, dte, my_r, my_time, res) in wgms:
         listgame.append([int(gid), opp, r, my_r, my_time, *dte.split(" "), res, "W"])
-    for (gid, opp, r, dte, my_r, my_time, res) in bgms_short:
+    for (gid, opp, r, dte, my_r, my_time, res) in bgms:
         listgame.append([int(gid), opp, r, my_r, my_time, *dte.split(" "), res, "B"])
 
-    listgamesort = listgame.copy()
-    listgamesort.sort(key=lambda e: (-int(e[0]), e[1]))  # [lsort -decreasing $listgame]
-    listgamesort = listgamesort[0:view_num]
+    listgame.sort(key=lambda e: (-int(e[0]), e[1]))  # [lsort -decreasing $listgame]
+    listgame = listgame[0:view_num]
     games = [
         {
             "gid": gid,
@@ -176,18 +172,16 @@ def crosstable(who: str) -> None:
             "sgfpath": "../" + formatSgfPath(dte, gid),
             "vsgfpath": f"{cfg.boardsize}x{cfg.boardsize}/" + formatSgfPath(dte, gid),
         }
-        for gid, opp, r, my_r, my_time, dte, dte2, res, col in listgamesort[0:view_num]
+        for gid, opp, r, my_r, my_time, dte, dte2, res, col in listgame
     ]
 
-    list_num = len(listgamesort)
-    dsp_num = view_num
-    if dsp_num > list_num:
-        dsp_num = list_num
+    dsp_num = len(listgame)
 
     data: Dict[str, Any] = {
         "who": who,
         "date": date,
         "rat": rat,
+        "dsp_num": dsp_num,
         "lst": opponents,
         "listgamesort": games,
     }
