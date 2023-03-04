@@ -30,7 +30,7 @@ import time
 from typing import Any, Dict, List
 
 from util.timeutils import now_string
-from app.cgos import Configs
+from app.config import Configs
 import jinja2
 
 

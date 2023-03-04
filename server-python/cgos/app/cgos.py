@@ -22,7 +22,6 @@
 # THE SOFTWARE.
 
 import asyncio
-import configparser
 import datetime
 import sys
 import time
@@ -35,6 +34,7 @@ import json
 from typing import Any, List, Tuple, Dict, Optional
 
 from gogame import GoGame, Game, sgf
+from .config import Configs
 from .client import Client
 from util.logutils import getLogger
 from util.timeutils import now_string, now_seconds,  now_milliseconds
@@ -57,73 +57,6 @@ defaultRatingAverage = 0.0
 badUsers: List[str] = []
 leeway: int
 workdir: str
-
-
-class Configs:
-    serverName: str
-    boardsize: int
-    komi: float
-    level: int
-    portNumber: int
-    timeGift: float
-    database_state_file: str
-    cgi_database: str
-    game_archive_database: Optional[str]
-    web_data_file: str
-    defaultRating: float
-    minK: float
-    maxK: float
-    htmlDir: str
-    htmlInfoMsg: str
-    sgfDir: str
-    provisionalAge: float
-    establishedAge: float
-    killFile: str
-    tools_dir: str
-    bin_dir: str
-    leeway: int
-    anchor_match_rate: float
-    badUsersFile: str
-    moveIntervalBetweenSave: int
-
-    def load(self, path: str) -> None:
-        config = configparser.ConfigParser()
-        with open(path) as f:
-            try:
-                config.read_file(f)
-                cfg = config["cgos-server"]
-            except Exception as e:
-                logger.error("Error reading config file", e, str(e))
-                sys.exit(0)
-
-        self.serverName = str(cfg["serverName"])
-        self.portNumber = int(cfg["portNumber"])
-        self.boardsize = int(cfg["boardsize"])
-        self.komi = float(cfg["komi"])
-        self.level = int(cfg["level"]) * 1000
-        self.timeGift = float(cfg["timeGift"])
-        self.database_state_file = str(cfg["database_state_file"])
-        self.cgi_database = str(cfg["cgi_database"])
-        if "game_archive_database" in cfg:
-            self.game_archive_database = str(cfg["game_archive_database"])
-        else:
-            self.game_archive_database = None
-        self.web_data_file = str(cfg["web_data_file"])
-        self.defaultRating = float(cfg["defaultRating"])
-        self.minK = float(cfg["minK"])
-        self.maxK = float(cfg["maxK"])
-        self.htmlDir = str(cfg["htmlDir"])
-        self.htmlInfoMsg = str(cfg["htmlInfoMsg"])
-        self.sgfDir = str(cfg["sgfDir"])
-        self.provisionalAge = float(cfg["provisionalAge"])
-        self.establishedAge = float(cfg["establishedAge"])
-        self.killFile = str(cfg["killFile"])
-        self.tools_dir = str(cfg["tools_dir"])
-        self.bin_dir = str(cfg["bin_dir"])
-        self.anchor_match_rate = float(cfg.get("anchor_match_rate", "0.10"))
-        self.badUsersFile = str(cfg["bad_users_file"])
-        self.moveIntervalBetweenSave = int(cfg["moveIntervalBetweenSave"])
-
 
 cfg: Configs
 
