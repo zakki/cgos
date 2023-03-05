@@ -48,7 +48,6 @@ ENCODING = "utf-8"
 
 db: sqlite3.Connection
 dbrec: Optional[sqlite3.Connection]
-cgi: sqlite3.Connection
 
 gme: Dict[int, GoGame] = dict()
 
@@ -70,16 +69,6 @@ def joinAnalysis(moves: List[Tuple[str, int, Optional[str]]]) -> str:
 
 
 def initDatabase() -> None:
-    if not os.path.exists(cfg.cgi_database):
-        conn = sqlite3.connect(cfg.cgi_database)
-
-        conn.execute("create table games(gid int, w, wr,  b, br,  dte, res)")
-        conn.execute("create index white on games(w)")
-        conn.execute("create index black on games(b)")
-
-        conn.commit()
-        conn.close()
-
     if cfg.game_archive_database is not None and not os.path.exists(
         cfg.game_archive_database
     ):
@@ -112,7 +101,6 @@ def initDatabase() -> None:
 
 def openDatabase() -> None:
     global db
-    global cgi
     global dbrec
 
     # set up a long timeout for transactions
@@ -120,12 +108,6 @@ def openDatabase() -> None:
         db = sqlite3.connect(cfg.database_state_file, timeout=40000)
     except sqlite3.Error as e:
         logger.error(f"Error opening {cfg.database_state_file} datbase.")
-        raise Exception(e)
-
-    try:
-        cgi = sqlite3.connect(cfg.cgi_database, timeout=80000)
-    except sqlite3.Error as e:
-        logger.error(f"Error opening {cfg.cgi_database} datbase.")
         raise Exception(e)
 
     if cfg.game_archive_database is not None:
@@ -320,7 +302,6 @@ def batchRate() -> None:
     global act
     global ratingOf
     global db
-    global cgi
 
     anchors = getAnchors()
 
@@ -402,11 +383,11 @@ def batchRate() -> None:
         if b in act:
             act[b].rating = nbr
             act[b].k = nbK
-        ratingOf[w] = strRate(nwr, nwK)
-        ratingOf[b] = strRate(nbr, nbK)
-
         wsrate = strRate(nwr, nwK)
         bsrate = strRate(nbr, nbK)
+        ratingOf[w] = wsrate
+        ratingOf[b] = bsrate
+
 
         with db:
             db.execute(
@@ -419,13 +400,7 @@ def batchRate() -> None:
             )
             db.execute("""UPDATE games SET final="y" WHERE gid=?""", (gid,))
 
-        cgi.execute(
-            "INSERT INTO games VALUES(?, ?, ?, ?, ?, ?, ?)",
-            (gid, w, wsrate, b, bsrate, dte, res),
-        )
-
     db.commit()
-    cgi.commit()
 
 
 RE_PASSWORD = re.compile(r"[^\d\w\.-]")
@@ -1176,7 +1151,6 @@ def schedule_games() -> None:
     global last_est
     global gme
     global db
-    global cgi
     global dbrec
 
     RANGE = 500.0  # minmum elo range allowed
@@ -1271,10 +1245,7 @@ def schedule_games() -> None:
                 os.rename(tmpf, cfg.web_data_file)
 
                 db.commit()
-                cgi.commit()
-
                 db.close()
-                cgi.close()
 
                 if dbrec:
                     dbrec.commit()

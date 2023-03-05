@@ -40,7 +40,6 @@ class Configs:
     portNumber: int
     timeGift: float
     database_state_file: str
-    cgi_database: str
     game_archive_database: Optional[str]
     web_data_file: str
     defaultRating: float
@@ -76,7 +75,6 @@ class Configs:
         self.level = int(cfg["level"]) * 1000
         self.timeGift = float(cfg["timeGift"])
         self.database_state_file = str(cfg["database_state_file"])
-        self.cgi_database = str(cfg["cgi_database"])
         if "game_archive_database" in cfg:
             self.game_archive_database = str(cfg["game_archive_database"])
         else:

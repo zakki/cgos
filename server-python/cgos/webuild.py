@@ -387,12 +387,6 @@ except sqlite3.Error as e:
     print(f"Error opening {cfg.database_state_file} datbase.")
     raise Exception(e)
 
-try:
-    cgi = sqlite3.connect(cfg.cgi_database, timeout=80000)
-except sqlite3.Error as e:
-    print(f"Error opening {cfg.cgi_database} datbase.")
-    raise Exception(e)
-
 
 def update_ratings() -> None:
     global rating
