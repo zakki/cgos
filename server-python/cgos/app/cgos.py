@@ -22,7 +22,6 @@
 # THE SOFTWARE.
 
 import asyncio
-import configparser
 import datetime
 import sys
 import time
@@ -35,8 +34,10 @@ import json
 from typing import Any, List, Tuple, Dict, Optional
 
 from gogame import GoGame, Game, sgf
+from .config import Configs
 from .client import Client
 from util.logutils import getLogger
+from util.timeutils import now_string, now_seconds,  now_milliseconds
 
 
 # Setup logger
@@ -47,7 +48,6 @@ ENCODING = "utf-8"
 
 db: sqlite3.Connection
 dbrec: Optional[sqlite3.Connection]
-cgi: sqlite3.Connection
 
 gme: Dict[int, GoGame] = dict()
 
@@ -57,85 +57,7 @@ badUsers: List[str] = []
 leeway: int
 workdir: str
 
-
-class Configs:
-    serverName: str
-    boardsize: int
-    komi: float
-    level: int
-    portNumber: int
-    timeGift: float
-    database_state_file: str
-    cgi_database: str
-    game_archive_database: Optional[str]
-    web_data_file: str
-    defaultRating: float
-    minK: float
-    maxK: float
-    htmlDir: str
-    sgfDir: str
-    provisionalAge: float
-    establishedAge: float
-    killFile: str
-    tools_dir: str
-    bin_dir: str
-    leeway: int
-    anchor_match_rate: float
-    badUsersFile: str
-    moveIntervalBetweenSave: int
-
-    def load(self, path: str) -> None:
-        config = configparser.ConfigParser()
-        with open(path) as f:
-            try:
-                config.read_file(f)
-                cfg = config["cgos-server"]
-            except Exception as e:
-                logger.error("Error reading config file", e, str(e))
-                sys.exit(0)
-
-        self.serverName = str(cfg["serverName"])
-        self.portNumber = int(cfg["portNumber"])
-        self.boardsize = int(cfg["boardsize"])
-        self.komi = float(cfg["komi"])
-        self.level = int(cfg["level"]) * 1000
-        self.timeGift = float(cfg["timeGift"])
-        self.database_state_file = str(cfg["database_state_file"])
-        self.cgi_database = str(cfg["cgi_database"])
-        if "game_archive_database" in cfg:
-            self.game_archive_database = str(cfg["game_archive_database"])
-        else:
-            self.game_archive_database = None
-        self.web_data_file = str(cfg["web_data_file"])
-        self.defaultRating = float(cfg["defaultRating"])
-        self.minK = float(cfg["minK"])
-        self.maxK = float(cfg["maxK"])
-        self.htmlDir = str(cfg["htmlDir"])
-        self.sgfDir = str(cfg["sgfDir"])
-        self.provisionalAge = float(cfg["provisionalAge"])
-        self.establishedAge = float(cfg["establishedAge"])
-        self.killFile = str(cfg["killFile"])
-        self.tools_dir = str(cfg["tools_dir"])
-        self.bin_dir = str(cfg["bin_dir"])
-        self.anchor_match_rate = float(cfg.get("anchor_match_rate", "0.10"))
-        self.badUsersFile = str(cfg["bad_users_file"])
-        self.moveIntervalBetweenSave = int(cfg["moveIntervalBetweenSave"])
-
-
 cfg: Configs
-
-
-def now_string() -> str:
-    now = datetime.datetime.now(datetime.timezone.utc)
-    return now.strftime("%Y-%m-%d %H:%M:%S")
-
-
-def now_seconds() -> int:
-    return time.time_ns() // 1_000_000_000
-
-
-def now_milliseconds() -> int:
-    return time.time_ns() // 1_000_000
 
 
 def joinMoves(moves: List[Tuple[str, int, Optional[str]]]) -> str:
@@ -147,21 +69,13 @@ def joinAnalysis(moves: List[Tuple[str, int, Optional[str]]]) -> str:
 
 
 def initDatabase() -> None:
-    if not os.path.exists(cfg.cgi_database):
-        conn = sqlite3.connect(cfg.cgi_database)
-
-        conn.execute("create table games(gid int, w, wr,  b, br,  dte, res)")
-        conn.execute("create index white on games(w)")
-        conn.execute("create index black on games(b)")
-
-        conn.commit()
-        conn.close()
-
     if cfg.game_archive_database is not None and not os.path.exists(
         cfg.game_archive_database
     ):
         conn = sqlite3.connect(cfg.game_archive_database)
         conn.execute("create table games(gid int, dta, analysis)")
+        conn.execute("create index white on games(w)")
+        conn.execute("create index black on games(b)")
         conn.commit()
         conn.close()
         # conn.execute("ALTER TABLE games ADD COLUMN analysis")
@@ -187,7 +101,6 @@ def initDatabase() -> None:
 
 def openDatabase() -> None:
     global db
-    global cgi
     global dbrec
 
     # set up a long timeout for transactions
@@ -195,12 +108,6 @@ def openDatabase() -> None:
         db = sqlite3.connect(cfg.database_state_file, timeout=40000)
     except sqlite3.Error as e:
         logger.error(f"Error opening {cfg.database_state_file} datbase.")
-        raise Exception(e)
-
-    try:
-        cgi = sqlite3.connect(cfg.cgi_database, timeout=80000)
-    except sqlite3.Error as e:
-        logger.error(f"Error opening {cfg.cgi_database} datbase.")
         raise Exception(e)
 
     if cfg.game_archive_database is not None:
@@ -395,7 +302,6 @@ def batchRate() -> None:
     global act
     global ratingOf
     global db
-    global cgi
 
     anchors = getAnchors()
 
@@ -477,11 +383,11 @@ def batchRate() -> None:
         if b in act:
             act[b].rating = nbr
             act[b].k = nbK
-        ratingOf[w] = strRate(nwr, nwK)
-        ratingOf[b] = strRate(nbr, nbK)
-
         wsrate = strRate(nwr, nwK)
         bsrate = strRate(nbr, nbK)
+        ratingOf[w] = wsrate
+        ratingOf[b] = bsrate
+
 
         with db:
             db.execute(
@@ -494,13 +400,7 @@ def batchRate() -> None:
             )
             db.execute("""UPDATE games SET final="y" WHERE gid=?""", (gid,))
 
-        cgi.execute(
-            "INSERT INTO games VALUES(?, ?, ?, ?, ?, ?, ?)",
-            (gid, w, wsrate, b, bsrate, dte, res),
-        )
-
     db.commit()
-    cgi.commit()
 
 
 RE_PASSWORD = re.compile(r"[^\d\w\.-]")
@@ -1251,7 +1151,6 @@ def schedule_games() -> None:
     global last_est
     global gme
     global db
-    global cgi
     global dbrec
 
     RANGE = 500.0  # minmum elo range allowed
@@ -1346,10 +1245,7 @@ def schedule_games() -> None:
                 os.rename(tmpf, cfg.web_data_file)
 
                 db.commit()
-                cgi.commit()
-
                 db.close()
-                cgi.close()
 
                 if dbrec:
                     dbrec.commit()

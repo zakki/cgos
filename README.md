@@ -2,7 +2,18 @@
 
 ## Python Server
 
-python3 cgos/server.py cgos19.ini
+Start a cgos server and web page builder.
+
+```sh
+python3 cgos/server.py cgos19.ini &
+python3 cgos/webuild.py cgos19.ini &
+```
+
+If you used previous version, migrate database.
+
+```sh
+sqlite3 /path/to/cgos.state < db/migrate-001-create-games-index.sql
+```
 
 ### genmove_analyze extention
 

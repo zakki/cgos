@@ -1,0 +1,113 @@
+<html>
+<title>{{cfg.serverName}}</title>
+<head>
+<style type="text/css">
+table.solid {border-style:solid ; border-width: 1px 1px 1px 1px }
+tr.solid {border-style:solid ; border-width: 1px 1px 1px 1px }
+.centeredImage {text-align:center; margin-top:0px; margin-bottom:0px; padding:0px;}
+
+table thead tr th { background-color: #708070; color:white; }
+
+table.players { font-family:verdana; font-size:90%; }
+
+table.games { font-family:verdana; font-size:90%; }
+table.games tr:nth-child(odd) td { background: #f0f0e0; }
+table.games tr:nth-child(even) td { background: #c8d0c8; }
+table.players tr td { background: #fff;}
+table.players tr.newplayer td { background: #ffff80; }
+</style>
+</head>
+
+<body BGCOLOR="#ECECEA" TEXT="#001000" LINK="#002000" ALINK="#507050" VLINK="#002000"><p>
+<p class="centeredImage"><img src="images/cgosLogo.jpg"></p>
+<FONT COLOR="002000"><H3 ALIGN=CENTER>{{cfg.htmlInfoMsg}}</H3></FONT>
+<P>
+<FONT COLOR="002000"><H4 ALIGN=CENTER>Last Update: {{right_now}}</H4></FONT>
+<P>
+
+<center>
+    <H5>
+    <a href="bayes.html">BayesElo</a> is more accurate.<br>
+    <a href="http://senseis.xmp.net/?ComputerGoServer">Sensei's Computer Go Server Page</a></H5>
+</center>
+
+<p><p>
+
+<center><table class='players' border=1 cellpadding=4 cellspacing=0 justify=center>
+    <thead>
+    <tr><th>Game</th><th>Program Name</th><th>Rating</th><th>Games Played</th><th>Last Game</th></tr>
+    </thead>
+
+    <tbody>
+    {% for rec in players %}
+        <tr class="{%- if rec.k == 0 -%}newplayer{%- endif -%}">
+        <td align=center>{{rec.status}}</td>
+        <td><a href="cross/{{rec.nme}}.html">{{rec.nme}}</a></td><td>{{rec.rat}}</td>
+        <td align=center>{{rec.cnt}}</td><td>{{rec.dte}} {{rec.tme}}</td></tr>
+    {% endfor %}
+    </tbody>
+
+</table></center>
+<P>&nbsp;<P>
+
+<H4 ALIGN=CENTER>Recent Games</H4>
+<center>
+<table class='solid games' cellspacing=0 justify=center>
+<colgroup span=5><col width=80></col><col width=200></col><col width=80></col>
+<col width=200></col><col width=80></col><col width=120></col></colgroup>
+<thead>
+<tr>
+<th align=center>Game</th>
+<th align=left>White</th>
+<th align=left>Time</th>
+<th align=left>Black</th>
+<th align=left>Time</th>
+<th align=left>Result</th>
+</tr>
+</thead>
+
+<tbody>
+{% for rec in sch %}
+    <tr>
+    <td align=center>{{rec.gid}}</td><td>{{rec.wn}}</td><td>{{rec.tw}}</td><td>{{rec.bn}}</td><td>{{rec.tb}}</td>
+    <td>{{rec.res}} <a href="../../viewer.cgi?{{rec.vsgfpath}}">View</a></td></tr>
+{% endfor %}
+
+{% for rec in gms %}
+    <tr>
+    <td align=center><a href="{{rec.sgfpath}}">{{rec.gid}}</a></td>
+    {% if rec.res[0] == "W" %}
+        <td><b>{{rec.wn}}</b></td>
+    {% else %}
+        <td>{{rec.wn}}</td>
+    {% endif %}
+    <td>{{ '%02d' % (rec.tw // 1000 // 60)}}:{{ '%02d' % (rec.tw // 1000 % 60) }}</td>
+    {% if rec.res[0] == "B" %}
+        <td><b>{{rec.bn}}</b></td>
+    {% else %}
+        <td>{{rec.bn}}</td>
+    {% endif %}
+
+    <td>{{ '%02d' % (rec.tb // 1000 // 60)}}:{{ '%02d' % (rec.tb // 1000 % 60) }}</td>
+
+    <td>
+    {% if rec.res[2] == "T" %}
+        <b><font color="red">{{rec.res}}</font></b>
+    {% else %}
+        {{rec.res}}
+    {% endif %}
+        <a href="../../viewer.cgi?{{rec.vsgfpath}}">View</a>
+    </td>
+    </tr>
+
+{% endfor %}
+</tbody>
+</table>
+
+{% if cfg.boardsize == 19 %}
+    <H5>LZ_05db_ELFv2_p800 has been fixed at 3670(from 3102) to match <a href="bayes.html">BayesElo</a>. (2020-06-11)<br>
+    <font color="blue">Real-time game viewer</font> is available on <a href="https://deepleela.com/cgos">DeepLeela</a></H5>
+{% endif %}
+
+</center></body>
+</html>

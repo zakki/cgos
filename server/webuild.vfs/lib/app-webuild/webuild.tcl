@@ -46,43 +46,78 @@ proc gidcmp {a b} {
 array set rating {}
 
 
+
 proc crosstable {who} {
+
+
     
     global  htmlDir
+    global  sgfDir
     global  rating
+    global  boardsize
 
     puts "building for $who"
 
 
-    db transaction {
-	set wgms [cgi eval {SELECT gid, b, br, res FROM games WHERE w=$who ORDER BY gid} ]
-	set bgms [cgi eval {SELECT gid, w, wr, res FROM games WHERE b=$who ORDER BY gid} ]
-    }
 
-    foreach {gid opp r res} $wgms {
+    db transaction {
+	#set wgms [cgi eval {SELECT gid, b, br, dte, wr, res FROM games WHERE w=$who ORDER BY gid} ]
+	#set bgms [cgi eval {SELECT gid, w, wr, dte, br, res FROM games WHERE b=$who ORDER BY gid} ]
+	set wgms [db eval {SELECT gid, b, br, dte, wr, wtu, res FROM games WHERE w=$who ORDER BY gid} ]
+	set bgms [db eval {SELECT gid, w, wr, dte, br, btu, res FROM games WHERE b=$who ORDER BY gid} ]
+    }
+#create table games(gid int, w, wr,  b, br,  dte, res);
+
+    foreach {gid opp r dte my_r my_time res} $wgms {
+	#puts "wgsm: $gid $opp $r $my_r $my_time $res $dte"
 	if { [catch { incr count($opp) }] } {
 	    set count($opp) 1
 	    set wins($opp) 0
+	    set draws($opp) 0
 	}
 
-	if { [string index $res 0] == "W" } {set w 1} else {set w 0}
+#	if { [string index $res 0] == "W" } {set w 1} else {set w 0}
+	set d 0
+	set w 0
+	if { [string index $res 0] == "W" } {set w 1} elseif { [string index $res 0] == "B" } {set w 0} else {set d 1}
+
+#	incr wins($opp) $w
 	incr wins($opp) $w
+	incr draws($opp) $d
+
+#	set work [expr $wins($opp) + $w]
+#	set wins($opp) $work
+
 	set arate($opp) [list $gid $r]
 	set brate($opp) [list $gid $r]
     }
 
-    foreach {gid opp r res} $bgms {
+    foreach {gid opp r dte my_r my_time res} $bgms {
+	#puts "bgsm: $gid $opp $r $my_r $my_time $res $dte"
 	if { [catch { incr count($opp) }] } {
 	    set count($opp) 1
 	    set wins($opp) 0
+	    set draws($opp) 0
 	}
-	if { [string index $res 0] == "B" } {set w 1} else {set w 0}
+#	if { [string index $res 0] == "B" } {set w 1} else {set w 0}
+	set d 0
+	set w 0
+
+	if { [string index $res 0] == "B" } {set w 1} elseif { [string index $res 0] == "W" } {set w 0} else {set d 1}
+
+#	incr wins($opp) $w
 	incr wins($opp) $w
+	incr draws($opp) $d
+
+#	set work [expr $wins($opp) + $w]
+#	set wins($opp) $work
+
 	set brate($opp) [list $gid $r]
 	if {![info exists arate($opp)]} {
 	    set arate($opp) [list $gid $r]
 	}
     }
+
 
     set olst [array names count]
 
@@ -98,17 +133,19 @@ proc crosstable {who} {
 	    set r [lindex $brate($n) 1]
 	}
 
-	set winp [format "%0.2f" [expr 100.0 * ($wins($n) / ($count($n) + 0.0))]]
+	set winp [format "%0.2f" [expr 100.0 * (($wins($n) + $draws($n)*0.5) / ($count($n) + 0.0))]]
 
 	regexp {(\d+)} $r dmy rr
 
-	lappend lst [format "%6d %s %7.2f %d %d" $rr $n $winp $wins($n) $count($n)]
+#	lappend lst [format "%6d %s %7.2f %d %d" $rr $n $winp $wins($n) $count($n)]
+	lappend lst [format "%6d %s %7.2f %d %d %d" $rr $n $winp $wins($n) $draws($n) $count($n)]
     }
 
-    set lst [lsort $lst]
+#    set lst [lsort $lst]
+    set lst [lsort -decreasing $lst]
 
     set  now [clock seconds]
-    set  dte [clock format $now -format "%Y-%m-%d %T" -gmt 1]
+    set  date [clock format $now -format "%Y-%m-%d %T" -gmt 1]
 	
     # put the css here
     # --------------------------------------
@@ -137,11 +174,11 @@ proc crosstable {who} {
     
     append rpt "<H3 ALIGN=CENTER>Cross-table of results for $who</H3>\n"
     append rpt "<H3 ALIGN=CENTER>Rated: $rat</H3>\n"
-    append rpt "<H4 ALIGN=CENTER>as of $dte</H4>\n"
+    append rpt "<H4 ALIGN=CENTER>as of $date</H4>\n"
     append rpt "<p>&nbsp;<p>\n"
     
     append rpt "<center><table class=solid cellspacing=0 justify=center>\n"
-    append rpt "<colgroup span=4><col width=210></col><col width=100></col><col width=100></col><col width=100></col></colgroup>\n"
+    append rpt "<colgroup span=4><col width=210></col><col width=90></col><col width=120></col><col width=90></col></colgroup>\n"
     
     append rpt "<tr BGCOLOR=\"\#708070\" style=\"color:white\">\n"
     append rpt "<th align=left>Opponent</th>"
@@ -157,27 +194,124 @@ proc crosstable {who} {
     set tcc 0
     
     append rpt "<center><table class=solid cellspacing=0 justify=center style=\"font-family;verdana;font-size:80%\">\n"
-    append rpt "<colgroup span=4><col width=210></col><col width=100><col width=100></col><col width=100></col></colgroup>\n"
+    append rpt "<colgroup span=4><col width=210></col><col width=90><col width=120></col><col width=90></col></colgroup>\n"
 
     foreach rec $lst {
-	lassign $rec rat opp winp twins tgames
+	lassign $rec rat opp winp twins tdraws tgames
 	append rpt "<tr bgcolor=\"[lindex $tog $tcc]\">"
-	append rpt "<td>$opp</td><td>$rat</td><td class=solid>$twins / $tgames</td><td class=solid>$winp</td></tr>\n"
+	if { $tdraws == 0 } {
+	    append rpt "<td>$opp</td><td>$rat</td><td class=solid>$twins / $tgames</td><td class=solid>$winp</td></tr>\n"
+	} else {
+	    append rpt "<td>$opp</td><td>$rat</td><td class=solid>$twins / $tdraws / $tgames</td><td class=solid>$winp</td></tr>\n"
+	}
 	set tcc [expr $tcc ^ 1]
     }
 	
     append rpt "</table></center>\n"
+#    append rpt "<p>&nbsp;\n"
+
+
+    set view_num 300
+    set v_n [expr ($view_num * 7) - 1]       ;# SELECT gid, b, br, dte, wr, my_time, res  ... 7 list
+
+    set wgms_short [lrange $wgms end-$v_n end]
+    set bgms_short [lrange $bgms end-$v_n end]
+
+    set listgame {}
+    foreach {gid opp r dte my_r my_time res} $wgms_short {
+ 	#puts "wgsm_short: $gid $opp $r $my_r $my_time $dte $res"
+ 	lappend listgame [format "%8d %s %s %s %s %s %s W" $gid $opp $r $my_r $my_time $dte $res]
+    }
+    foreach {gid opp r dte my_r my_time res} $bgms_short {
+ 	#puts "bgsm_short: $gid $opp $r $my_r $my_time $dte $res"
+ 	lappend listgame [format "%8d %s %s %s %s %s %s B" $gid $opp $r $my_r $my_time $dte $res]
+    }
+
+#    set len [llength $wgms]
+#    puts "wgms_len=$len"
+
+    set listgamesort [lsort -decreasing $listgame]
+
+    set list_num [llength $listgamesort]
+    set dsp_num $view_num
+    if { $dsp_num > $list_num } {
+        set dsp_num $list_num
+    }
+
+    set loop 0
+
+
+    set tog [list "\#f0f0e0" "\#c8d0c8" ]
+    append rpt "<center><h3>Recent $dsp_num Games</h3>\n"
+    append rpt "<table class=solid cellspacing=0 justify=center style=\"font-family;verdana;font-size:80%\">\n"
+    append rpt "<colgroup span=5><col width=210></col><col width=100><col width=100></col><col width=70></col><col width=70></col></colgroup>\n"
+    append rpt "<tr><th align=left>Opponent</th><th align=left>Opp rating</th><th align=left>Result</th><th align=left>Time</th><th align=left>Rating</th><th align=left>Game</th></tr>\n"
+    foreach {rec} $listgamesort {
+	lassign $rec gid opp r my_r my_time dte dte2 res col
+	set sgfpath "../$sgfDir/"
+	append sgfpath "[string range $dte 0 3]/"
+	append sgfpath "[string range $dte 5 6]/"
+	append sgfpath "[string range $dte 8 9]/$gid.sgf"
+#	append rpt "$gid / $opp / $r / $res / $dte / $dte2 / $my_r / $col/ $sgfpath\n<br>"
+	set vsgfpath "$boardsize"
+	append vsgfpath "x"
+	append vsgfpath "$boardsize"
+	append vsgfpath "/$sgfDir/"
+	append vsgfpath "[string range $dte 0 3]/"
+	append vsgfpath "[string range $dte 5 6]/"
+	append vsgfpath "[string range $dte 8 9]/$gid.sgf"
+
+	set w0 ""
+	set w1 ""
+	if { [string index $res 2] == "T" } {
+	    set w0 "<B>"
+	    set w1 "</B>"
+	}
+	set winner ""
+	if { [string index $res 0] == $col } {
+	    set winner "winner"
+	}
+
+	if { [string index $res 0] == "D" } {
+	    append rpt "<tr bgcolor=\"#ccff33\">"
+	} elseif { $winner == "" } {
+	    append rpt "<tr bgcolor=\"#ffcccc\">"
+	} else {
+#	    append rpt "<tr bgcolor=\"[lindex $tog $tcc]\">"
+            append rpt "<tr bgcolor=\"#f0f0e0\">"
+	}
+
+	set  t [expr $my_time / 1000]
+	set  ti [format "%02d:%02d" [expr $t / 60] [expr $t % 60]]
+
+	append rpt "<td>$opp</td><td>$r</td><td>$w0 $res $w1</td><td>$ti</td><td>$my_r</td><td><a href=\"$sgfpath\">$gid</a> <a href=\"../../viewer.cgi?$vsgfpath\">View</a></td></tr>\n"
+#	append rpt "<td>$opp</td><td>$r</td><td>$w0 $res $w1</td><td>$my_r</td><td><a href=\"$sgfpath\">$gid</a></td></tr>\n"
+#	append rpt "<td>$opp</td><td>$rat</td><td class=solid>$twins / $tdraws / $tgames</td><td class=solid>$winp</td></tr>\n"
+	incr loop 1
+	if { $loop >= $view_num } break
+	set tcc [expr $tcc ^ 1]
+    }
+    append rpt "</table></center>\n"
     append rpt "<p>&nbsp;<p>\n"
+#   foreach {gid opp r dte res} $bgms {	append rpt "$gid / $opp / $r / $res / $dte\n<br>" }
+
+
+
     append rpt "<H4 align=center>"
     append rpt "<a href=\"../standings.html\">Returns to Current Standings Page.</a>"
     append rpt "</H4><br>"
     append rpt "</body>\n"
     append rpt "</hmtl>\n"
 
+#return
+
     puts  "trying to open and write: $htmlDir/cross/$who.html"
     set f [open $htmlDir/cross/$who.html w]
     puts $f $rpt
+    puts  "trying to close"
+
     close $f
+    puts  "success to close"
 }
 
 
@@ -194,8 +328,9 @@ proc  buildWebPage {} {
     global  establishedAge
     global  sgfDir
     global  rating
+    global  boardsize
 
-    set right_now [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S UCT" -timezone :UTC]
+    set right_now [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S UTC" -timezone :UTC]
 
     set f [open $web_data_file]
     set wf [open $tmpfile w]
@@ -260,8 +395,12 @@ proc  buildWebPage {} {
     puts $wf {<P>}
     puts $wf "<FONT COLOR=\"002000\"><H4 ALIGN=CENTER>Last Update: $right_now</H4></FONT>"
     puts $wf {<P>}
-    puts $wf  {<H4><center><a href="http://senseis.xmp.net/?ComputerGoServer">Sensei's Computer Go Server Page</a></center></H4>}
-    puts $wf {<p><p><p>}
+
+    puts $wf  {<center><H5>}
+    puts $wf  {<a href="bayes.html">BayesElo</a> is more accurate.<br>}
+    puts $wf  {<a href="http://senseis.xmp.net/?ComputerGoServer">Sensei's Computer Go Server Page</a></H5></center>}
+
+    puts $wf {<p><p>}
 
     puts $wf {<center><table border=1 cellpadding=4 cellspacing=0 justify=center style="font-family;verdana;font-size:90%">}
     puts $wf {<tr BGCOLOR="#708070" style="color:white"><th>Game</th><th>Program Name</th><th>Rating</th><th>Games Played</th><th>Last Game</th></tr>}
@@ -315,12 +454,10 @@ proc  buildWebPage {} {
     }
 
     puts $wf "</table></center>"
-    puts $wf {<P>&nbsp;<P>&nbsp;<P>}
+    puts $wf {<P>&nbsp;<P>}
 
 
     # -------------------------------------------------------------------------------------------------------------------
-
-
 
     puts $wf "<H4 ALIGN=CENTER>Recent Games</H4>\n"
 
@@ -352,17 +489,26 @@ proc  buildWebPage {} {
     # ---------------------------------------
     # lappend sch [list $gid $w $wr $b $br "$dte $tme"]
     foreach rec $sch {
-	lassign $rec gid w wr b br tme
+	#lassign $rec gid w wr b br tme
+	lassign $rec gid w wr b br dte
 	set  wn  "$w\($wr\)"
 	set  bn  "$b\($br\)"
 
 	set  re {- playing ...}
-	set  tme "&mdash;"
+	#set  tme "&mdash;"
 	set  tw "&mdash;"
 	set  tb "&mdash;"
-	
+
+	set vsgfpath "$boardsize"
+	append vsgfpath "x"
+	append vsgfpath "$boardsize"
+	append vsgfpath "/$sgfDir/"
+	append vsgfpath "[string range $dte 0 3]/"
+	append vsgfpath "[string range $dte 5 6]/"
+	append vsgfpath "[string range $dte 8 9]/$gid.sgf"
+
 	puts $wf "<tr bgcolor=\"[lindex $tog $tcc]\">"
-	puts $wf "<td align=center>$gid</td><td>$wn</td><td>$tw</td><td>$bn</td><td>$tb</td><td>$re</td></tr>\n"
+	puts $wf "<td align=center>$gid</td><td>$wn</td><td>$tw</td><td>$bn</td><td>$tb</td><td>$re <a href=\"../../viewer.cgi?$vsgfpath\">View</a></td></tr>\n"
 
 	set tcc [expr $tcc ^ 1]
     }
@@ -391,17 +537,28 @@ proc  buildWebPage {} {
 	append sgfpath "[string range $tme 5 6]/"
 	append sgfpath "[string range $tme 8 9]/$gid.sgf"
 
+	set res_col "$res"
+	if { [string index $res 2] == "T" } {
+	    set res_col "<b><font color=\"red\">$res</font></b>"
+	}
+
 	if { [string index $res 0] == "W" } {
-	    puts $wf "<td align=center><a href=\"$sgfpath\">$gid</a></td><td><b>$wn</b></td><td>$tw</td><td>$bn</td><td>$tb</td><td>$res</td></tr>\n"
+	    puts $wf "<td align=center><a href=\"$sgfpath\">$gid</a></td><td><b>$wn</b></td><td>$tw</td><td>$bn</td><td>$tb</td><td>$res_col</td></tr>\n"
 	} else {
-	    puts $wf "<td align=center><a href=\"$sgfpath\">$gid</a></td><td>$wn</td><td>$tw</td><td><b>$bn</b></td><td>$tb</td><td>$res</td></tr>\n"
+	    puts $wf "<td align=center><a href=\"$sgfpath\">$gid</a></td><td>$wn</td><td>$tw</td><td><b>$bn</b></td><td>$tb</td><td>$res_col</td></tr>\n"
 	}
 
 	set tcc [expr $tcc ^ 1]
     }
 
-    puts $wf "</table></center>\n"
-    puts $wf "</body>"
+    puts $wf "</table>\n"
+
+    if {$boardsize == 19} {
+        puts $wf {<H5>LZ_05db_ELFv2_p800 has been fixed at 3670(from 3102) to match <a href="bayes.html">BayesElo</a>. (2020-06-11)<br>}
+        puts $wf {<font color="blue">Real-time game viewer</font> is available on <a href="https://deepleela.com/cgos">DeepLeela</a></H5>}
+    }
+
+    puts $wf "</center></body>"
 
     # ---------------------------------------------------------------------------------------------------------
 
@@ -411,8 +568,14 @@ proc  buildWebPage {} {
     file rename -force $tmpfile $pageName
 
     foreach n [array names bcr] {
+	puts "ready crosstable $n"
+#	if {$n == "Gnugo-3.7.10-a1" && $boardsize == 9} {
+#	    continue
+#	}
+
 	crosstable $n
     }
+    puts  "crosstable end..."
 
 }
 
@@ -426,7 +589,7 @@ if { [ catch {source $cfg} ] } {
 
 
 if { [catch {sqlite3 db $database_state_file} ] } {
-    puts "Error opening $cgi_database datbase."
+    puts "Error opening $database_state_file ."
     exit 1
 }
 
@@ -456,7 +619,7 @@ proc  update_ratings {} {
 
 #  cgi eval { INSERT INTO games VALUES($gid, $w, $wsrate, $b, $bsrate, $dte, $res) }
 if { [catch {sqlite3 cgi $cgi_database} ] } {
-    puts "Error opening $cgi_database datbase."
+    puts "Error opening $cgi_database ."
     exit 1
 }
 
@@ -472,6 +635,8 @@ while 1 {
 
     puts $web_data_file
 
+#set x "hoge"
+
     if { $x != $ct } {
 	incr count
 	# puts "$count) File changed!"
@@ -483,4 +648,5 @@ while 1 {
     }
 
     after 28000
+#exit 1
 }
