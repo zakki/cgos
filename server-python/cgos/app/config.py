@@ -57,6 +57,7 @@ class Configs:
     anchor_match_rate: float
     badUsersFile: str
     moveIntervalBetweenSave: int
+    hashPassword: bool
 
     def load(self, path: str) -> None:
         config = configparser.ConfigParser()
@@ -94,3 +95,7 @@ class Configs:
         self.anchor_match_rate = float(cfg.get("anchor_match_rate", "0.10"))
         self.badUsersFile = str(cfg["bad_users_file"])
         self.moveIntervalBetweenSave = int(cfg["moveIntervalBetweenSave"])
+        if "hashPassword" in cfg:
+            self.hashPassword = cfg.getboolean("hashPassword")
+        else:
+            self.hashPassword = False

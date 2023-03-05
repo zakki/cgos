@@ -33,11 +33,13 @@ import traceback
 import json
 from typing import Any, List, Tuple, Dict, Optional
 
+from passlib.context import CryptContext
+
 from gogame import GoGame, Game, sgf
 from .config import Configs
 from .client import Client
 from util.logutils import getLogger
-from util.timeutils import now_string, now_seconds,  now_milliseconds
+from util.timeutils import now_string, now_seconds, now_milliseconds
 
 
 # Setup logger
@@ -56,6 +58,7 @@ defaultRatingAverage = 0.0
 badUsers: List[str] = []
 leeway: int
 workdir: str
+passctx: CryptContext
 
 cfg: Configs
 
@@ -388,7 +391,6 @@ def batchRate() -> None:
         ratingOf[w] = wsrate
         ratingOf[b] = bsrate
 
-
         with db:
             db.execute(
                 "UPDATE password SET rating=?, K=?, last_game=?, games=games+1 WHERE name==?",
@@ -408,15 +410,18 @@ RE_PASSWORD = re.compile(r"[^\d\w\.-]")
 
 def test_password(password: str) -> str:
 
+    if len(password) < 3:
+        return "Password must be at least 3 characters."
+
+    if cfg.hashPassword:
+        return ""
+
     if password.isascii():
         # e  = "[^\d\w\.-]"
         if re.search(RE_PASSWORD, password):
             return "Password must only alphanumeric, underscore, hyphen, period or digits characters."
     else:
         return "Password must consist of only ascii characters."
-
-    if len(password) < 3:
-        return "Password must be at least 3 characters."
 
     if len(password) > 16:
         return "Password limited to 16 characters."
@@ -760,7 +765,19 @@ def _handle_player_password(sock: Client, data: str) -> None:
         del act[uid]
         return
 
-    pw = data.strip()
+    data = data.strip()
+    ts = data.split(" ")
+    if len(ts) == 1:
+        pw = ts[0].strip()
+        pw_new = None
+    elif len(ts) == 2:
+        pw = ts[0].strip()
+        pw_new = ts[1].strip()
+    elif len(ts) > 2:
+        sock.send("Error: send <password> or <old_password new_password>")
+        sock.close()
+        del act[uid]
+        return
     # loginTime = now_seconds()
 
     err = test_password(pw)
@@ -771,22 +788,35 @@ def _handle_player_password(sock: Client, data: str) -> None:
         del act[uid]
         return
 
+    if pw_new is not None:
+        err = test_password(pw_new)
+
+        if err != "":
+            sock.send(f"Error: {err}")
+            sock.close()
+            del act[uid]
+            return
+
     cur = db.execute("SELECT pass, rating, K FROM password WHERE name = ?", (who,))
     res = cur.fetchone()
 
     if res is None:
         logger.info(f"[{who}] new user")
+        if cfg.hashPassword:
+            pw_store = passctx.hash(pw)
+        else:
+            pw_store = pw
         db.execute(
             """INSERT INTO password VALUES(?, ?, 0, ?, ?, "2000-01-01 00:00")""",
             (
                 who,
-                pw,
+                pw_store,
                 defaultRatingAverage,
                 cfg.maxK,
             ),
         )
         db.commit()
-        cmp_pw = pw
+        cmp_pw = pw_store
         rat = defaultRatingAverage
         k = cfg.maxK
         ratingOf[who] = strRate(rat, k)
@@ -794,11 +824,54 @@ def _handle_player_password(sock: Client, data: str) -> None:
         cmp_pw, rat, k = res
         ratingOf[who] = strRate(rat, k)
 
-    if cmp_pw != pw:
-        sock.send("Sorry, password doesn't match")
-        sock.close()
-        del act[uid]
-        return
+    # Verify password
+    if cfg.hashPassword:
+        if passctx.identify(cmp_pw):
+            ok, new_hash = passctx.verify_and_update(pw, cmp_pw)
+        else:
+            ok = cmp_pw == pw
+            new_hash = passctx.hash(pw)
+        if not ok:
+            logger.warn(f"user {who} password hash doesn't match")
+            sock.send("Error: Sorry, password doesn't match")
+            sock.close()
+            del act[uid]
+            return
+
+        if new_hash:
+            logger.warn(f"user {who} replace hash with new_hash")
+            db.execute(
+                "UPDATE password set pass=? WHERE name=?",
+                (
+                    new_hash,
+                    who,
+                ),
+            )
+            db.commit()
+    else:
+        if cmp_pw != pw:
+            logger.error(f"user {who} password doesn't match")
+            sock.send("Error: Sorry, password doesn't match")
+            sock.close()
+            del act[uid]
+            return
+
+    # Change password
+    if pw_new is not None:
+        logger.info(f"Change user {who}'s password")
+        if cfg.hashPassword:
+            pw_store = passctx.hash(pw_new)
+        else:
+            pw_store = pw_new
+
+        db.execute(
+            "UPDATE password SET pass=? WHERE name=?",
+            (
+                pw_store,
+                who,
+            ),
+        )
+        db.commit()
 
     # Handle user who already logged on
     if who in act:
@@ -1383,9 +1456,7 @@ def schedule_games() -> None:
                     wr = strRate(wr, wk)
                     br = strRate(br, bk)
 
-                    games[gid] = Game(
-                        wp, bp, 0, cfg.level, cfg.level, wr, br, [], ctme
-                    )
+                    games[gid] = Game(wp, bp, 0, cfg.level, cfg.level, wr, br, [], ctme)
                     act[wp].gid = gid
                     act[bp].gid = gid
                     msg_out = f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {wp}({wr}) {bp}({br})"
@@ -1469,6 +1540,7 @@ def runServer() -> None:
     global leeway
     global workdir
     global defaultRatingAverage
+    global passctx
 
     # READ the configuration file
     # ---------------------------
@@ -1481,6 +1553,10 @@ def runServer() -> None:
         leeway = int(cfg.timeGift * 1000.0)
 
         defaultRatingAverage = cfg.defaultRating
+
+        if cfg.hashPassword:
+            passctx = CryptContext()
+            passctx.load_path(sys.argv[1])
 
         tme = now_string()
 
