@@ -1,0 +1,23 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<title>sgf viewer</title>
+<script>
+window.addEventListener('load', (event) => {
+    let path = location.search.substr(1);
+    if (path.length > 0) {
+        document.querySelector("#cgoswgo").dataset['wgo'] = path;
+        document.querySelector("#sgflink").href = path;
+    }
+});
+</script>
+<script type="text/javascript" src="wgo/wgo.min.js"></script>
+<script type="text/javascript" src="wgo/wgo.player.min.js"></script>
+<link type="text/css" href="wgo/wgo.player.css" rel="stylesheet" />
+</head>
+<body>
+<div id="cgoswgo" style="width: 700px">
+Sorry, your browser doesn't support WGo.js. Download SGF <a id="sgflink">directly</a>.
+</div>
+</body>
+</html>
