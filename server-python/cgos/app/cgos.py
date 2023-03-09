@@ -31,7 +31,7 @@ import random
 import re
 import traceback
 import json
-from typing import Any, List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional
 
 from passlib.context import CryptContext
 
@@ -277,7 +277,7 @@ def newrating(cur_rating: float, opp_rating: float, res: float, K: float) -> flo
 
 # write an SGF game record
 # ---------------------------
-def seeRecord(game: Game, res: str, dte: Any, tme: str) -> Tuple[str, str]:
+def seeRecord(game: Game, res: str, dte: str, tme: str) -> Tuple[str, str]:
 
     global cfg
 
@@ -314,6 +314,15 @@ def batchRate() -> None:
 
     kRange = cfg.maxK - cfg.minK
 
+    gid: int
+    w: str
+    b: str
+    res: str
+    dte: str
+    wr: float
+    br: float
+    wk: float
+    bk: float
     for gid, w, b, res, dte in batch:
         wr, wk = db.execute(
             "SELECT rating, K FROM password WHERE name = ?", (w,)

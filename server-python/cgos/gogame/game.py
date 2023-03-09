@@ -47,8 +47,8 @@ class Game:
     last_move_start_time: int
     white_remaining_time: int
     black_remaining_time: int
-    white_rate: float
-    black_rate: float
+    white_rate: str
+    black_rate: str
     moves: List[Tuple[str, int, Optional[str]]]
     ctime: datetime.datetime
 
@@ -59,8 +59,8 @@ class Game:
         last_move_start_time: int,
         white_remaining_time: int,
         black_remaining_time: int,
-        white_rate: float,
-        black_rate: float,
+        white_rate: str,
+        black_rate: str,
         moves: List[Tuple[str, int, Optional[str]]],
         ctime: datetime.datetime,
     ) -> None:
