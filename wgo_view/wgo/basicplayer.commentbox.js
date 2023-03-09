@@ -160,42 +160,51 @@ CommentBox.prototype.getCommentText = function(comment, formatNicks, formatMoves
 	}
 	if (cgos) {
 		var analyze = JSON.parse(cgos);
+		var hasRoot;
+		comm += "<h1>CGOS analyze</h1>";
+		if (analyze.visits != null || analyze.winrate != null || analyze.score != null) {
+			comm += "<h2>root</h2>";
+			hasRoot = true;
+		} else {
+			hasRoot = false;
+		}
 		if (analyze.visits != null) {
-			comm += "<p>visits:"+(+analyze.visits)+"</p>";
+			comm += "visits:"+(+analyze.visits)+"<br>";
 		}
 		if (analyze.winrate != null) {
-			comm += "<p>win:"+((+analyze.winrate)*100).toFixed(1)+"%</p>";
+			comm += "win:"+((+analyze.winrate)*100).toFixed(1)+"%<br>";
 		}
 		if (analyze.score != null) {
-			comm += "<p>score:"+(+analyze.score).toFixed(1)+"</p>";
+			comm += "score:"+(+analyze.score).toFixed(1)+"<br>";
 		}
 		if (analyze.moves) {
+			comm += "<h2>pv</h2>";
 			var info = analyze.moves[0];
 			if (info.move != null) {
-				comm += "<p>move:"+'<a href="javascript:void(0)" class="wgo-move-link">'+WGo.filterHTML(info.move)+"</a></p>";
+				comm += "move:"+'<a href="javascript:void(0)" class="wgo-move-link">'+WGo.filterHTML(info.move)+"</a><br>";
 			}
 			if (info.visits != null) {
-				comm += "<p>visits:"+(+info.visits)+"</p>";
+				comm += "visits:"+(+info.visits)+"<br>";
 			}
 			if (info.winrate != null) {
-				comm += "<p>win:"+(+info.winrate).toFixed(1)+"%</p>";
+				comm += "win:"+((+info.winrate)*100).toFixed(1)+"%<br>";
 			}
 			if (info.score != null) {
-				comm += "<p>score:"+(+info.score).toFixed(1)+"</p>";
+				comm += "score:"+(+info.score).toFixed(1)+"<br>";
 			}
 			if (info.prior != null) {
-				comm += "<p>prior:"+((+info.prior)*100).toFixed(1)+"%</p>";
+				comm += "prior:"+((+info.prior)*100).toFixed(1)+"%<br>";
 			}
 			if (info.pv != null) {
 			  var moves = info.pv.split(" ");
 			  if (info.move && moves[0] != info.move) {
 				moves.unshift(info.move)
 			  }
-			  comm += "<p>pv:";
+			  comm += "pv:";
 			  for (var k = 0; k < moves.length; k++) {
 				comm += " "+(k+1)+":"+'<a href="javascript:void(0)" class="wgo-move-link">'+WGo.filterHTML(moves[k])+"</a>";
 			  }
-			  comm += "</p>";
+			  comm += "<br>";
 			}
 		}
 	}

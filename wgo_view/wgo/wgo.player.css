@@ -704,3 +704,14 @@ input[type="text"].wgo-permalink {
 }
 
 /*--- /Permalinks ---------------------------------------------------------------------------*/
+
+.wgo-comment-text h1 {
+	font-size: 1.2em;
+	margin-block-start: 1em;
+	margin-block-end: 0.5em;
+}
+.wgo-comment-text h2 {
+	font-size: 1.1em;
+	margin-block-start: 0.1em;
+	margin-block-end: 0.1em;
+}
