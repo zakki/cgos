@@ -23,6 +23,7 @@
 
 import asyncio
 import datetime
+import gzip
 import sys
 import time
 import os
@@ -514,8 +515,12 @@ def saveSgf(gid: int, game: Game, sc: str, err: str) -> None:
     )
     os.makedirs(dest_dir, exist_ok=True)  # make directory if it doesn't exist
 
-    with open(f"{dest_dir}/{gid}.sgf", "w") as f:
-        f.write(sgfString)
+    if cfg.compressSgf:
+        with gzip.open(f"{dest_dir}/{gid}.sgf.gz", "w") as f:
+            f.write(sgfString.encode(ENCODING))
+    else:
+        with open(f"{dest_dir}/{gid}.sgf", "w") as f:
+            f.write(sgfString.encode(ENCODING))
 
 
 def gameover(gid: int, sc: str, err: str) -> None:

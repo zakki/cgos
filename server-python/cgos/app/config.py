@@ -48,6 +48,7 @@ class Configs:
     htmlDir: str
     htmlInfoMsg: str
     sgfDir: str
+    compressSgf: bool
     provisionalAge: float
     establishedAge: float
     killFile: str
@@ -87,6 +88,10 @@ class Configs:
         self.htmlDir = str(cfg["htmlDir"])
         self.htmlInfoMsg = str(cfg["htmlInfoMsg"])
         self.sgfDir = str(cfg["sgfDir"])
+        if "compressSgf" in cfg:
+            self.compressSgf = cfg.getboolean("compressSgf")
+        else:
+            self.compressSgf = False
         self.provisionalAge = float(cfg["provisionalAge"])
         self.establishedAge = float(cfg["establishedAge"])
         self.killFile = str(cfg["killFile"])
