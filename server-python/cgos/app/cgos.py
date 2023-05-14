@@ -516,10 +516,10 @@ def saveSgf(gid: int, game: Game, sc: str, err: str) -> None:
     os.makedirs(dest_dir, exist_ok=True)  # make directory if it doesn't exist
 
     if cfg.compressSgf:
-        with gzip.open(f"{dest_dir}/{gid}.sgf.gz", "w") as f:
+        with gzip.open(f"{dest_dir}/{gid}.sgf.gz", "wb") as f:
             f.write(sgfString.encode(ENCODING))
     else:
-        with open(f"{dest_dir}/{gid}.sgf", "w") as f:
+        with open(f"{dest_dir}/{gid}.sgf", "wb") as f:
             f.write(sgfString.encode(ENCODING))
 
 
