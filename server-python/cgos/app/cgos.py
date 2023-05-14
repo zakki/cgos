@@ -39,6 +39,7 @@ from passlib.context import CryptContext
 from gogame import GoGame, Game, sgf
 from .config import Configs
 from .client import Client
+from .rating import strRate, newrating
 from util.logutils import getLogger
 from util.timeutils import now_string, now_seconds, now_milliseconds
 
@@ -260,22 +261,6 @@ def infoMsg(msg: str) -> None:
     viewers.sendAll(f"info {msg}")
 
 
-# routines to rate the games
-# --------------------------
-
-
-def expectation(me: float, you: float) -> float:
-    x = (you - me) / 400.0
-    d: float = 1.0 + pow(10.0, x)
-    return 1.0 / d
-
-
-def newrating(cur_rating: float, opp_rating: float, res: float, K: float) -> float:
-    ex = expectation(cur_rating, opp_rating)
-    nr = cur_rating + K * (res - ex)
-    return nr
-
-
 # write an SGF game record
 # ---------------------------
 def seeRecord(game: Game, res: str, dte: str, tme: str) -> Tuple[str, str]:
@@ -465,20 +450,6 @@ def valid_name(user_name: str) -> str:
         return "Not removing dead stones, many timeout, changed strength, or many similar programs. Change setting and try another name."
 
     return ""
-
-
-# produce a printable rating given rating and K
-# ---------------------------------------------
-def strRate(elo: float, k: float) -> str:
-
-    r = "%0.0f" % elo
-
-    if elo < 0.0:
-        r = "0"
-    if k > 16.0:
-        r += "?"
-
-    return r
 
 
 # produce a printable rating from active record
