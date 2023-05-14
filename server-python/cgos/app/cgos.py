@@ -1171,7 +1171,9 @@ def _handle_admin_waiting(sock: Client, data: str) -> None:
             ):
                 dte, tme, bs, kom, w, b, lev, *lst = stuff.split(" ")
                 res = lst[-1]
-                matchList.append(f"match {gid} {dte} {tme} {bs} {kom} {w} {b} - - - {res}")
+                matchList.append(
+                    f"match {gid} {dte} {tme} {bs} {kom} {w} {b} - - - {res}"
+                )
 
         for (gid, rec) in games.items():
             sw = f"{rec.w}({rec.white_rate})"
@@ -1182,7 +1184,9 @@ def _handle_admin_waiting(sock: Client, data: str) -> None:
             logger.info(
                 f"sending to viewer: match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} {tw} {tb} {moves}"
             )
-            matchList.append(f"match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} {tw} {tb} {moves} -")
+            matchList.append(
+                f"match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} {tw} {tb} {moves} -"
+            )
 
         sock.send(*matchList)
         return
@@ -1310,8 +1314,6 @@ def schedule_games() -> None:
     global db
     global dbrec
 
-    RANGE = 500.0  # minmum elo range allowed
-
     # determine if all games are complete
     # -----------------------------------
     ct = now_milliseconds()
@@ -1368,220 +1370,242 @@ def schedule_games() -> None:
         logger.info("Batch rating")
         batchRate()
 
-        tmpf = os.path.join(workdir, "dta.cgos.tmp")
-        with open(tmpf, "w") as wd:
-            # ctme = now_seconds()
+        # handle bad users file
+        global badUsers
 
-            ctme = datetime.datetime.now(datetime.timezone.utc)
-            wd.write(ctme.strftime("%Y-%m-%d %H:%M:%S") + "\n")
+        badUsers = []
+        if os.path.exists(cfg.badUsersFile):
+            with open(cfg.badUsersFile, "r") as f:
+                badUsers = f.read().splitlines()
+            logger.info(f"sizeof bad_users: {len(badUsers)}")
+        else:
+            logger.info("bad_users_file is not found.")
 
-            # prepare lookup of all players who have played within last 6 months
-            # ------------------------------------------------------------------
-            atme = ctme - datetime.timedelta(seconds=86400 * 190)
-            lutme = atme.strftime("%Y-%m-%d %H:%M:%S")
-            for (nme, gms, rat, k, lg) in db.execute(
-                "SELECT name, games, rating, K, last_game FROM password WHERE last_game >= ?",
-                (lutme,),
-            ):
-                wd.write(f"u {nme} {gms} {strRate(rat, k)} {lg}\n")
+        for (name, v) in list(act.items()):
+            if v.msg_state == "waiting":
+                if name in badUsers:
+                    logger.info(f"found bad user {name}. kick.")
+                    del act[name]
+                    v.sock.close()
 
-            # recently completed games
-            # ------------------------
-            atme = ctme - datetime.timedelta(
-                seconds=3600 * 4
-            )  # get 4 hours worth of games
-            lutme = atme.strftime("%Y-%m-%d %H:%M:%S")
-            for (gid, w, wr, b, br, dte, wtu, btu, res,) in db.execute(
-                "SELECT gid, w, wr, b, br, dte, wtu, btu, res FROM games WHERE dte >= ?",
-                (lutme,),
-            ):
-                wd.write(f"g {gid} {w} {wr} {b} {br} {dte} {wtu} {btu} {res}\n")
+        # match games & write file
+        ctme = datetime.datetime.now(datetime.timezone.utc)
 
-            if os.path.exists(cfg.killFile):
-                wd.close()
-                os.rename(tmpf, cfg.web_data_file)
+        if os.path.exists(cfg.killFile):
+            write_web_data_file(ctme)
 
-                db.commit()
-                db.close()
+            db.commit()
+            db.close()
 
-                if dbrec:
-                    dbrec.commit()
-                    dbrec.close()
+            if dbrec:
+                dbrec.commit()
+                dbrec.close()
 
-                logger.info("KILL FILE FOUND - EXIT CGOS")
-                sys.exit(0)
+            logger.info("KILL FILE FOUND - EXIT CGOS")
+            sys.exit(0)
 
-            # load bad users file
-            global badUsers
+        match_games(ctme)
 
-            badUsers = []
-            if os.path.exists(cfg.badUsersFile):
-                with open(cfg.badUsersFile, "r") as f:
-                    badUsers = f.read().splitlines()
-                logger.info(f"sizeof bad_users: {len(badUsers)}")
-            else:
-                logger.info("bad_users_file is not found.")
+        write_web_data_file(ctme)
 
-            for (name, v) in list(act.items()):
-                if v.msg_state == "waiting":
-                    if name in badUsers:
-                        logger.info(f"found bad user {name}. kick.")
-                        del act[name]
-                        v.sock.close()
 
-            # dynamically computer ELO RANGE
+def write_web_data_file(ctme: datetime.datetime) -> None:
+
+    global SKIP
+    global act
+    global games
+    global last_game_count
+    global workdir
+    global leeway
+    global last_est
+    global gme
+    global db
+
+    tmpf = os.path.join(workdir, "dta.cgos.tmp")
+    with open(tmpf, "w") as wd:
+        wd.write(ctme.strftime("%Y-%m-%d %H:%M:%S") + "\n")
+
+        # prepare lookup of all players who have played within last 6 months
+        # ------------------------------------------------------------------
+        atme = ctme - datetime.timedelta(seconds=86400 * 190)
+        lutme = atme.strftime("%Y-%m-%d %H:%M:%S")
+        for (nme, gms, rat, k, lg) in db.execute(
+            "SELECT name, games, rating, K, last_game FROM password WHERE last_game >= ?",
+            (lutme,),
+        ):
+            wd.write(f"u {nme} {gms} {strRate(rat, k)} {lg}\n")
+
+        # recently completed games
+        # ------------------------
+        atme = ctme - datetime.timedelta(seconds=3600 * 4)  # get 4 hours worth of games
+        lutme = atme.strftime("%Y-%m-%d %H:%M:%S")
+        for (gid, w, wr, b, br, dte, wtu, btu, res,) in db.execute(
+            "SELECT gid, w, wr, b, br, dte, wtu, btu, res FROM games WHERE dte >= ?",
+            (lutme,),
+        ):
+            wd.write(f"g {gid} {w} {wr} {b} {br} {dte} {wtu} {btu} {res}\n")
+
+        tmeSch = now_string()
+        for (gid, rec) in games.items():
+            # "s" dte tme gid w b x wtl btl wr br
+            wd.write(
+                f"s {tmeSch} {gid} {rec.w} {rec.b} {rec.last_move_start_time} {rec.white_remaining_time} {rec.black_remaining_time} {rec.white_rate} {rec.black_rate}\n"
+            )
+
+    os.rename(tmpf, cfg.web_data_file)
+
+
+def match_games(ctme: datetime.datetime) -> None:
+    global SKIP
+    global act
+    global games
+    global gme
+    global db
+
+    RANGE = 500.0  # minmum elo range allowed
+
+    # dynamically computer ELO RANGE
+    # ------------------------------
+    lst: List[Tuple[str, float]] = []
+    r_sum = 0.0
+
+    for (name, v) in act.items():
+        # sock, state, gid, rating = v
+
+        if v.msg_state == "waiting":
+            r = v.rating
+            lst.append((name, r))
+            r_sum += r
+
+    lst.sort(key=lambda e: -e[1])
+    max_interval = 0.0
+
+    ll = len(lst)
+    e = ll - SKIP
+
+    global defaultRatingAverage
+    if ll > 0:
+        defaultRatingAverage = r_sum / ll
+        logger.info(f"defaultRatingAverage: {defaultRatingAverage}  : playes {ll}")
+    else:
+        defaultRatingAverage = cfg.defaultRating
+
+    for i in range(e):
+        cr = lst[i][1]
+        nr = lst[i + SKIP][1]
+
+        diff = cr - nr
+
+        if diff > max_interval:
+            max_interval = diff
+
+    # cover the case where there are very few players
+    # -----------------------------------------------
+    if e <= 0:
+        max_interval = 2000.0
+
+    logger.info(f"maximum skip elo: {max_interval}")
+    max_interval = max_interval * 1.50
+
+    if max_interval > RANGE:
+        RANGE = max_interval
+
+    logger.info(f"ELO permutation factor to be used: {RANGE}")
+
+    # now permute the players up to RANGE amount
+    # ------------------------------------------
+    lst = []
+
+    for (name, v) in act.items():
+        # sock, state, gid, rating = v
+
+        if v.msg_state == "waiting":
+            r = v.rating + RANGE * random.random()
+            lst.append((name, r))
+
+    lst.sort(key=lambda e: -e[1])
+
+    if len(lst) > 1:
+
+        logger.info(f"will schedule: {len(lst)} players")
+
+        anchors = getAnchors()
+
+        lst_pairs = iter(lst)
+        for (aa, bb) in zip(lst_pairs, lst_pairs):
+
+            if bb is None:
+                continue
+
+            # set up white and black players
             # ------------------------------
-            lst: List[Tuple[str, float]] = []
-            r_sum = 0.0
+            wp = aa[0]  # actual player names
+            bp = bb[0]  # actual player names
 
-            for (name, v) in act.items():
-                # sock, state, gid, rating = v
+            # delte anchor vs anchor
+            if aa in anchors and bb in anchors:
+                r = random.random()
+                if r > cfg.anchor_match_rate:
+                    logger.info(f"delete this match. {wp}, {bp}, r={r}")
+                    continue
 
-                if v.msg_state == "waiting":
-                    r = v.rating
-                    lst.append((name, r))
-                    r_sum += r
+            wco = db.execute(
+                "SELECT count(*) FROM games WHERE w==? AND b==?", (wp, bp)
+            ).fetchone()[0]
+            bco = db.execute(
+                "SELECT count(*) FROM games WHERE w==? AND b==?", (bp, wp)
+            ).fetchone()[0]
 
-            lst.sort(key=lambda e: -e[1])
-            max_interval = 0.0
+            # swap white and black if black has not been played as many times
+            if bco < wco:
+                bp, wp = wp, bp
 
-            ll = len(lst)
-            e = ll - SKIP
+            gid = db.execute("SELECT gid FROM gameid WHERE ROWID=1").fetchone()[0]
+            db.execute("UPDATE gameid set gid=gid+1 WHERE ROWID=1")
+            gme[gid] = GoGame(cfg.boardsize)
 
-            global defaultRatingAverage
-            if ll > 0:
-                defaultRatingAverage = r_sum / ll
-                logger.info(
-                    f"defaultRatingAverage: {defaultRatingAverage}  : playes {ll}"
-                )
-            else:
-                defaultRatingAverage = cfg.defaultRating
+            fwr = act[wp].rating
+            wk = act[wp].k
+            fbr = act[bp].rating
+            bk = act[bp].k
+            wr = strRate(fwr, wk)
+            br = strRate(fbr, bk)
 
-            for i in range(e):
-                cr = lst[i][1]
-                nr = lst[i + SKIP][1]
+            games[gid] = Game(wp, bp, 0, cfg.level, cfg.level, wr, br, [], ctme)
+            act[wp].gid = gid
+            act[bp].gid = gid
+            msg_out = f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {wp}({wr}) {bp}({br})"
+            nsend(wp, msg_out)
+            nsend(bp, msg_out)
 
-                diff = cr - nr
+            vmsg = f"match {gid} - - {cfg.boardsize} {cfg.komi} {wp}({wr}) {bp}({br}) -"
+            viewers.sendAll(vmsg)
 
-                if diff > max_interval:
-                    max_interval = diff
+            logger.info(f"starting {wp} {wr} {bp} {br}")
 
-            # cover the case where there are very few players
-            # -----------------------------------------------
-            if e <= 0:
-                max_interval = 2000.0
+        db.commit()
 
-            logger.info(f"maximum skip elo: {max_interval}")
-            max_interval = max_interval * 1.50
+        # add a 3 second delay to let all programs complete setup.
+        # ------------------------------------------------------
 
-            if max_interval > RANGE:
-                RANGE = max_interval
+        time.sleep(3000 / 1000)
 
-            logger.info(f"ELO permutation factor to be used: {RANGE}")
+        view_count = len(viewers.vact)
+        logger.info(f"Active viewers: {view_count}")
 
-            # now permute the players up to RANGE amount
-            # ------------------------------------------
-            lst = []
-
-            for (name, v) in act.items():
-                # sock, state, gid, rating = v
-
-                if v.msg_state == "waiting":
-                    r = v.rating + RANGE * random.random()
-                    lst.append((name, r))
-
-            lst.sort(key=lambda e: -e[1])
-
-            if len(lst) > 1:
-
-                logger.info(f"will schedule: {len(lst)} players")
-
-                anchors = getAnchors()
-
-                lst_pairs = iter(lst)
-                for (aa, bb) in zip(lst_pairs, lst_pairs):
-
-                    if bb is None:
-                        continue
-
-                    # set up white and black players
-                    # ------------------------------
-                    wp = aa[0]  # actual player names
-                    bp = bb[0]  # actual player names
-
-                    # delte anchor vs anchor
-                    if aa in anchors and bb in anchors:
-                        r = random.random()
-                        if r > cfg.anchor_match_rate:
-                            logger.info(f"delete this match. {wp}, {bp}, r={r}")
-                            continue
-
-                    wco = db.execute(
-                        "SELECT count(*) FROM games WHERE w==? AND b==?", (wp, bp)
-                    ).fetchone()[0]
-                    bco = db.execute(
-                        "SELECT count(*) FROM games WHERE w==? AND b==?", (bp, wp)
-                    ).fetchone()[0]
-
-                    # swap white and black if black has not been played as many times
-                    if bco < wco:
-                        bp, wp = wp, bp
-
-                    gid = db.execute(
-                        "SELECT gid FROM gameid WHERE ROWID=1"
-                    ).fetchone()[0]
-                    db.execute("UPDATE gameid set gid=gid+1 WHERE ROWID=1")
-                    gme[gid] = GoGame(cfg.boardsize)
-
-                    wr = act[wp].rating
-                    wk = act[wp].k
-                    br = act[bp].rating
-                    bk = act[bp].k
-                    wr = strRate(wr, wk)
-                    br = strRate(br, bk)
-
-                    games[gid] = Game(wp, bp, 0, cfg.level, cfg.level, wr, br, [], ctme)
-                    act[wp].gid = gid
-                    act[bp].gid = gid
-                    msg_out = f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {wp}({wr}) {bp}({br})"
-                    nsend(wp, msg_out)
-                    nsend(bp, msg_out)
-
-                    vmsg = f"match {gid} - - {cfg.boardsize} {cfg.komi} {wp}({wr}) {bp}({br}) -"
-                    viewers.sendAll(vmsg)
-
-                    logger.info(f"starting {wp} {wr} {bp} {br}")
-
-                db.commit()
-
-                # add a 3 second delay to let all programs complete setup.
-                # ------------------------------------------------------
-
-                time.sleep(3000 / 1000)
-
-                view_count = len(viewers.vact)
-                logger.info(f"Active viewers: {view_count}")
-
-                # gentlemen, start your clocks!
-                # -------------------------------------
-                tmeSch = now_string()
-                # [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S" -timezone :UTC]
-                for (gid, rec) in games.items():
-                    # wp, bp = rec
-                    logger.info(
-                        f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })"
-                    )
-                    nsend(rec.b, f"genmove b {cfg.level}")  # the game's afoot
-                    ct = now_milliseconds()
-                    games[gid].last_move_start_time = ct
-                    act[rec.b].msg_state = "genmove"
-                    act[rec.w].msg_state = "ok"
-                    # "s" dte tme gid w b x wtl btl wr br
-                    wd.write(
-                        f"s {tmeSch} {gid} {rec.w} {rec.b} {rec.last_move_start_time} {rec.white_remaining_time} {rec.black_remaining_time} {rec.white_rate} {rec.black_rate}\n"
-                    )
-
-        os.rename(tmpf, cfg.web_data_file)
+        # gentlemen, start your clocks!
+        # -------------------------------------
+        # [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S" -timezone :UTC]
+        for (gid, rec) in games.items():
+            # wp, bp = rec
+            logger.info(
+                f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })"
+            )
+            nsend(rec.b, f"genmove b {cfg.level}")  # the game's afoot
+            ct = now_milliseconds()
+            games[gid].last_move_start_time = ct
+            act[rec.b].msg_state = "genmove"
+            act[rec.w].msg_state = "ok"
 
 
 async def schedule_games_task() -> None:
