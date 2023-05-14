@@ -1135,7 +1135,7 @@ def admin_respond(sock: Client, data: str) -> None:
     if user.msg_state == "waiting":
         try:
             _handle_admin_waiting(sock, data)
-        except Exception as e:
+        except Exception:
             logger.error(f"Error admin command {data.strip()}")
             logger.error(traceback.format_exc())
         return
@@ -1224,25 +1224,27 @@ def _handle_admin_waiting(sock: Client, data: str) -> None:
             sock.send(f"no waiting {bp}")
             return
 
+        wt: Optional[int] = None
+        bt: Optional[int] = None
         if len(tokens) >= 4:
             try:
                 wt = int(tokens[3]) * 1000
+                if wt <= 0:
+                    wt = None
             except:
                 sock.send("bad time")
                 return
-            if wt <= 0:
-                wt = None
         else:
             wt = None
 
         if len(tokens) >= 5:
             try:
                 bt = int(tokens[4]) * 1000
+                if bt <= 0:
+                    bt = None
             except:
                 sock.send("bad time")
                 return
-            if bt <= 0:
-                bt = None
         else:
             bt = None
 
