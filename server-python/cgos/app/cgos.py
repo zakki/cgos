@@ -1218,7 +1218,7 @@ def _admin_command_games(sock: Client, tokens: List[str]) -> None:
 def _admin_command_match(sock: Client, tokens: List[str]) -> None:
     if len(tokens) < 3:
         sock.send(
-            "match <white> <black> [<white_remaining_time sec>]  [<black_remaining_time sec>]"
+            "match <white> <black> [<white_remaining_time sec>]  [<black_remaining_time sec>] [<game id>] [<resume position>]"
         )
         return
     wp = tokens[1]
@@ -1267,6 +1267,35 @@ def _admin_command_match(sock: Client, tokens: List[str]) -> None:
     else:
         bt = None
 
+    if len(tokens) >= 6:
+        try:
+            id = int(tokens[5])
+            moves = load_game_moves(id)
+            # -> Optional[List[Tuple[str, int, Optional[str]]]]:
+        except:
+            sock.send("bad game")
+            return
+        if moves is None:
+            sock.send("no game")
+            return
+    else:
+        moves = None
+
+    if len(tokens) >= 7:
+        try:
+            length = int(tokens[6])
+        except:
+            sock.send("bad game length")
+            return
+        if moves is None:
+            sock.send(f"bad game length {length}/None")
+            return
+        if length <= 0 or length >= len(moves):
+            sock.send(f"bad game length {length}/{len(moves)}")
+            return
+        else:
+            moves = moves[0:length]
+
     # Creage game
     ctme = datetime.datetime.now(datetime.timezone.utc)
     gid = init_game(
@@ -1275,6 +1304,7 @@ def _admin_command_match(sock: Client, tokens: List[str]) -> None:
         bp,
         wt,
         bt,
+        moves,
     )
 
     # Start game
@@ -1283,6 +1313,33 @@ def _admin_command_match(sock: Client, tokens: List[str]) -> None:
     start_game(rec)
 
     write_web_data_file(ctme)
+
+
+def load_game_moves(gid: int) -> Optional[List[Tuple[str, int, Optional[str]]]]:
+    if gid in games:
+        logger.info(f"Resume game. Use game on memory {gid}")
+        game = games[gid]
+        return game.moves
+    else:
+        if dbrec:
+            logger.info(f"Resume game. Use game in dbrec games {gid}")
+            rec = dbrec.execute(
+                "SELECT gid, dta FROM games WHERE gid = ?", (gid,)
+            ).fetchone()
+            if rec:
+                dta = rec[1].split(" ")
+                tokens = dta[7:]
+                tokens.pop()
+                logger.info(f"restart_moves {gid} length:{len(tokens)}")
+                moves: List[Tuple[str, int, Optional[str]]] = []
+                for i in range(len(tokens) // 2):
+                    m = tokens[i * 2 + 0]
+                    t = int(tokens[i * 2 + 1])
+                    moves.append((m, t, None))
+                return moves
+            else:
+                logger.info(f"Resume game. No game in dbrec games {gid}")
+        return None
 
 
 async def accept_connection(
@@ -1553,22 +1610,33 @@ def init_game(
     bp: str,
     white_remaining_time: Optional[int] = None,
     black_remaining_time: Optional[int] = None,
+    moves: Optional[List[Tuple[str, int, Optional[str]]]] = None,
 ) -> int:
 
     if white_remaining_time is None:
         white_remaining_time = cfg.level
     if black_remaining_time is None:
         black_remaining_time = cfg.level
+    if moves is None:
+        moves = []
 
     gid = db.execute("SELECT gid FROM gameid WHERE ROWID=1").fetchone()[0]
     db.execute("UPDATE gameid set gid=gid+1 WHERE ROWID=1")
+
     gme[gid] = GoGame(cfg.boardsize)
+
+    for mv, _, _ in moves:
+        err = gme[gid].make(mv)
+        if err < 0:
+            xerr = err * -1
+            logger.error(f"Bad game move {gid} {ERR_MSG[xerr]}")
+            return 0
 
     wr = ratingOf[wp]
     br = ratingOf[bp]
 
     game = Game(
-        wp, bp, 0, white_remaining_time, black_remaining_time, wr, br, [], ctme
+        wp, bp, 0, white_remaining_time, black_remaining_time, wr, br, moves, ctme
     )
     games[gid] = game
     act[wp].gid = gid
