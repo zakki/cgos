@@ -37,7 +37,7 @@ from typing import List, Tuple, Dict, Optional
 from passlib.context import CryptContext
 
 from gogame import GoGame, Game, sgf
-from .config import Configs
+from .config import Configs, MatchMode
 from .client import Client
 from .rating import strRate, newrating
 from util.logutils import getLogger
@@ -1133,7 +1133,12 @@ def admin_respond(sock: Client, data: str) -> None:
     logger.debug(f"handle '{user.msg_state}' '{data}'")
 
     if user.msg_state == "waiting":
-        return _handle_admin_waiting(sock, data)
+        try:
+            _handle_admin_waiting(sock, data)
+        except Exception as e:
+            logger.error(f"Error admin command {data.strip()}")
+            logger.error(traceback.format_exc())
+        return
 
     logger.info(f"[{who}] made illegal respose in ok mode")
 
@@ -1189,6 +1194,82 @@ def _handle_admin_waiting(sock: Client, data: str) -> None:
             )
 
         sock.send(*matchList)
+        return
+
+    if command == "match":
+        if len(tokens) < 3:
+            sock.send(
+                "match <white> <black> [<white_remaining_time sec>]  [<black_remaining_time sec>]"
+            )
+            return
+        wp = tokens[1]
+        bp = tokens[2]
+
+        logger.info(f"Match {wp} {bp}")
+
+        if wp == bp:
+            sock.send(f"same player {wp} {bp}")
+            return
+
+        if wp not in act:
+            sock.send(f"no login player {wp}")
+            return
+        if act[wp].msg_state != "waiting":
+            sock.send(f"no waiting {wp}")
+            return
+        if bp not in act:
+            sock.send(f"no login player {bp}")
+            return
+        if act[bp].msg_state != "waiting":
+            sock.send(f"no waiting {bp}")
+            return
+
+        if len(tokens) >= 4:
+            try:
+                wt = int(tokens[3]) * 1000
+            except:
+                sock.send("bad time")
+                return
+            if wt <= 0:
+                wt = None
+        else:
+            wt = None
+
+        if len(tokens) >= 5:
+            try:
+                bt = int(tokens[4]) * 1000
+            except:
+                sock.send("bad time")
+                return
+            if bt <= 0:
+                bt = None
+        else:
+            bt = None
+
+        # Creage game
+        ctme = datetime.datetime.now(datetime.timezone.utc)
+        gid = start_game(
+            ctme,
+            wp,
+            bp,
+            wt,
+            bt,
+        )
+
+        # Start game
+        rec = games[gid]
+        # wp, bp = rec
+        logger.info(f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })")
+        nsend(rec.b, f"genmove b {cfg.level}")  # the game's afoot
+        ct = now_milliseconds()
+        games[gid].last_move_start_time = ct
+        act[rec.b].msg_state = "genmove"
+        act[rec.w].msg_state = "ok"
+
+        sock.send(f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })")
+
+        write_web_data_file(ctme)
+
         return
 
     sock.send("unknown command")
@@ -1404,7 +1485,8 @@ def schedule_games() -> None:
             logger.info("KILL FILE FOUND - EXIT CGOS")
             sys.exit(0)
 
-        match_games(ctme)
+        if cfg.matchMode == MatchMode.AUTO:
+            match_games(ctme)
 
         write_web_data_file(ctme)
 
@@ -1453,6 +1535,49 @@ def write_web_data_file(ctme: datetime.datetime) -> None:
             )
 
     os.rename(tmpf, cfg.web_data_file)
+
+
+def start_game(
+    ctme: datetime.datetime,
+    wp: str,
+    bp: str,
+    white_remaining_time: Optional[int] = None,
+    black_remaining_time: Optional[int] = None,
+) -> int:
+
+    if white_remaining_time is None:
+        white_remaining_time = cfg.level
+    if black_remaining_time is None:
+        black_remaining_time = cfg.level
+
+    gid = db.execute("SELECT gid FROM gameid WHERE ROWID=1").fetchone()[0]
+    db.execute("UPDATE gameid set gid=gid+1 WHERE ROWID=1")
+    gme[gid] = GoGame(cfg.boardsize)
+
+    fwr = act[wp].rating
+    wk = act[wp].k
+    fbr = act[bp].rating
+    bk = act[bp].k
+    wr = strRate(fwr, wk)
+    br = strRate(fbr, bk)
+
+    games[gid] = Game(
+        wp, bp, 0, white_remaining_time, black_remaining_time, wr, br, [], ctme
+    )
+    act[wp].gid = gid
+    act[bp].gid = gid
+    msg_out = (
+        f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {wp}({wr}) {bp}({br})"
+    )
+    nsend(wp, msg_out)
+    nsend(bp, msg_out)
+
+    vmsg = f"match {gid} - - {cfg.boardsize} {cfg.komi} {wp}({wr}) {bp}({br}) -"
+    viewers.sendAll(vmsg)
+
+    logger.info(f"starting {wp} {wr} {bp} {br}")
+
+    return gid
 
 
 def match_games(ctme: datetime.datetime) -> None:
@@ -1560,28 +1685,7 @@ def match_games(ctme: datetime.datetime) -> None:
             if bco < wco:
                 bp, wp = wp, bp
 
-            gid = db.execute("SELECT gid FROM gameid WHERE ROWID=1").fetchone()[0]
-            db.execute("UPDATE gameid set gid=gid+1 WHERE ROWID=1")
-            gme[gid] = GoGame(cfg.boardsize)
-
-            fwr = act[wp].rating
-            wk = act[wp].k
-            fbr = act[bp].rating
-            bk = act[bp].k
-            wr = strRate(fwr, wk)
-            br = strRate(fbr, bk)
-
-            games[gid] = Game(wp, bp, 0, cfg.level, cfg.level, wr, br, [], ctme)
-            act[wp].gid = gid
-            act[bp].gid = gid
-            msg_out = f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {wp}({wr}) {bp}({br})"
-            nsend(wp, msg_out)
-            nsend(bp, msg_out)
-
-            vmsg = f"match {gid} - - {cfg.boardsize} {cfg.komi} {wp}({wr}) {bp}({br}) -"
-            viewers.sendAll(vmsg)
-
-            logger.info(f"starting {wp} {wr} {bp} {br}")
+            start_game(ctme, wp, bp)
 
         db.commit()
 
