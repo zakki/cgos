@@ -49,6 +49,7 @@ logger = getLogger("cgos_server")
 
 SKIP = 4
 ENCODING = "utf-8"
+ADMIN_USER = "admin"
 
 db: sqlite3.Connection
 dbrec: Optional[sqlite3.Connection]
@@ -224,6 +225,7 @@ act: Dict[str, ActiveUser] = dict()  # users currently logged on
 games: Dict[int, Game] = dict()  # currently active games
 ratingOf: Dict[str, str] = dict()  # ratings of any player who logs on
 viewers = ViewerList()
+admin: Optional[ActiveUser] = None  # users currently logged on
 
 
 # a unique and temporary name for each login until a name is established
@@ -247,6 +249,7 @@ def nsend(name: str, msg: str) -> None:
 # -------------------------------------------------
 def infoMsg(msg: str) -> None:
     global act
+    global admin
 
     for (who, v) in list(act.items()):
         if v.msg_state != "protocol":
@@ -259,6 +262,14 @@ def infoMsg(msg: str) -> None:
     # send message to viewing clients also
     # -------------------------------------
     viewers.sendAll(f"info {msg}")
+
+    # send to admin
+    if admin:
+        soc = admin.sock
+        if not soc.send(f"info {msg}"):
+            logger.error("admin disconnected")
+            soc.close()
+            admin = None
 
 
 # write an SGF game record
@@ -871,6 +882,12 @@ def _handle_player_password(sock: Client, data: str) -> None:
     client = act[uid]
     del act[uid]
 
+    if who == ADMIN_USER:
+        global admin
+        admin = ActiveUser(sock, msg_state="waiting")
+        logger.info(f"[{who}] logged on as admin")
+        return
+
     act[who] = ActiveUser(sock, msg_state="waiting", gid=0, rating=rat, k=k)
     act[who].useAnalyze = client.useAnalyze
     logger.info(f"[{who}] logged on analyze: {act[who].useAnalyze}")
@@ -1094,6 +1111,85 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
         games[gid].last_move_start_time = now_milliseconds()
 
 
+# --------------------------------------------------------
+#  Handle admin client
+#
+def admin_respond(sock: Client, data: str) -> None:
+    global act
+    global admin
+
+    who = sock.id
+    user = admin
+
+    # If we can no longer read from sock, close it.
+    # ---------------------------------------------
+    if len(data) == 0 or user is None:
+        logger.error(f"[{who}] disconnected")
+
+        sock.close()
+        admin = None
+        return
+
+    logger.debug(f"handle '{user.msg_state}' '{data}'")
+
+    if user.msg_state == "waiting":
+        return _handle_admin_waiting(sock, data)
+
+    logger.info(f"[{who}] made illegal respose in ok mode")
+
+
+def _handle_admin_waiting(sock: Client, data: str) -> None:
+    global db
+    global dbrec
+    global admin
+
+    msg = data.strip()
+    tokens = msg.split()
+    command = tokens[0]
+
+    if command == "quit":
+        logger.info("admin quits")
+        sock.send("Quit")
+        sock.close()
+        admin = None
+        return
+
+    if command == "who":
+        activeList: List[str] = []
+
+        for (name, v) in act.items():
+            activeList.append(f"{name} {v.msg_state} {v.gid} {v.rating} {v.k}")
+
+        sock.send(*activeList)
+        return
+
+    if command == "games":
+        matchList: List[str] = []
+        if dbrec:
+            for (gid, stuff) in dbrec.execute(
+                "select gid, dta from games where gid > (select max(gid) from games) - 40 order by gid"
+            ):
+                dte, tme, bs, kom, w, b, lev, *lst = stuff.split(" ")
+                res = lst[-1]
+                matchList.append(f"match {gid} {dte} {tme} {bs} {kom} {w} {b} - - - {res}")
+
+        for (gid, rec) in games.items():
+            sw = f"{rec.w}({rec.white_rate})"
+            sb = f"{rec.b}({rec.black_rate})"
+            tw = f"{rec.white_remaining_time}"
+            tb = f"{rec.black_remaining_time}"
+            moves = f"{len(rec.moves)}"
+            logger.info(
+                f"sending to viewer: match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} {tw} {tb} {moves}"
+            )
+            matchList.append(f"match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} {tw} {tb} {moves} -")
+
+        sock.send(*matchList)
+        return
+
+    sock.send("unknown command")
+
+
 async def accept_connection(
     reader: asyncio.StreamReader, writer: asyncio.StreamWriter
 ) -> None:
@@ -1147,6 +1243,9 @@ async def handle_client(client: Client) -> None:
             if who in viewers.vact:
                 logger.debug(f"handle viewer {who}: {line}")
                 viewer_respond(client, line)
+            elif client.id == ADMIN_USER:
+                logger.debug(f"handle admin {who}: {line}")
+                admin_respond(client, line)
             else:
                 logger.debug(f"handle player {who}: {line}")
                 player_respond(client, line)
