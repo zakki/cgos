@@ -1252,7 +1252,7 @@ def _handle_admin_waiting(sock: Client, data: str) -> None:
 
         # Creage game
         ctme = datetime.datetime.now(datetime.timezone.utc)
-        gid = start_game(
+        gid = init_game(
             ctme,
             wp,
             bp,
@@ -1262,15 +1262,8 @@ def _handle_admin_waiting(sock: Client, data: str) -> None:
 
         # Start game
         rec = games[gid]
-        # wp, bp = rec
         logger.info(f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })")
-        nsend(rec.b, f"genmove b {cfg.level}")  # the game's afoot
-        ct = now_milliseconds()
-        games[gid].last_move_start_time = ct
-        act[rec.b].msg_state = "genmove"
-        act[rec.w].msg_state = "ok"
-
-        sock.send(f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })")
+        start_game(rec)
 
         write_web_data_file(ctme)
 
@@ -1541,7 +1534,7 @@ def write_web_data_file(ctme: datetime.datetime) -> None:
     os.rename(tmpf, cfg.web_data_file)
 
 
-def start_game(
+def init_game(
     ctme: datetime.datetime,
     wp: str,
     bp: str,
@@ -1558,21 +1551,24 @@ def start_game(
     db.execute("UPDATE gameid set gid=gid+1 WHERE ROWID=1")
     gme[gid] = GoGame(cfg.boardsize)
 
-    fwr = act[wp].rating
-    wk = act[wp].k
-    fbr = act[bp].rating
-    bk = act[bp].k
-    wr = strRate(fwr, wk)
-    br = strRate(fbr, bk)
+    wr = ratingOf[wp]
+    br = ratingOf[bp]
 
-    games[gid] = Game(
+    game = Game(
         wp, bp, 0, white_remaining_time, black_remaining_time, wr, br, [], ctme
     )
+    games[gid] = game
     act[wp].gid = gid
+    act[wp].msg_state = "ok"
     act[bp].gid = gid
+    act[bp].msg_state = "ok"
     msg_out = (
         f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {wp}({wr}) {bp}({br})"
     )
+    if len(game.moves) > 0:
+        # catch up the game
+        msg_out += f"  {joinMoves(game.moves)}"
+    logger.info(msg_out)
     nsend(wp, msg_out)
     nsend(bp, msg_out)
 
@@ -1582,6 +1578,26 @@ def start_game(
     logger.info(f"starting {wp} {wr} {bp} {br}")
 
     return gid
+
+
+def start_game(game: Game) -> None:
+    ct = now_milliseconds()
+    game.last_move_start_time = ct
+
+    # determine who's turn to play
+    # ----------------------------
+    ply = len(game.moves)
+    if ply & 1:
+        ctm = game.w
+        c = "w"
+        tl = game.white_remaining_time - (ct - game.last_move_start_time)
+    else:
+        ctm = game.b
+        c = "b"
+        tl = game.black_remaining_time - (ct - game.last_move_start_time)
+
+    nsend(ctm, f"genmove {c} {tl}")
+    act[ctm].msg_state = "genmove"
 
 
 def match_games(ctme: datetime.datetime) -> None:
@@ -1689,7 +1705,7 @@ def match_games(ctme: datetime.datetime) -> None:
             if bco < wco:
                 bp, wp = wp, bp
 
-            start_game(ctme, wp, bp)
+            init_game(ctme, wp, bp)
 
         db.commit()
 
@@ -1709,11 +1725,7 @@ def match_games(ctme: datetime.datetime) -> None:
             logger.info(
                 f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })"
             )
-            nsend(rec.b, f"genmove b {cfg.level}")  # the game's afoot
-            ct = now_milliseconds()
-            games[gid].last_move_start_time = ct
-            act[rec.b].msg_state = "genmove"
-            act[rec.w].msg_state = "ok"
+            start_game(rec)
 
 
 async def schedule_games_task() -> None:
