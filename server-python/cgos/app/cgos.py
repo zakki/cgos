@@ -1146,130 +1146,143 @@ def admin_respond(sock: Client, data: str) -> None:
 
 
 def _handle_admin_waiting(sock: Client, data: str) -> None:
-    global db
-    global dbrec
-    global admin
-
     msg = data.strip()
     tokens = msg.split()
     command = tokens[0]
 
     if command == "quit":
-        logger.info("admin quits")
-        sock.send("Quit")
-        sock.close()
-        admin = None
+        _admin_command_quit(sock, tokens)
         return
 
     if command == "who":
-        activeList: List[str] = []
-
-        for (name, v) in act.items():
-            activeList.append(f"{name} {v.msg_state} {v.gid} {v.rating} {v.k}")
-
-        sock.send(*activeList)
+        _admin_command_who(sock, tokens)
         return
 
     if command == "games":
-        matchList: List[str] = []
-        if dbrec:
-            for (gid, stuff) in dbrec.execute(
-                "select gid, dta from games where gid > (select max(gid) from games) - 40 order by gid"
-            ):
-                dte, tme, bs, kom, w, b, lev, *lst = stuff.split(" ")
-                res = lst[-1]
-                matchList.append(
-                    f"match {gid} {dte} {tme} {bs} {kom} {w} {b} - - - {res}"
-                )
-
-        for (gid, rec) in games.items():
-            sw = f"{rec.w}({rec.white_rate})"
-            sb = f"{rec.b}({rec.black_rate})"
-            tw = f"{rec.white_remaining_time}"
-            tb = f"{rec.black_remaining_time}"
-            moves = f"{len(rec.moves)}"
-            logger.info(
-                f"sending to viewer: match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} {tw} {tb} {moves}"
-            )
-            matchList.append(
-                f"match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} {tw} {tb} {moves} -"
-            )
-
-        sock.send(*matchList)
+        _admin_command_games(sock, tokens)
         return
 
     if command == "match":
-        if len(tokens) < 3:
-            sock.send(
-                "match <white> <black> [<white_remaining_time sec>]  [<black_remaining_time sec>]"
-            )
-            return
-        wp = tokens[1]
-        bp = tokens[2]
-
-        logger.info(f"Match {wp} {bp}")
-
-        if wp == bp:
-            sock.send(f"same player {wp} {bp}")
-            return
-
-        if wp not in act:
-            sock.send(f"no login player {wp}")
-            return
-        if act[wp].msg_state != "waiting":
-            sock.send(f"player is not waiting {wp} {act[wp].msg_state}")
-            return
-        if bp not in act:
-            sock.send(f"player is not waiting {bp} {act[bp].msg_state}")
-            return
-        if act[bp].msg_state != "waiting":
-            sock.send(f"no waiting {bp}")
-            return
-
-        wt: Optional[int] = None
-        bt: Optional[int] = None
-        if len(tokens) >= 4:
-            try:
-                wt = int(tokens[3]) * 1000
-                if wt <= 0:
-                    wt = None
-            except:
-                sock.send("bad time")
-                return
-        else:
-            wt = None
-
-        if len(tokens) >= 5:
-            try:
-                bt = int(tokens[4]) * 1000
-                if bt <= 0:
-                    bt = None
-            except:
-                sock.send("bad time")
-                return
-        else:
-            bt = None
-
-        # Creage game
-        ctme = datetime.datetime.now(datetime.timezone.utc)
-        gid = init_game(
-            ctme,
-            wp,
-            bp,
-            wt,
-            bt,
-        )
-
-        # Start game
-        rec = games[gid]
-        logger.info(f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })")
-        start_game(rec)
-
-        write_web_data_file(ctme)
-
+        _admin_command_match(sock, tokens)
         return
 
     sock.send("unknown command")
+
+
+def _admin_command_quit(sock: Client, tokens: List[str]) -> None:
+    global admin
+    logger.info("admin quits")
+    sock.send("Quit")
+    sock.close()
+    admin = None
+
+
+def _admin_command_who(sock: Client, tokens: List[str]) -> None:
+    activeList: List[str] = []
+
+    for (name, v) in act.items():
+        activeList.append(f"{name} {v.msg_state} {v.gid} {v.rating} {v.k}")
+
+    sock.send(*activeList)
+
+
+def _admin_command_games(sock: Client, tokens: List[str]) -> None:
+    global dbrec
+    global cfg
+
+    matchList: List[str] = []
+    if dbrec:
+        for (gid, stuff) in dbrec.execute(
+            "select gid, dta from games where gid > (select max(gid) from games) - 40 order by gid"
+        ):
+            dte, tme, bs, kom, w, b, lev, *lst = stuff.split(" ")
+            res = lst[-1]
+            matchList.append(f"match {gid} {dte} {tme} {bs} {kom} {w} {b} - - - {res}")
+
+    for (gid, rec) in games.items():
+        sw = f"{rec.w}({rec.white_rate})"
+        sb = f"{rec.b}({rec.black_rate})"
+        tw = f"{rec.white_remaining_time}"
+        tb = f"{rec.black_remaining_time}"
+        moves = f"{len(rec.moves)}"
+        logger.info(
+            f"sending to viewer: match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} {tw} {tb} {moves}"
+        )
+        matchList.append(
+            f"match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} {tw} {tb} {moves} -"
+        )
+
+    sock.send(*matchList)
+
+
+def _admin_command_match(sock: Client, tokens: List[str]) -> None:
+    if len(tokens) < 3:
+        sock.send(
+            "match <white> <black> [<white_remaining_time sec>]  [<black_remaining_time sec>]"
+        )
+        return
+    wp = tokens[1]
+    bp = tokens[2]
+
+    logger.info(f"Match {wp} {bp}")
+
+    if wp == bp:
+        sock.send(f"same player {wp} {bp}")
+        return
+
+    if wp not in act:
+        sock.send(f"no login player {wp}")
+        return
+    if act[wp].msg_state != "waiting":
+        sock.send(f"player is not waiting {wp} {act[wp].msg_state}")
+        return
+    if bp not in act:
+        sock.send(f"player is not waiting {bp} {act[bp].msg_state}")
+        return
+    if act[bp].msg_state != "waiting":
+        sock.send(f"no waiting {bp}")
+        return
+
+    wt: Optional[int] = None
+    bt: Optional[int] = None
+    if len(tokens) >= 4:
+        try:
+            wt = int(tokens[3]) * 1000
+            if wt <= 0:
+                wt = None
+        except:
+            sock.send("bad time")
+            return
+    else:
+        wt = None
+
+    if len(tokens) >= 5:
+        try:
+            bt = int(tokens[4]) * 1000
+            if bt <= 0:
+                bt = None
+        except:
+            sock.send("bad time")
+            return
+    else:
+        bt = None
+
+    # Creage game
+    ctme = datetime.datetime.now(datetime.timezone.utc)
+    gid = init_game(
+        ctme,
+        wp,
+        bp,
+        wt,
+        bt,
+    )
+
+    # Start game
+    rec = games[gid]
+    logger.info(f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })")
+    start_game(rec)
+
+    write_web_data_file(ctme)
 
 
 async def accept_connection(
