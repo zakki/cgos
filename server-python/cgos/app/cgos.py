@@ -51,6 +51,18 @@ SKIP = 4
 ENCODING = "utf-8"
 ADMIN_USER = "admin"
 
+# Return: -4  if str_move formatted wrong
+# Return: -3  move to occupied square
+# Return: -2  Position Super Ko move
+# Return: -1  suicide
+ERR_MSG = [
+    "huh",
+    "suicide attempted",
+    "KO attempted",
+    "move to occupied point",
+    "do not understand syntax",
+]
+
 db: sqlite3.Connection
 dbrec: Optional[sqlite3.Connection]
 
@@ -883,6 +895,7 @@ def _handle_player_password(sock: Client, data: str) -> None:
     del act[uid]
 
     if who == ADMIN_USER:
+        sock.send("ok")
         global admin
         admin = ActiveUser(sock, msg_state="waiting")
         logger.info(f"[{who}] logged on as admin")
@@ -1039,20 +1052,9 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
 
     if err < 0:
         xerr = err * -1
-        # Return: -4  if str_move formatted wrong
-        # Return: -3  move to occupied square
-        # Return: -2  Position Super Ko move
-        # Return: -1  suicide
-        err_msg = [
-            "huh",
-            "suicide attempted",
-            "KO attempted",
-            "move to occupied point",
-            "do not understand syntax",
-        ]
         over = maybe
         over += "Illegal"
-        gameover(gid, over, err_msg[xerr])
+        gameover(gid, over, ERR_MSG[xerr])
         return
 
     # record the moves and times
@@ -1215,10 +1217,10 @@ def _handle_admin_waiting(sock: Client, data: str) -> None:
             sock.send(f"no login player {wp}")
             return
         if act[wp].msg_state != "waiting":
-            sock.send(f"no waiting {wp}")
+            sock.send(f"player is not waiting {wp} {act[wp].msg_state}")
             return
         if bp not in act:
-            sock.send(f"no login player {bp}")
+            sock.send(f"player is not waiting {bp} {act[bp].msg_state}")
             return
         if act[bp].msg_state != "waiting":
             sock.send(f"no waiting {bp}")
