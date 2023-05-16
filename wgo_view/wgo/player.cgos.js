@@ -108,27 +108,45 @@
       },
     },
   }
-  var cgosOwnershipDrawer = {
-    // modifies grid layer too
-    grid: {
-      draw: function (args, board) {
-        if (args.ownership != null && !args._nodraw) {
-          var xo = board.getX(args.x);
-          var yo = board.getY(args.y);
+
+  OwnershipLayer = WGo.extendClass(WGo.Board.CanvasLayer, function() {
+    this.super.call(this);
+  });
+
+  OwnershipLayer.prototype.draw = function(board) {
+    if (!board._cgosMode)
+      return;
+    if (board._cgosOwnership) {
+      var CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+      var COLORS = [WGo.B, WGo.W];
+      for (var i = 0; i < 2; i++) {
+        var c = COLORS[i];
+        if (c === WGo.B)
+          this.context.fillStyle = "rgba(0, 0, 0, 0.5)";
+        else
+          this.context.fillStyle = "rgba(255, 255, 255, 0.5)";
+
+        for (var j = 0; j < board._cgosOwnership.length; j++) {
+          var m = CHARS.indexOf(board._cgosOwnership[j]);
+          if (m < 0) break;
+          m = m / 62 * 2 - 1.0;
+          if (board._cgosColor == WGo.W) m *= -1;
+          var x =  j % board.size;
+          var y = (j / board.size) | 0;
+          var xo = board.getX(x);
+          var yo = board.getY(y);
           var sr = board.stoneRadius * 0.8;
-          var sr = board.stoneRadius * Math.abs(args.ownership) * 0.8;
-          if (args.ownership > 0) this.fillStyle = "rgba(0, 0, 0, 0.5)";
-          else this.fillStyle = "rgba(255, 255, 255, 0.5)";
-          this.fillRect(xo - sr, yo - sr, 2 * sr, 2 * sr);
+          var sr = board.stoneRadius * Math.abs(m) * 0.8;
+          if (c == WGo.B) {
+            if (m < 0) continue;
+          } else {
+            if (m > 0) continue;
+          }
+          this.context.fillRect(xo - sr, yo - sr, 2 * sr, 2 * sr);
         }
-      },
-      clear: function (args, board) {
-        args._nodraw = true;
-        WGo.redraw_layer(board, "grid");
-        delete args._nodraw;
-      },
-    },
-  };
+      }
+    }
+  }
 
   // basic updating function - handles board changes
   var update_board = function (e) {
@@ -140,28 +158,20 @@
       this._cgos.board.removeObject(this._cgos.temp_marks);
       this._cgos.temp_marks = null;
     }
-    if (!this._cgos || !this._cgos.cgosMode) return;
+    this._cgos.board._cgosMode = false;
+    if (!this._cgos || !this._cgos.cgosMode) {
+      this._cgos.board.redraw();
+      return;
+    }
+    this._cgos.board._cgosMode = true;
 
     // genmove_analyze style comment
     if (e.node.CC && e.node.CC.length > 0) {
       var tokens = JSON.parse(e.node.CC);
       this._cgos.infoList = [];
 
-      if (tokens.ownership) {
-        var CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        for (var j = 0; j < tokens.ownership.length; j++) {
-          var m = CHARS.indexOf(tokens.ownership[j]);
-          if (m < 0) break;
-          m = m / 62 * 2 - 1.0;
-          if (e.node.move.c == WGo.W) m *= -1;
-          add.push({
-            type: cgosOwnershipDrawer,
-            x: j % this._cgos.board.size,
-            y: (j / this._cgos.board.size) | 0,
-            ownership: m,
-          });
-        }
-      }
+      this._cgos.board._cgosColor = e.node.move.c;
+      this._cgos.board._cgosOwnership = tokens.ownership;
 
       if (tokens.moves) {
         for (var j = 0; j < tokens.moves.length; j++) {
@@ -274,6 +284,9 @@
     this.player = player;
     this.board = board;
     this.cgosMode = false;
+
+    this.ownershipLayer = new OwnershipLayer();
+    this.board.addLayer(this.ownershipLayer, 400);
   };
 
   WGo.Player.Cgos.prototype.setGraph = function (b) {
