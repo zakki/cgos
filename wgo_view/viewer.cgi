@@ -28,7 +28,7 @@ print <<"HTML";
 <link type="text/css" href="wgo/wgo.player.css" rel="stylesheet" />
 </head>
 <body>
-<div data-wgo="${indata[0]}" style="width: 700px" ${moves}>
+<div data-wgo="${indata[0]}" style="width: 95vw" ${moves}>
 Sorry, your browser doesn't support WGo.js. Download SGF <a href="${formin}">directly</a>.
 </div>
 </body></html>
