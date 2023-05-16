@@ -381,7 +381,7 @@
     t.graph.setAttribute("width", WIDTH);
     t.graph.setAttribute("height", "100");
     t.graph.setAttribute("viewbox", "-5 -5 410 110");
-    t.graph.setAttribute("style", "background-color:#cccccc;");
+    t.graph.setAttribute("style", "background-color:#f0f0f0;");
     t.box.appendChild(t.graph);
     t.graph.onclick = function (e) {
       var turn = (e.offsetX / self.xScale) | 0;
@@ -399,7 +399,7 @@
 
     var blackScore = document.createElementNS(SVG, "polyline");
     blackScore.setAttribute("points", "0,0 0,0");
-    blackScore.setAttribute("stroke", "#993300");
+    blackScore.setAttribute("stroke", "#ff6666");
     blackScore.setAttribute("stroke-width", 1);
     blackScore.setAttribute("fill", "none");
     t.blackScore = blackScore;
@@ -407,7 +407,7 @@
 
     var whiteScore = document.createElementNS(SVG, "polyline");
     whiteScore.setAttribute("points", "0,0 0,0");
-    whiteScore.setAttribute("stroke", "#009900");
+    whiteScore.setAttribute("stroke", "#66ff66");
     whiteScore.setAttribute("stroke-width", 1);
     whiteScore.setAttribute("fill", "none");
     t.whiteScore = whiteScore;
@@ -415,7 +415,7 @@
 
     var blackWinrate = document.createElementNS(SVG, "polyline");
     blackWinrate.setAttribute("points", "0,0 0,0");
-    blackWinrate.setAttribute("stroke", "#ffaa00");
+    blackWinrate.setAttribute("stroke", "#ff0000");
     blackWinrate.setAttribute("stroke-width", 3);
     blackWinrate.setAttribute("fill", "none");
     t.blackWinrate = blackWinrate;
@@ -423,7 +423,7 @@
 
     var whiteWinrate = document.createElementNS(SVG, "polyline");
     whiteWinrate.setAttribute("points", "0,0 0,0");
-    whiteWinrate.setAttribute("stroke", "#33ff33");
+    whiteWinrate.setAttribute("stroke", "#006600");
     whiteWinrate.setAttribute("stroke-width", 3);
     whiteWinrate.setAttribute("fill", "none");
     t.whiteWinrate = whiteWinrate;
@@ -451,7 +451,7 @@
     // legends
     var blackScore = document.createElementNS(SVG, "polygon");
     blackScore.setAttribute("points", "50,10 80,10, 80,5 50,5");
-    blackScore.setAttribute("stroke", "#993300");
+    blackScore.setAttribute("stroke", "#ff6666");
     blackScore.setAttribute("stroke-width", 1);
     blackScore.setAttribute("fill", "none");
     t.graph.appendChild(blackScore);
@@ -459,7 +459,7 @@
 
     var whiteScore = document.createElementNS(SVG, "polygon");
     whiteScore.setAttribute("points", "50,20 80,20 80,15 50,15");
-    whiteScore.setAttribute("stroke", "#009900");
+    whiteScore.setAttribute("stroke", "#66ff66");
     whiteScore.setAttribute("stroke-width", 1);
     whiteScore.setAttribute("fill", "none");
     t.graph.appendChild(whiteScore);
@@ -467,7 +467,7 @@
 
     var blackWinrate = document.createElementNS(SVG, "polyline");
     blackWinrate.setAttribute("points", "50,25 80,25");
-    blackWinrate.setAttribute("stroke", "#ffaa00");
+    blackWinrate.setAttribute("stroke", "#ff0000");
     blackWinrate.setAttribute("stroke-width", 3);
     blackWinrate.setAttribute("fill", "none");
     t.graph.appendChild(blackWinrate);
@@ -475,7 +475,7 @@
 
     var whiteWinrate = document.createElementNS(SVG, "polyline");
     whiteWinrate.setAttribute("points", "50,35 80,35");
-    whiteWinrate.setAttribute("stroke", "#33ff33");
+    whiteWinrate.setAttribute("stroke", "#006600");
     whiteWinrate.setAttribute("stroke-width", 3);
     whiteWinrate.setAttribute("fill", "none");
     t.graph.appendChild(whiteWinrate);
