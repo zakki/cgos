@@ -164,13 +164,13 @@
       return;
     }
     this._cgos.board._cgosMode = true;
+    this._cgos.board._cgosColor = 0;
+    this._cgos.board._cgosOwnership = null;
 
     // genmove_analyze style comment
     if (e.node.CC && e.node.CC.length > 0) {
       var tokens = JSON.parse(e.node.CC);
       this._cgos.infoList = [];
-
-      this._cgos.board._cgosColor = e.node.move.c;
       this._cgos.board._cgosOwnership = tokens.ownership;
 
       if (tokens.moves) {
