@@ -130,6 +130,8 @@
           var m = CHARS.indexOf(board._cgosOwnership[j]);
           if (m < 0) break;
           m = m / 62 * 2 - 1.0;
+          if (this._cgosColor == WGo.W)
+            m = -m;
           if (board._cgosColor == WGo.W) m *= -1;
           var x =  j % board.size;
           var y = (j / board.size) | 0;
@@ -170,6 +172,7 @@
     // genmove_analyze style comment
     if (e.node.CC && e.node.CC.length > 0) {
       var tokens = JSON.parse(e.node.CC);
+      this._cgos.board._cgosColor = e.node.move.c;
       this._cgos.infoList = [];
       this._cgos.board._cgosOwnership = tokens.ownership;
 
