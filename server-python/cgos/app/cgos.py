@@ -1166,6 +1166,10 @@ def _handle_admin_waiting(sock: Client, data: str) -> None:
         _admin_command_match(sock, tokens)
         return
 
+    if command == "abort":
+        _admin_command_abort(sock, tokens)
+        return
+
     sock.send("unknown command")
 
 
@@ -1313,6 +1317,33 @@ def _admin_command_match(sock: Client, tokens: List[str]) -> None:
     start_game(rec)
 
     write_web_data_file(ctme)
+    sock.send(f"match {rec.w}({ rating(rec.w)}) {rec.b}({ rating(rec.b)})")
+
+
+def _admin_command_abort(sock: Client, tokens: List[str]) -> None:
+    if len(tokens) < 2:
+        sock.send(
+            "abort <game id> [<result>]"
+        )
+        return
+    gid = int(tokens[1])
+
+    over = "Abort"
+    if len(tokens) >= 3:
+        over = tokens[2]
+
+    logger.info(f"Abort {gid}")
+
+    if gid not in games:
+        sock.send(
+            "No game"
+        )
+        return
+
+    game = games[gid]
+    gameover(gid, over, "")
+
+    sock.send(f"aborted {gid} {game.w} {game.b}")
 
 
 def load_game_moves(gid: int) -> Optional[List[Tuple[str, int, Optional[str]]]]:
