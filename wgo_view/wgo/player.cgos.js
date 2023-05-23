@@ -555,7 +555,7 @@
     this.winrate.cursor.setAttribute("x", (turn - 1) * this.xScale);
     this.winrate.cursor.setAttribute("width", 3 * this.xScale);
     while (node) {
-      var winrateList, scoreList, winrateGraph, scoreGraph;
+      var winrateList, scoreList;
       if (!node.move || !node.CC) {
         node = node.parent;
         turn--;
@@ -564,13 +564,9 @@
       if (node.move.c == WGo.B) {
         winrateList = this.black;
         scoreList = this.blackScore;
-        winrateGraph = this.winrate.blackWinrate;
-        scoreGraph = this.winrate.blackScore;
       } else {
         winrateList = this.white;
         scoreList = this.whiteScore;
-        winrateGraph = this.winrate.whiteWinrate;
-        scoreGraph = this.winrate.whiteScore;
       }
 
       var info = JSON.parse(node.CC);
@@ -579,7 +575,6 @@
         if (node.move.c == WGo.B)
           rate = 100 - rate;
         winrateList[turn] = turn * this.xScale + "," + rate;
-        winrateGraph.setAttribute("points", winrateList.join(" "));
       }
       var sc = score(info);
       if (sc != null) {
@@ -589,12 +584,16 @@
         scoreList[turn*4+1] = turn * this.xScale + "," + sc;
         scoreList[turn*4+2] = (turn + 0.4) * this.xScale + "," + sc;
         scoreList[turn*4+3] = (turn + 0.4) * this.xScale + "," + 50;
-        scoreGraph.setAttribute("points", scoreList.join(" "));
       }
 
       node = node.parent;
       turn--;
     }
+
+    this.winrate.blackWinrate.setAttribute("points", this.black.join(" "));
+    this.winrate.blackScore.setAttribute("points", this.blackScore.join(" "));
+    this.winrate.whiteWinrate.setAttribute("points", this.white.join(" "));
+    this.winrate.whiteScore.setAttribute("points", this.whiteScore.join(" "));
   };
 
   var AnalyzeBox = WGo.extendClass(
