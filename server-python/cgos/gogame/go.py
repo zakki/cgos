@@ -21,6 +21,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+from __future__ import annotations
+
 import re
 from typing import List, Dict
 
@@ -36,8 +38,8 @@ class GoGame:
     bd: List[int]
     size: int
     size1: int
-    his: Dict[int, List[int]]  # a hash of board copies
-    moves: List[str]  # a hash  of moves
+    his: Dict[int, List[int]]  # a list of board copies
+    moves: List[str]  # a list of moves
     dir: List[int]  # the 4 possible directions
 
     def __init__(self, size: int) -> None:
@@ -66,10 +68,12 @@ class GoGame:
         match = re.search(RE_MOVE, m)
         if match is not None:
             y = self.size1 - int(m[1:])  # [string range $m 1 2]]
-            if y > self.size:
+            if y > self.size or y <= 0:
                 return -4
             try:
                 x = self.__LEGAL_COORDINATES.index(m[0:1]) + 1
+                if x > self.size:
+                    return -4
             except ValueError:
                 return -4
         else:
@@ -257,14 +261,55 @@ class GoGame:
                 print("%3d" % (self.bd[ix]), end="")
         print()
 
-    def display(self) -> None:
+    def display(self, pretty=True) -> None:
+        print(self.to_string(pretty))
 
+    def to_string(self, pretty=True) -> str:
+        out = ""
         for y in range(1, self.size + 1):
-            print()
             for x in range(1, self.size + 1):
                 ix = y * self.size1 + x
-                print("%3d" % (self.bd[ix]), end="")
-        print()
+                p = self.bd[ix]
+                if pretty:
+                    if p == 0:
+                        out += "."
+                    elif p == 1:
+                        out += "O"
+                    elif p == 2:
+                        out += "X"
+                    elif p == 3:
+                        out += "#"
+                else:
+                    out += "%3d" % (self.bd[ix])
+            out += "\n"
+        return out
+
+    @staticmethod
+    def from_string(board: str) -> GoGame:
+        lines = board.upper().splitlines()
+        sy = len(lines)
+        sx = len(lines[0])
+        if sx != sy:
+            raise ValueError(f"non rectangle board {sx}x{sy}")
+        if any([sx != len(line) for line in lines]):
+            raise ValueError("unique size")
+
+        game = GoGame(sx)
+        for y, line in enumerate(lines, start=1):
+            for x, p in enumerate(line, start=1):
+                ix = y * game.size1 + x
+                v = None
+                if p == ".":
+                    v = 0
+                elif p == "O":
+                    v = 1
+                elif p == "X":
+                    v = 2
+                else:
+                    raise ValueError(f"unexpected character {p} at {x} {y}")
+                game.bd[ix] = v
+
+        return game
 
     # return a copy of the current board as a tcl list
     # ------------------------------------------------
