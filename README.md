@@ -23,6 +23,33 @@ And WGo.js show these analysis.
 
 See [Wiki](https://github.com/zakki/cgos/wiki/GTP-tournament-game-expansion).
 
+
+### Administrator extention
+
+```
+% telnet localhost 1919
+< protocol genmove_analyze
+e1 telnet
+< username
+admin
+< password
+pass123
+who
+< gnugo8 waiting 0 1702.4092782840737 3.0
+< ray-10s-b waiting 0 1668.129179991671 3.0
+match ray-10s-b gnugo8 300 300
+< match-> ray-10s-b(1658)   gnugo8(1713)
+games
+< ...
+< match 4841 2023-05-14 10:56 9 7.0 ray-10s-b(1658) gnugo8(1713) - - - B+4.0
+< match 4842 - - 9 7.0 gnugo8(1714) ray-10s-b(1657) 60000 60000 17 -
+games
+< ...
+< match 4841 2023-05-14 10:56 9 7.0 ray-10s-b(1658) gnugo8(1713) - - - B+4.0
+< match 4842 2023-05-14 11:00 9 7.0 gnugo8(1714) ray-10s-b(1657) - - - W+Resign
+```
+
+
 ## Original Tcl Server
 
 How to build from source:

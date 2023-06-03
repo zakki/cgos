@@ -23,6 +23,7 @@
 
 import configparser
 import sys
+from enum import Enum
 from typing import Optional
 
 from util.logutils import getLogger
@@ -30,6 +31,11 @@ from util.logutils import getLogger
 
 # Setup logger
 logger = getLogger("cgos_server.client")
+
+
+class MatchMode(Enum):
+    AUTO = 0
+    ADMIN = 1
 
 
 class Configs:
@@ -59,6 +65,7 @@ class Configs:
     badUsersFile: str
     moveIntervalBetweenSave: int
     hashPassword: bool
+    matchMode: MatchMode
 
     def load(self, path: str) -> None:
         config = configparser.ConfigParser()
@@ -104,3 +111,12 @@ class Configs:
             self.hashPassword = cfg.getboolean("hashPassword")
         else:
             self.hashPassword = False
+
+        self.matchMode = MatchMode.AUTO
+        if "matchMode" in cfg:
+            try:
+                self.matchMode = MatchMode[cfg["matchMode"]]
+            except:
+                logger.error(f"Bad match mode {cfg['matchMode']}")
+                sys.exit(1)
+        logger.info(f"Match mode {self.matchMode}")

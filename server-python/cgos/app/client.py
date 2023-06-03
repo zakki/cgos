@@ -116,4 +116,9 @@ class Client:
             except Exception as e:
                 logger.info(f"reader exception {self.id} {str(e)}")
                 self.alive = False
+        try:
+            # put empty string to run writer queue
+            self._writeQueue.put_nowait("")
+        except:
+            pass
         logger.info(f"reader ended {self.id}")

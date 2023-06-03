@@ -37,7 +37,7 @@ from typing import List, Tuple, Dict, Optional
 from passlib.context import CryptContext
 
 from gogame import GoGame, Game, sgf
-from .config import Configs
+from .config import Configs, MatchMode
 from .client import Client
 from .rating import strRate, newrating
 from util.logutils import getLogger
@@ -49,6 +49,19 @@ logger = getLogger("cgos_server")
 
 SKIP = 4
 ENCODING = "utf-8"
+ADMIN_USER = "admin"
+
+# Return: -4  if str_move formatted wrong
+# Return: -3  move to occupied square
+# Return: -2  Position Super Ko move
+# Return: -1  suicide
+ERR_MSG = [
+    "huh",
+    "suicide attempted",
+    "KO attempted",
+    "move to occupied point",
+    "do not understand syntax",
+]
 
 db: sqlite3.Connection
 dbrec: Optional[sqlite3.Connection]
@@ -224,6 +237,7 @@ act: Dict[str, ActiveUser] = dict()  # users currently logged on
 games: Dict[int, Game] = dict()  # currently active games
 ratingOf: Dict[str, str] = dict()  # ratings of any player who logs on
 viewers = ViewerList()
+admin: Optional[ActiveUser] = None  # users currently logged on
 
 
 # a unique and temporary name for each login until a name is established
@@ -247,6 +261,7 @@ def nsend(name: str, msg: str) -> None:
 # -------------------------------------------------
 def infoMsg(msg: str) -> None:
     global act
+    global admin
 
     for (who, v) in list(act.items()):
         if v.msg_state != "protocol":
@@ -259,6 +274,14 @@ def infoMsg(msg: str) -> None:
     # send message to viewing clients also
     # -------------------------------------
     viewers.sendAll(f"info {msg}")
+
+    # send to admin
+    if admin:
+        soc = admin.sock
+        if not soc.send(f"info {msg}"):
+            logger.error("admin disconnected")
+            soc.close()
+            admin = None
 
 
 # write an SGF game record
@@ -871,6 +894,13 @@ def _handle_player_password(sock: Client, data: str) -> None:
     client = act[uid]
     del act[uid]
 
+    if who == ADMIN_USER:
+        sock.send("ok")
+        global admin
+        admin = ActiveUser(sock, msg_state="waiting")
+        logger.info(f"[{who}] logged on as admin")
+        return
+
     act[who] = ActiveUser(sock, msg_state="waiting", gid=0, rating=rat, k=k)
     act[who].useAnalyze = client.useAnalyze
     logger.info(f"[{who}] logged on analyze: {act[who].useAnalyze}")
@@ -1022,20 +1052,9 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
 
     if err < 0:
         xerr = err * -1
-        # Return: -4  if str_move formatted wrong
-        # Return: -3  move to occupied square
-        # Return: -2  Position Super Ko move
-        # Return: -1  suicide
-        err_msg = [
-            "huh",
-            "suicide attempted",
-            "KO attempted",
-            "move to occupied point",
-            "do not understand syntax",
-        ]
         over = maybe
         over += "Illegal"
-        gameover(gid, over, err_msg[xerr])
+        gameover(gid, over, ERR_MSG[xerr])
         return
 
     # record the moves and times
@@ -1094,6 +1113,266 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
         games[gid].last_move_start_time = now_milliseconds()
 
 
+# --------------------------------------------------------
+#  Handle admin client
+#
+def admin_respond(sock: Client, data: str) -> None:
+    global act
+    global admin
+
+    who = sock.id
+    user = admin
+
+    # If we can no longer read from sock, close it.
+    # ---------------------------------------------
+    if len(data) == 0 or user is None:
+        logger.error(f"[{who}] disconnected")
+
+        sock.close()
+        admin = None
+        return
+
+    logger.debug(f"handle '{user.msg_state}' '{data}'")
+
+    if user.msg_state == "waiting":
+        try:
+            _handle_admin_waiting(sock, data)
+        except Exception:
+            logger.error(f"Error admin command {data.strip()}")
+            logger.error(traceback.format_exc())
+        return
+
+    logger.info(f"[{who}] made illegal respose in ok mode")
+
+
+def _handle_admin_waiting(sock: Client, data: str) -> None:
+    msg = data.strip()
+    tokens = msg.split()
+    command = tokens[0]
+
+    if command == "quit":
+        _admin_command_quit(sock, tokens)
+        return
+
+    if command == "who":
+        _admin_command_who(sock, tokens)
+        return
+
+    if command == "games":
+        _admin_command_games(sock, tokens)
+        return
+
+    if command == "match":
+        _admin_command_match(sock, tokens)
+        return
+
+    if command == "abort":
+        _admin_command_abort(sock, tokens)
+        return
+
+    sock.send("unknown command")
+
+
+def _admin_command_quit(sock: Client, tokens: List[str]) -> None:
+    global admin
+    logger.info("admin quits")
+    sock.send("Quit")
+    sock.close()
+    admin = None
+
+
+def _admin_command_who(sock: Client, tokens: List[str]) -> None:
+    activeList: List[str] = []
+
+    for (name, v) in act.items():
+        activeList.append(f"{name} {v.msg_state} {v.gid} {v.rating} {v.k}")
+
+    sock.send(*activeList)
+
+
+def _admin_command_games(sock: Client, tokens: List[str]) -> None:
+    global dbrec
+    global cfg
+
+    matchList: List[str] = []
+    if dbrec:
+        for (gid, stuff) in dbrec.execute(
+            "select gid, dta from games where gid > (select max(gid) from games) - 40 order by gid"
+        ):
+            dte, tme, bs, kom, w, b, lev, *lst = stuff.split(" ")
+            res = lst[-1]
+            matchList.append(f"match {gid} {dte} {tme} {bs} {kom} {w} {b} - - - {res}")
+
+    for (gid, rec) in games.items():
+        sw = f"{rec.w}({rec.white_rate})"
+        sb = f"{rec.b}({rec.black_rate})"
+        tw = f"{rec.white_remaining_time}"
+        tb = f"{rec.black_remaining_time}"
+        moves = f"{len(rec.moves)}"
+        logger.info(
+            f"sending to viewer: match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} {tw} {tb} {moves}"
+        )
+        matchList.append(
+            f"match {gid} - - {cfg.boardsize} {cfg.komi} {sw} {sb} {tw} {tb} {moves} -"
+        )
+
+    sock.send(*matchList)
+
+
+def _admin_command_match(sock: Client, tokens: List[str]) -> None:
+    if len(tokens) < 3:
+        sock.send(
+            "match <white> <black> [<white_remaining_time sec>]  [<black_remaining_time sec>] [<game id>] [<resume position>]"
+        )
+        return
+    wp = tokens[1]
+    bp = tokens[2]
+
+    logger.info(f"Match {wp} {bp}")
+
+    if wp == bp:
+        sock.send(f"same player {wp} {bp}")
+        return
+
+    if wp not in act:
+        sock.send(f"no login player {wp}")
+        return
+    if act[wp].msg_state != "waiting":
+        sock.send(f"player is not waiting {wp} {act[wp].msg_state}")
+        return
+    if bp not in act:
+        sock.send(f"player is not waiting {bp} {act[bp].msg_state}")
+        return
+    if act[bp].msg_state != "waiting":
+        sock.send(f"no waiting {bp}")
+        return
+
+    wt: Optional[int] = None
+    bt: Optional[int] = None
+    if len(tokens) >= 4:
+        try:
+            wt = int(tokens[3]) * 1000
+            if wt <= 0:
+                wt = None
+        except:
+            sock.send("bad time")
+            return
+    else:
+        wt = None
+
+    if len(tokens) >= 5:
+        try:
+            bt = int(tokens[4]) * 1000
+            if bt <= 0:
+                bt = None
+        except:
+            sock.send("bad time")
+            return
+    else:
+        bt = None
+
+    if len(tokens) >= 6:
+        try:
+            id = int(tokens[5])
+            moves = load_game_moves(id)
+            # -> Optional[List[Tuple[str, int, Optional[str]]]]:
+        except:
+            sock.send("bad game")
+            return
+        if moves is None:
+            sock.send("no game")
+            return
+    else:
+        moves = None
+
+    if len(tokens) >= 7:
+        try:
+            length = int(tokens[6])
+        except:
+            sock.send("bad game length")
+            return
+        if moves is None:
+            sock.send(f"bad game length {length}/None")
+            return
+        if length <= 0 or length >= len(moves):
+            sock.send(f"bad game length {length}/{len(moves)}")
+            return
+        else:
+            moves = moves[0:length]
+
+    # Creage game
+    ctme = datetime.datetime.now(datetime.timezone.utc)
+    gid = init_game(
+        ctme,
+        wp,
+        bp,
+        wt,
+        bt,
+        moves,
+    )
+
+    # Start game
+    rec = games[gid]
+    logger.info(f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })")
+    start_game(rec)
+
+    write_web_data_file(ctme)
+    sock.send(f"match {rec.w}({ rating(rec.w)}) {rec.b}({ rating(rec.b)})")
+
+
+def _admin_command_abort(sock: Client, tokens: List[str]) -> None:
+    if len(tokens) < 2:
+        sock.send(
+            "abort <game id> [<result>]"
+        )
+        return
+    gid = int(tokens[1])
+
+    over = "Abort"
+    if len(tokens) >= 3:
+        over = tokens[2]
+
+    logger.info(f"Abort {gid}")
+
+    if gid not in games:
+        sock.send(
+            "No game"
+        )
+        return
+
+    game = games[gid]
+    gameover(gid, over, "")
+
+    sock.send(f"aborted {gid} {game.w} {game.b}")
+
+
+def load_game_moves(gid: int) -> Optional[List[Tuple[str, int, Optional[str]]]]:
+    if gid in games:
+        logger.info(f"Resume game. Use game on memory {gid}")
+        game = games[gid]
+        return game.moves
+    else:
+        if dbrec:
+            logger.info(f"Resume game. Use game in dbrec games {gid}")
+            rec = dbrec.execute(
+                "SELECT gid, dta FROM games WHERE gid = ?", (gid,)
+            ).fetchone()
+            if rec:
+                dta = rec[1].split(" ")
+                tokens = dta[7:]
+                tokens.pop()
+                logger.info(f"restart_moves {gid} length:{len(tokens)}")
+                moves: List[Tuple[str, int, Optional[str]]] = []
+                for i in range(len(tokens) // 2):
+                    m = tokens[i * 2 + 0]
+                    t = int(tokens[i * 2 + 1])
+                    moves.append((m, t, None))
+                return moves
+            else:
+                logger.info(f"Resume game. No game in dbrec games {gid}")
+        return None
+
+
 async def accept_connection(
     reader: asyncio.StreamReader, writer: asyncio.StreamWriter
 ) -> None:
@@ -1147,6 +1426,9 @@ async def handle_client(client: Client) -> None:
             if who in viewers.vact:
                 logger.debug(f"handle viewer {who}: {line}")
                 viewer_respond(client, line)
+            elif client.id == ADMIN_USER:
+                logger.debug(f"handle admin {who}: {line}")
+                admin_respond(client, line)
             else:
                 logger.debug(f"handle player {who}: {line}")
                 player_respond(client, line)
@@ -1211,8 +1493,6 @@ def schedule_games() -> None:
     global db
     global dbrec
 
-    RANGE = 500.0  # minmum elo range allowed
-
     # determine if all games are complete
     # -----------------------------------
     ct = now_milliseconds()
@@ -1269,220 +1549,295 @@ def schedule_games() -> None:
         logger.info("Batch rating")
         batchRate()
 
-        tmpf = os.path.join(workdir, "dta.cgos.tmp")
-        with open(tmpf, "w") as wd:
-            # ctme = now_seconds()
+        # handle bad users file
+        global badUsers
 
-            ctme = datetime.datetime.now(datetime.timezone.utc)
-            wd.write(ctme.strftime("%Y-%m-%d %H:%M:%S") + "\n")
+        badUsers = []
+        if os.path.exists(cfg.badUsersFile):
+            with open(cfg.badUsersFile, "r") as f:
+                badUsers = f.read().splitlines()
+            logger.info(f"sizeof bad_users: {len(badUsers)}")
+        else:
+            logger.info("bad_users_file is not found.")
 
-            # prepare lookup of all players who have played within last 6 months
-            # ------------------------------------------------------------------
-            atme = ctme - datetime.timedelta(seconds=86400 * 190)
-            lutme = atme.strftime("%Y-%m-%d %H:%M:%S")
-            for (nme, gms, rat, k, lg) in db.execute(
-                "SELECT name, games, rating, K, last_game FROM password WHERE last_game >= ?",
-                (lutme,),
-            ):
-                wd.write(f"u {nme} {gms} {strRate(rat, k)} {lg}\n")
+        for (name, v) in list(act.items()):
+            if v.msg_state == "waiting":
+                if name in badUsers:
+                    logger.info(f"found bad user {name}. kick.")
+                    del act[name]
+                    v.sock.close()
 
-            # recently completed games
-            # ------------------------
-            atme = ctme - datetime.timedelta(
-                seconds=3600 * 4
-            )  # get 4 hours worth of games
-            lutme = atme.strftime("%Y-%m-%d %H:%M:%S")
-            for (gid, w, wr, b, br, dte, wtu, btu, res,) in db.execute(
-                "SELECT gid, w, wr, b, br, dte, wtu, btu, res FROM games WHERE dte >= ?",
-                (lutme,),
-            ):
-                wd.write(f"g {gid} {w} {wr} {b} {br} {dte} {wtu} {btu} {res}\n")
+        # match games & write file
+        ctme = datetime.datetime.now(datetime.timezone.utc)
 
-            if os.path.exists(cfg.killFile):
-                wd.close()
-                os.rename(tmpf, cfg.web_data_file)
+        if os.path.exists(cfg.killFile):
+            write_web_data_file(ctme)
 
-                db.commit()
-                db.close()
+            db.commit()
+            db.close()
 
-                if dbrec:
-                    dbrec.commit()
-                    dbrec.close()
+            if dbrec:
+                dbrec.commit()
+                dbrec.close()
 
-                logger.info("KILL FILE FOUND - EXIT CGOS")
-                sys.exit(0)
+            logger.info("KILL FILE FOUND - EXIT CGOS")
+            sys.exit(0)
 
-            # load bad users file
-            global badUsers
+        if cfg.matchMode == MatchMode.AUTO:
+            match_games(ctme)
 
-            badUsers = []
-            if os.path.exists(cfg.badUsersFile):
-                with open(cfg.badUsersFile, "r") as f:
-                    badUsers = f.read().splitlines()
-                logger.info(f"sizeof bad_users: {len(badUsers)}")
-            else:
-                logger.info("bad_users_file is not found.")
+        write_web_data_file(ctme)
 
-            for (name, v) in list(act.items()):
-                if v.msg_state == "waiting":
-                    if name in badUsers:
-                        logger.info(f"found bad user {name}. kick.")
-                        del act[name]
-                        v.sock.close()
 
-            # dynamically computer ELO RANGE
+def write_web_data_file(ctme: datetime.datetime) -> None:
+
+    global SKIP
+    global act
+    global games
+    global last_game_count
+    global workdir
+    global leeway
+    global last_est
+    global gme
+    global db
+
+    tmpf = os.path.join(workdir, "dta.cgos.tmp")
+    with open(tmpf, "w") as wd:
+        wd.write(ctme.strftime("%Y-%m-%d %H:%M:%S") + "\n")
+
+        # prepare lookup of all players who have played within last 6 months
+        # ------------------------------------------------------------------
+        atme = ctme - datetime.timedelta(seconds=86400 * 190)
+        lutme = atme.strftime("%Y-%m-%d %H:%M:%S")
+        for (nme, gms, rat, k, lg) in db.execute(
+            "SELECT name, games, rating, K, last_game FROM password WHERE last_game >= ?",
+            (lutme,),
+        ):
+            wd.write(f"u {nme} {gms} {strRate(rat, k)} {lg}\n")
+
+        # recently completed games
+        # ------------------------
+        atme = ctme - datetime.timedelta(seconds=3600 * 4)  # get 4 hours worth of games
+        lutme = atme.strftime("%Y-%m-%d %H:%M:%S")
+        for (gid, w, wr, b, br, dte, wtu, btu, res,) in db.execute(
+            "SELECT gid, w, wr, b, br, dte, wtu, btu, res FROM games WHERE dte >= ?",
+            (lutme,),
+        ):
+            wd.write(f"g {gid} {w} {wr} {b} {br} {dte} {wtu} {btu} {res}\n")
+
+        tmeSch = now_string()
+        for (gid, rec) in games.items():
+            # "s" dte tme gid w b x wtl btl wr br
+            wd.write(
+                f"s {tmeSch} {gid} {rec.w} {rec.b} {rec.last_move_start_time} {rec.white_remaining_time} {rec.black_remaining_time} {rec.white_rate} {rec.black_rate}\n"
+            )
+
+    os.rename(tmpf, cfg.web_data_file)
+
+
+def init_game(
+    ctme: datetime.datetime,
+    wp: str,
+    bp: str,
+    white_remaining_time: Optional[int] = None,
+    black_remaining_time: Optional[int] = None,
+    moves: Optional[List[Tuple[str, int, Optional[str]]]] = None,
+) -> int:
+
+    if white_remaining_time is None:
+        white_remaining_time = cfg.level
+    if black_remaining_time is None:
+        black_remaining_time = cfg.level
+    if moves is None:
+        moves = []
+
+    gid = db.execute("SELECT gid FROM gameid WHERE ROWID=1").fetchone()[0]
+    db.execute("UPDATE gameid set gid=gid+1 WHERE ROWID=1")
+
+    gme[gid] = GoGame(cfg.boardsize)
+
+    for mv, _, _ in moves:
+        err = gme[gid].make(mv)
+        if err < 0:
+            xerr = err * -1
+            logger.error(f"Bad game move {gid} {ERR_MSG[xerr]}")
+            return 0
+
+    wr = ratingOf[wp]
+    br = ratingOf[bp]
+
+    game = Game(
+        wp, bp, 0, white_remaining_time, black_remaining_time, wr, br, moves, ctme
+    )
+    games[gid] = game
+    act[wp].gid = gid
+    act[wp].msg_state = "ok"
+    act[bp].gid = gid
+    act[bp].msg_state = "ok"
+    msg_out = (
+        f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {wp}({wr}) {bp}({br})"
+    )
+    if len(game.moves) > 0:
+        # catch up the game
+        msg_out += f"  {joinMoves(game.moves)}"
+    logger.info(msg_out)
+    nsend(wp, msg_out)
+    nsend(bp, msg_out)
+
+    vmsg = f"match {gid} - - {cfg.boardsize} {cfg.komi} {wp}({wr}) {bp}({br}) -"
+    viewers.sendAll(vmsg)
+
+    logger.info(f"starting {wp} {wr} {bp} {br}")
+
+    return gid
+
+
+def start_game(game: Game) -> None:
+    ct = now_milliseconds()
+    game.last_move_start_time = ct
+
+    # determine who's turn to play
+    # ----------------------------
+    ply = len(game.moves)
+    if ply & 1:
+        ctm = game.w
+        c = "w"
+        tl = game.white_remaining_time - (ct - game.last_move_start_time)
+    else:
+        ctm = game.b
+        c = "b"
+        tl = game.black_remaining_time - (ct - game.last_move_start_time)
+
+    nsend(ctm, f"genmove {c} {tl}")
+    act[ctm].msg_state = "genmove"
+
+
+def match_games(ctme: datetime.datetime) -> None:
+    global SKIP
+    global act
+    global games
+    global gme
+    global db
+
+    RANGE = 500.0  # minmum elo range allowed
+
+    # dynamically computer ELO RANGE
+    # ------------------------------
+    lst: List[Tuple[str, float]] = []
+    r_sum = 0.0
+
+    for (name, v) in act.items():
+        # sock, state, gid, rating = v
+
+        if v.msg_state == "waiting":
+            r = v.rating
+            lst.append((name, r))
+            r_sum += r
+
+    lst.sort(key=lambda e: -e[1])
+    max_interval = 0.0
+
+    ll = len(lst)
+    e = ll - SKIP
+
+    global defaultRatingAverage
+    if ll > 0:
+        defaultRatingAverage = r_sum / ll
+        logger.info(f"defaultRatingAverage: {defaultRatingAverage}  : playes {ll}")
+    else:
+        defaultRatingAverage = cfg.defaultRating
+
+    for i in range(e):
+        cr = lst[i][1]
+        nr = lst[i + SKIP][1]
+
+        diff = cr - nr
+
+        if diff > max_interval:
+            max_interval = diff
+
+    # cover the case where there are very few players
+    # -----------------------------------------------
+    if e <= 0:
+        max_interval = 2000.0
+
+    logger.info(f"maximum skip elo: {max_interval}")
+    max_interval = max_interval * 1.50
+
+    if max_interval > RANGE:
+        RANGE = max_interval
+
+    logger.info(f"ELO permutation factor to be used: {RANGE}")
+
+    # now permute the players up to RANGE amount
+    # ------------------------------------------
+    lst = []
+
+    for (name, v) in act.items():
+        # sock, state, gid, rating = v
+
+        if v.msg_state == "waiting":
+            r = v.rating + RANGE * random.random()
+            lst.append((name, r))
+
+    lst.sort(key=lambda e: -e[1])
+
+    if len(lst) > 1:
+
+        logger.info(f"will schedule: {len(lst)} players")
+
+        anchors = getAnchors()
+
+        lst_pairs = iter(lst)
+        for (aa, bb) in zip(lst_pairs, lst_pairs):
+
+            if bb is None:
+                continue
+
+            # set up white and black players
             # ------------------------------
-            lst: List[Tuple[str, float]] = []
-            r_sum = 0.0
+            wp = aa[0]  # actual player names
+            bp = bb[0]  # actual player names
 
-            for (name, v) in act.items():
-                # sock, state, gid, rating = v
+            # delte anchor vs anchor
+            if aa in anchors and bb in anchors:
+                r = random.random()
+                if r > cfg.anchor_match_rate:
+                    logger.info(f"delete this match. {wp}, {bp}, r={r}")
+                    continue
 
-                if v.msg_state == "waiting":
-                    r = v.rating
-                    lst.append((name, r))
-                    r_sum += r
+            wco = db.execute(
+                "SELECT count(*) FROM games WHERE w==? AND b==?", (wp, bp)
+            ).fetchone()[0]
+            bco = db.execute(
+                "SELECT count(*) FROM games WHERE w==? AND b==?", (bp, wp)
+            ).fetchone()[0]
 
-            lst.sort(key=lambda e: -e[1])
-            max_interval = 0.0
+            # swap white and black if black has not been played as many times
+            if bco < wco:
+                bp, wp = wp, bp
 
-            ll = len(lst)
-            e = ll - SKIP
+            init_game(ctme, wp, bp)
 
-            global defaultRatingAverage
-            if ll > 0:
-                defaultRatingAverage = r_sum / ll
-                logger.info(
-                    f"defaultRatingAverage: {defaultRatingAverage}  : playes {ll}"
-                )
-            else:
-                defaultRatingAverage = cfg.defaultRating
+        db.commit()
 
-            for i in range(e):
-                cr = lst[i][1]
-                nr = lst[i + SKIP][1]
+        # add a 3 second delay to let all programs complete setup.
+        # ------------------------------------------------------
 
-                diff = cr - nr
+        time.sleep(3000 / 1000)
 
-                if diff > max_interval:
-                    max_interval = diff
+        view_count = len(viewers.vact)
+        logger.info(f"Active viewers: {view_count}")
 
-            # cover the case where there are very few players
-            # -----------------------------------------------
-            if e <= 0:
-                max_interval = 2000.0
-
-            logger.info(f"maximum skip elo: {max_interval}")
-            max_interval = max_interval * 1.50
-
-            if max_interval > RANGE:
-                RANGE = max_interval
-
-            logger.info(f"ELO permutation factor to be used: {RANGE}")
-
-            # now permute the players up to RANGE amount
-            # ------------------------------------------
-            lst = []
-
-            for (name, v) in act.items():
-                # sock, state, gid, rating = v
-
-                if v.msg_state == "waiting":
-                    r = v.rating + RANGE * random.random()
-                    lst.append((name, r))
-
-            lst.sort(key=lambda e: -e[1])
-
-            if len(lst) > 1:
-
-                logger.info(f"will schedule: {len(lst)} players")
-
-                anchors = getAnchors()
-
-                lst_pairs = iter(lst)
-                for (aa, bb) in zip(lst_pairs, lst_pairs):
-
-                    if bb is None:
-                        continue
-
-                    # set up white and black players
-                    # ------------------------------
-                    wp = aa[0]  # actual player names
-                    bp = bb[0]  # actual player names
-
-                    # delte anchor vs anchor
-                    if aa in anchors and bb in anchors:
-                        r = random.random()
-                        if r > cfg.anchor_match_rate:
-                            logger.info(f"delete this match. {wp}, {bp}, r={r}")
-                            continue
-
-                    wco = db.execute(
-                        "SELECT count(*) FROM games WHERE w==? AND b==?", (wp, bp)
-                    ).fetchone()[0]
-                    bco = db.execute(
-                        "SELECT count(*) FROM games WHERE w==? AND b==?", (bp, wp)
-                    ).fetchone()[0]
-
-                    # swap white and black if black has not been played as many times
-                    if bco < wco:
-                        bp, wp = wp, bp
-
-                    gid = db.execute(
-                        "SELECT gid FROM gameid WHERE ROWID=1"
-                    ).fetchone()[0]
-                    db.execute("UPDATE gameid set gid=gid+1 WHERE ROWID=1")
-                    gme[gid] = GoGame(cfg.boardsize)
-
-                    wr = act[wp].rating
-                    wk = act[wp].k
-                    br = act[bp].rating
-                    bk = act[bp].k
-                    wr = strRate(wr, wk)
-                    br = strRate(br, bk)
-
-                    games[gid] = Game(wp, bp, 0, cfg.level, cfg.level, wr, br, [], ctme)
-                    act[wp].gid = gid
-                    act[bp].gid = gid
-                    msg_out = f"setup {gid} {cfg.boardsize} {cfg.komi} {cfg.level} {wp}({wr}) {bp}({br})"
-                    nsend(wp, msg_out)
-                    nsend(bp, msg_out)
-
-                    vmsg = f"match {gid} - - {cfg.boardsize} {cfg.komi} {wp}({wr}) {bp}({br}) -"
-                    viewers.sendAll(vmsg)
-
-                    logger.info(f"starting {wp} {wr} {bp} {br}")
-
-                db.commit()
-
-                # add a 3 second delay to let all programs complete setup.
-                # ------------------------------------------------------
-
-                time.sleep(3000 / 1000)
-
-                view_count = len(viewers.vact)
-                logger.info(f"Active viewers: {view_count}")
-
-                # gentlemen, start your clocks!
-                # -------------------------------------
-                tmeSch = now_string()
-                # [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S" -timezone :UTC]
-                for (gid, rec) in games.items():
-                    # wp, bp = rec
-                    logger.info(
-                        f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })"
-                    )
-                    nsend(rec.b, f"genmove b {cfg.level}")  # the game's afoot
-                    ct = now_milliseconds()
-                    games[gid].last_move_start_time = ct
-                    act[rec.b].msg_state = "genmove"
-                    act[rec.w].msg_state = "ok"
-                    # "s" dte tme gid w b x wtl btl wr br
-                    wd.write(
-                        f"s {tmeSch} {gid} {rec.w} {rec.b} {rec.last_move_start_time} {rec.white_remaining_time} {rec.black_remaining_time} {rec.white_rate} {rec.black_rate}\n"
-                    )
-
-        os.rename(tmpf, cfg.web_data_file)
+        # gentlemen, start your clocks!
+        # -------------------------------------
+        # [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S" -timezone :UTC]
+        for (gid, rec) in games.items():
+            # wp, bp = rec
+            logger.info(
+                f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })"
+            )
+            start_game(rec)
 
 
 async def schedule_games_task() -> None:
