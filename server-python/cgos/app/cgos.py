@@ -36,7 +36,7 @@ from typing import List, Tuple, Dict, Optional
 
 from passlib.context import CryptContext
 
-from gogame import GoGame, Game, sgf
+from gogame import GoGame, Game, Rule, sgf
 from .config import Configs, MatchMode
 from .client import Client
 from .rating import strRate, newrating
@@ -1654,7 +1654,8 @@ def init_game(
     gid = db.execute("SELECT gid FROM gameid WHERE ROWID=1").fetchone()[0]
     db.execute("UPDATE gameid set gid=gid+1 WHERE ROWID=1")
 
-    gme[gid] = GoGame(cfg.boardsize)
+    rule = Rule(cfg.koRule)
+    gme[gid] = GoGame(cfg.boardsize, rule)
 
     for mv, _, _ in moves:
         err = gme[gid].make(mv)

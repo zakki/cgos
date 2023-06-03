@@ -23,11 +23,24 @@
 
 from __future__ import annotations
 
+from enum import Enum
 import re
 from typing import List, Dict
 
 
 RE_MOVE = re.compile(r"^[a-z]\d+")
+
+
+class KoRule(Enum):
+    SIMPLE = 0
+    POSITIONAL = 1
+
+
+class Rule:
+    koRule: KoRule
+
+    def __init__(self, koRule: KoRule) -> None:
+        self.koRule = koRule
 
 
 class GoGame:
@@ -41,8 +54,9 @@ class GoGame:
     his: Dict[int, List[int]]  # a list of board copies
     moves: List[str]  # a list of moves
     dir: List[int]  # the 4 possible directions
+    rule: Rule
 
-    def __init__(self, size: int) -> None:
+    def __init__(self, size: int, rule: Rule) -> None:
         self.bd = []
         self.ctm = 0
         self.size = size
@@ -50,6 +64,7 @@ class GoGame:
         self.dir = [-1, 1, self.size1, -1 * self.size1]
         self.moves = []
         self.his = dict()
+        self.rule = rule
 
         for y in range(self.size + 2):
             for x in range(self.size1):
@@ -213,10 +228,16 @@ class GoGame:
 
         # test for KO
         # ------------
-        for i in range(self.ctm):
-            if self.his[i] == self.bd:
-                self.bd = self.his[self.ctm].copy()
-                return -2  # KO move
+        if self.rule.koRule == KoRule.POSITIONAL:
+            for i in range(self.ctm):
+                if self.his[i] == self.bd:
+                    self.bd = self.his[self.ctm].copy()
+                    return -2  # KO move
+        if self.rule.koRule == KoRule.SIMPLE:
+            if self.ctm > 0:
+                if self.his[self.ctm - 1] == self.bd:
+                    self.bd = self.his[self.ctm].copy()
+                    return -2  # KO move
 
         # ok, the move was apparently valid!  accept it.
         # ----------------------------------------------
@@ -285,7 +306,7 @@ class GoGame:
         return out
 
     @staticmethod
-    def from_string(board: str) -> GoGame:
+    def from_string(board: str, rule: Rule) -> GoGame:
         lines = board.upper().splitlines()
         sy = len(lines)
         sx = len(lines[0])
@@ -294,7 +315,7 @@ class GoGame:
         if any([sx != len(line) for line in lines]):
             raise ValueError("unique size")
 
-        game = GoGame(sx)
+        game = GoGame(sx, rule)
         for y, line in enumerate(lines, start=1):
             for x, p in enumerate(line, start=1):
                 ix = y * game.size1 + x
@@ -308,6 +329,8 @@ class GoGame:
                 else:
                     raise ValueError(f"unexpected character {p} at {x} {y}")
                 game.bd[ix] = v
+
+        game.his[game.ctm] = game.bd.copy()
 
         return game
 
@@ -346,7 +369,8 @@ class GoGame:
 
 
 if __name__ == "__main__":
-    board = GoGame(9)
+    rule = Rule(KoRule.POSITIONAL)
+    board = GoGame(9, rule)
     board.displayAll()
     board.display()
 

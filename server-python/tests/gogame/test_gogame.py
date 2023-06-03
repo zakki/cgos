@@ -23,13 +23,13 @@
 import textwrap
 from unittest import TestCase
 
-from gogame import GoGame
+from gogame import GoGame, Rule, KoRule
 
 
 class TestGoGame(TestCase):
 
     def test_simplegame(self):
-        board = GoGame(9)
+        board = GoGame(9, Rule(KoRule.POSITIONAL))
         self.assertEqual(board.make("C3"), 0)
         self.assertEqual(board.make("d3"), 0)
         self.assertEqual(board.make("D4"), 0)
@@ -49,7 +49,7 @@ class TestGoGame(TestCase):
         self.assertTrue(board.twopass())
 
     def test_move_wrongformat(self):
-        board = GoGame(9)
+        board = GoGame(9, Rule(KoRule.POSITIONAL))
         self.assertEqual(board.make("2C3"), -4)
         self.assertEqual(board.make(""), -4)
         self.assertEqual(board.make("I1"), -4)
@@ -63,19 +63,19 @@ class TestGoGame(TestCase):
         self.assertEqual(board.make("M1"), -4)
 
     def test_move_occupied(self):
-        board = GoGame(9)
+        board = GoGame(9, Rule(KoRule.POSITIONAL))
         self.assertEqual(board.make("C3"), 0)
         self.assertEqual(board.make("C3"), -3)
 
     def test_move_suicide(self):
-        board = GoGame(9)
+        board = GoGame(9, Rule(KoRule.POSITIONAL))
         self.assertEqual(board.make("A2"), 0)
         self.assertEqual(board.make("C3"), 0)
         self.assertEqual(board.make("B1"), 0)
         self.assertEqual(board.make("A1"), -1)
 
     def test_print(self):
-        board = GoGame(5)
+        board = GoGame(5, Rule(KoRule.POSITIONAL))
         board.make("C3")
         board.make("d3")
         board.make("D4")
@@ -116,13 +116,15 @@ class TestGoGame(TestCase):
                          """))
 
     def test_from_string(self):
-        board = GoGame.from_string(textwrap.dedent("""\
-                         O.O..
-                         XO.O.
-                         .XOX.
-                         ..XO.
-                         ..XO.
-                         """))
+        board = GoGame.from_string(
+            textwrap.dedent("""\
+                            O.O..
+                            XO.O.
+                            .XOX.
+                            ..XO.
+                            ..XO.
+                            """),
+            Rule(KoRule.POSITIONAL))
         self.assertEqual(board.size, 5)
 
         self.assertEqual(board.to_string(),
@@ -133,3 +135,90 @@ class TestGoGame(TestCase):
                          ..XO.
                          ..XO.
                          """))
+
+    def test_positional_ko(self):
+        BOARD = textwrap.dedent("""\
+            .o.xxo
+            oxxxo.
+            o.x.oo
+            xx.oo.
+            oooo.o
+            oooooo
+            """)
+        board = GoGame.from_string(BOARD, Rule(KoRule.POSITIONAL))
+        # print(); board.display()
+
+        self.assertEqual(board.make("F5"), 1)
+        # print(); board.display(); print("KO F6")
+        self.assertEqual(board.make("F6"), -2)
+        self.assertEqual(board.make("PASS"), 0)
+        self.assertEqual(board.make("D4"), 0)
+
+        # print(); board.display()
+
+        self.assertEqual(board.make("C6"), 0)
+        # print(); board.display()
+
+        self.assertEqual(board.make("A6"), 2)
+
+        # print(); board.display(); print("KO B6")
+        self.assertEqual(board.make("B6"), -2)
+        self.assertEqual(board.make("F6"), 1)
+        # print(); board.display(); print("KO F5")
+        self.assertEqual(board.make("F5"), -2)
+        self.assertEqual(board.make("PASS"), 0)
+        # print(); board.display()
+
+        self.assertEqual(board.make("B6"), 1)
+        # print(); board.display(); print("KO F5")
+        self.assertEqual(board.make("F5"), -2)
+        self.assertEqual(board.make("PASS"), 0)
+        self.assertEqual(board.make("C6"), 0)
+
+        # print(); board.display(); print("KO A6 F5")
+        self.assertEqual(board.make("A6"), -2)
+        self.assertEqual(board.make("F5"), -2)
+
+    def test_simple_ko(self):
+        BOARD = textwrap.dedent("""\
+            .o.xxo
+            oxxxo.
+            o.x.oo
+            xx.oo.
+            oooo.o
+            oooooo
+            """)
+        board = GoGame.from_string(BOARD, Rule(KoRule.SIMPLE))
+        # rint(); board.display()
+
+        self.assertEqual(board.make("F5"), 1)
+        # print(); board.display(); print("KO F6")
+        self.assertEqual(board.make("F6"), -2)
+        self.assertEqual(board.make("PASS"), 0)
+        self.assertEqual(board.make("C3"), 0)
+
+        # print(); board.display()
+
+        self.assertEqual(board.make("F6"), 1)
+        # print(); board.display()
+
+        # Ko move
+        # print(); board.display(); print("KO F5")
+        self.assertEqual(board.make("F5"), -2)
+        self.assertEqual(board.make("D4"), 0)
+        # print(); board.display()
+
+        # Beginning sending two returning one cycle
+        self.assertEqual(board.make("C6"), 0)
+        # print(); board.display()
+        self.assertEqual(board.make("A6"), 2)
+        # print(); board.display(); print("KO B6")
+        self.assertEqual(board.make("B6"), 1)
+        # print(); board.display()
+        self.assertEqual(board.make("PASS"), 0)
+
+        self.assertEqual(board.make("C6"), 0)
+        self.assertEqual(board.make("A6"), 2)
+        self.assertEqual(board.make("B6"), 1)
+        self.assertEqual(board.make("C6"), 0)
+        self.assertEqual(board.make("PASS"), 0)

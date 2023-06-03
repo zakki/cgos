@@ -27,6 +27,7 @@ from enum import Enum
 from typing import Optional
 
 from util.logutils import getLogger
+from gogame import KoRule
 
 
 # Setup logger
@@ -42,6 +43,7 @@ class Configs:
     serverName: str
     boardsize: int
     komi: float
+    koRule: KoRule
     level: int
     portNumber: int
     timeGift: float
@@ -81,6 +83,15 @@ class Configs:
         self.portNumber = int(cfg["portNumber"])
         self.boardsize = int(cfg["boardsize"])
         self.komi = float(cfg["komi"])
+        if "ko" in cfg:
+            try:
+                self.koRule = KoRule[cfg["ko"]]
+            except:
+                logger.error(f"Bad ko rule {cfg['ko']}")
+                sys.exit(1)
+        else:
+            self.koRule = KoRule.POSITIONAL
+
         self.level = int(cfg["level"]) * 1000
         self.timeGift = float(cfg["timeGift"])
         self.database_state_file = str(cfg["database_state_file"])
