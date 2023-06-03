@@ -222,3 +222,39 @@ class TestGoGame(TestCase):
         self.assertEqual(board.make("B6"), 1)
         self.assertEqual(board.make("C6"), 0)
         self.assertEqual(board.make("PASS"), 0)
+
+    def test_ttScore(self):
+        BOARD = textwrap.dedent("""\
+            .o.x
+            oxx.
+            ooxx
+            .ox.
+            """)
+        board = GoGame.from_string(BOARD, Rule(KoRule.POSITIONAL))
+        # print(); board.display()
+
+        fb = board.getFinalBoard([])
+        # print(fb)
+        self.assertEqual(fb,
+                         [1, 1, 0, 2,
+                          1, 2, 2, 2,
+                          1, 1, 2, 2,
+                          1, 1, 2, 2]
+                         )
+        self.assertEqual(board.ttScore(), 8-7)
+
+        BOARD = textwrap.dedent("""\
+            .xx
+            .x.
+            ...
+            """)
+        board = GoGame.from_string(BOARD, Rule(KoRule.POSITIONAL))
+        self.assertEqual(board.ttScore(), 9)
+
+        BOARD = textwrap.dedent("""\
+            .xo
+            ooo
+            ...
+            """)
+        board = GoGame.from_string(BOARD, Rule(KoRule.POSITIONAL))
+        self.assertEqual(board.ttScore(), 1 - 7)
