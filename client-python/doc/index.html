@@ -5,35 +5,48 @@
 		h1 { font-size: 160%; font-weight: bold; margin-top: 1.5em; background: #eee; padding: 0.3em; }
 		h2 { font-size: 140%; font-weight: normal; margin-top: 1.5em; background: #eee; padding: 0.3em; }
 		pre { background-color: #eee; padding: 0.2em; }
-		table { board: 1px solid black; border-collapse: collapse; }
+		table { border: 1px solid black; border-collapse: collapse; }
 		td, th { border: 1px solid black; padding: 0.3em; }
 		th { text-align: left; background: #eee }
-		
+
 		</style>
 	</head>
 	<body>
 		<h1>Python CGOS Client</h1>
-			
-		This client connects Go programs that implement the <a href="http://www.lysator.liu.se/~gunnar/gtp/">GTP</a> 
-		protocol to the	<a href="cgos.boardspace.net/">Computer Go Server</a> (CGOS). If you downloaded this, you know what they are.
-		<i>Any</i> GTP engine is supported, not just those written in Python. 
-		
+
+		This client connects Go programs that implement the <a href="http://www.lysator.liu.se/~gunnar/gtp/">GTP</a>
+		protocol to the	<a href="http://www.yss-aya.com/cgos/">Computer Go Server</a> (CGOS). If you downloaded this, you know what they are.
+		<i>Any</i> GTP engine is supported, not just those written in Python.
+
 		<h2>Information</h2>
-		
-		This is version <b>0.3.1</b>. This program is &copy;2009 Christian Nentwich and <a href="contributors.html">contributors</a> 
-		and is licensed to you under the terms of the 
+
+		<p>This is version <b>1.0.0</b>.</p>
+
+		<p>
+			Original CGOS Python client was developed by &copy;2009 Christian Nentwich and <a href="contributors.html">contributors</a>
+		and is licensed to you under the terms of the
 		<a href="http://www.opensource.org/licenses/gpl-3.0.html">GNU General Public License version 3 (GPLv3)</a>.
-		
+		</p>
+
+		<p>
+			CGOS was developed and operated by Don Daily from 2007 to 2012; Hiroshi Yamashita reopened the server in 2015.
+		</p>
+
+		<p>
+			Major changes in version 1.0.0 include Python3 support and support for sending analysis information.
+		</p>
+
+
 		<p>
 		Please read the <a href="changes.html">change log</a>.
-		
+
 		<p>For the avoidance of doubt:</b> this licence makes no claim <i>whatsoever</i> about the Go programs
 		used with this client, in particular any programs using this client to connect to CGOS shall <b>not</b>
-		meet the definition of a "covered work", or derivative work, under this license. 
-		
+		meet the definition of a "covered work", or derivative work, under this license.
+
 		<p>
 		The CGOS server and TCL client are &copy; Don Daily and others and are not included here.
-		
+
 		<ul>
 		<li><a href="#features">Features</a>
 		<li><a href="#usage">Usage</a>
@@ -50,9 +63,9 @@
 			<li><a href="#samplecfg">Sample Configuration</a>
 		</ul>
 		</ul>
-		
+
 		<h2 id="features">Features</h2>
-		
+
 		Features in common with standard CGOS TCL client:
 		<ul>
 		<li>Textual configuration file
@@ -61,63 +74,63 @@
 		<li>Kill file to terminate connections
 		<li>Supports multiple engines, and automatic switching (but <a href="#multipleengines">the behaviour</a> is slightly different)
 		</ul>
-			
+
 		<p>
 		Additional features:
 		<ul>
 		<li>Local SGF persistence (with move times and results)
-		<li>Support for <a href="#observer">observers</a>. Any GTP engine or display, 
-			like <a href="http://gogui.sourceforge.net/">GoGUI</a>, can be used to observe games locally. 
+		<li>Support for <a href="#observer">observers</a>. Any GTP engine or display,
+			like <a href="http://gogui.sourceforge.net/">GoGUI</a>, can be used to observe games locally.
 		<li><a href="#ext">GTP extensions</a> that can help with your engine's logging
 		<li>Separate detailed <a href="#logging">logging files</a> for: CGOS, the engine and the observer (if any). Standard output
 			stream logging at high level for user observation.
 		<li>From time to time, shows some stats: uptime, games won, games lost. May be expanded with e-mail notification in the future.
 		</ul>
-		
+
 		<p>
 		Features not yet supported:
 		<ul>
 		<li>Engine switching is not yet supported
 		</ul>
-		
+
 		<h1 id="usage">Usage</h1>
-		
-		Developed on Python 2.6, no extensions required. It may work on Python 2.5, but that is not tested. If you are using Windows, 
-		get the package	from <a href="http://www.python.org/download/windows/">here</a>, it's a good standalone installer. 
+
+		Developed on Python 3.10, no extensions required. It may work on Python 2.5, but that is not tested. If you are using Windows,
+		get the package	from <a href="http://www.python.org/download/windows/">here</a>, it's a good standalone installer.
 		You will have to provide a configuration file. See <code>sample.cfg</code> for an example, or see <a href="#samplecfg">below</a>.
 		Run the client using:
-		
-		<pre># Windows
-C:\Python26\Python bin\cgosclient.py config.cfg
 
-# Unix		
+		<pre># Windows
+C:\Python3\Python bin\cgosclient.py config.cfg
+
+# Unix
 python bin/cgosclient.py config.cfg</pre>
-		
+
 		To kill the client, please place a "kill file" in the location you specified in the configuration
 		file. You may of course kill the process, too, but the kill file will ensure that you will finish
 		the current game and log off nicely. After the engine quits, the kill file will be deleted.
-		
-		<p><b>Note:</b> If a kill file is put in place, the client will quit ASAP if it is not currently in 
+
+		<p><b>Note:</b> If a kill file is put in place, the client will quit ASAP if it is not currently in
 		a game. In practice, this means when the next status message is received by the server, usually within a minute.
-		 		
-		
+
+
 		<h2 id="gtp">GTP Commands</h2>
-		
+
 		<i>Playing</i> engines need the following GTP commands:
 		<ul>
 		<li>Mandatory: <b>list_commands</b>, <b>boardsize</b>, <b>clear_board</b>, <b>komi</b>, <b>play</b>, <b>genmove</b>, <b>quit</b>
 		<li>Optional: <b>time_left</b>, <b>time_settings</b>
 		</ul>
-		
+
 		If the time commands are missing, no time control instructions will be passed to the engine. Further notes:
 		<ul>
 		<li><b>time_left</b> will always be sent immediately before <b>genmove</b>, as with the TCL client
 		<li><b>quit</b>: if your engine or observer takes too long to respond, it will be sent a terminate signal to
 		make sure it does not get up anymore
 		</ul>
-		
+
 		<h3>Command Ordering and Game Control</h3>
-		
+
 		It can be difficult for a GTP engine to decide when a game has started or a game is over. With the Python CGOS client,
 		you can infer the following:
 		<ul>
@@ -125,15 +138,15 @@ python bin/cgosclient.py config.cfg</pre>
 			setup happens before it. There <i>may</i> be a list of <code>play</code> commands sent in rapid succession after
 			<code>clear_board</code>, but only if the connection or server previously crashed and the game needs to be caught up. In
 			principle, you can trigger any pondering code after <code>clear_board</code>.
-			<li><code>cgos-gameover</code>, described in the next section, definitively ends the game. You may deallocate 
+			<li><code>cgos-gameover</code>, described in the next section, definitively ends the game. You may deallocate
 			resources in response to this command.
 		</ul>
-		
+
 		<h2 id="ext">GTP Extensions</h2>
-		
+
 		The following GTP extensions are available. If your engine records its own logs, or writes its own
 		SGF records with analysis information in them, you may find them useful.
-		
+
 		<p>
 		<table>
 			<tr>
@@ -147,14 +160,14 @@ python bin/cgosclient.py config.cfg</pre>
 			<tr>
 				<th>cgos-opponent_rating</th>
 				<td>Between boardsize and clear_board</td>
-				<td>Gives the current CGOS rating of the opponent engine. This will be a 
+				<td>Gives the current CGOS rating of the opponent engine. This will be a
 				number or a number followed by a question mark</td>
 			</tr>
 			<tr>
 				<th>cgos-gameover</th>
 				<td>After two passes, resignation or illegal move</td>
 				<td>
-				Final result as reported by the server. Will be in format required by SGF 
+				Final result as reported by the server. Will be in format required by SGF
 				<a href="http://www.red-bean.com/sgf/properties.html#RE">RE</a> property, meaning:
 				<ul>
 				   <li><code>B+{score}</code> or <code>W+{score}</code>, e.g. <code>B+0.5</code>, or
@@ -162,26 +175,26 @@ python bin/cgosclient.py config.cfg</pre>
 				   <li><code>B+Time</code> or <code>W+Time</code>, or
 				   <li><code>B+Forfeit</code> or <code>W+Forfeit</code>
 				</ul>
-			</tr>				   
+			</tr>
 		</table>
-				 
+
 		<h2 id="logging">Logging</h2>
-		
+
 		The client will produce the following log files at debug level - standard output stream
 		logging is at info level or higher only:
-		
+
 		<ul>
 		<li><b>engine.log</b> - Log of GTP command stream to and from the engine
 		<li><b>cgos.log</b> - Client/server command stream
 		<li><b>observer.log</b> - Log of GTP stream to observer GTP engine, if any
 		</ul>
-		
+
 		All of these log files are set up as rolling files that be renamed <code>engine.log.1</code>,
 		and so on, when they get beyond 2MB. A maximum of 5 rolling log files is kept.
-		
-		
+
+
 		<h2 id="observer">Displaying Games Using GoGUI</h2>
-		
+
 		The Python CGOS client can stream the GTP command stream to a secondary engine called
 		an "observer" engine. It is up to you how you use this, for example:
 		<ul>
@@ -189,36 +202,36 @@ python bin/cgosclient.py config.cfg</pre>
 		<li>You can run GoGUI and get a local view of what your program is doing when it is
 		playing. This means that a) you do not have to connect using the server viewing client
 		and b) you save the server a bit of work.
-		</ul> 	
-	
+		</ul>
+
 		<p>
 		First, download GoGUI from <a href="http://gogui.sourceforge.net/">gogui.sourceforge.net</a>.
 		Next, make sure you use <code>gogui-display</code> as an observer in your configuration file,
 		like so in Windows:
-		
+
 		<pre>GTPObserver:
     CommandLine = C:\Program Files\Java\jdk1.6.0_13\bin\java.exe -jar C:\path\to\gogui-1.1.9\lib\gogui-display.jar</pre>
-    
+
     	Please do <b>not</b> use <code>javaw.exe</code>, stick with <code>java.exe</code>, or the input stream to
     	gogui-display will be cut off. In Linux:
-    	
+
 		<pre>GTPObserver:
     CommandLine = /usr/bin/java -jar /path/to/gogui-1.1.9/lib/gogui-display.jar</pre>
-		
+
 		Either way, please note that if you close the GoGUI window, the client will think the observer
 		engine crashed and terminate your connection. You will then have to restart to resume your game.
 		If you wish to stop displaying, put a kill file in place (see above), then start the client
 		again without an observer.
-		
+
 		<h2 id="multipleengines">Alternating Between Multiple Engines</h2>
-		
+
 		In the <a href="#samplecfg">configuration file</a>, each GTP engine has an attribute called
 		<code>NumberOfGames</code>. This attribute is mandatory in this version of the client, even if there
 		is only one engine, though in the case of one engine it is ignored.
 		Multiple GTP engines are played sequentially in a round-robin fashion. For example, if
 		<code>NumberOfGames</code> is set to 2 for <b>EngineA</b> and to 3 for <b>EngineB</b>, the client
 		will play the engines as follows:
-		
+
 		<p>
 		<table>
 		  <tr>
@@ -234,65 +247,65 @@ python bin/cgosclient.py config.cfg</pre>
 		  <tr><td>8</td><td>EngineB</td></tr>
 		  <tr><td>9</td><td>...</td></tr>
 		</table>
-		
+
 		<p>
 		Recommendations:
 		<ul>
 			<li>If you are planning to play for a long time (e.g. a day or longer of 9x9), set the
-			game counts to five or higher. This minimises the number of reconnects and restarts that have to be 
+			game counts to five or higher. This minimises the number of reconnects and restarts that have to be
 			performed.
 			<li>If your engines leak memory, set it lower - but set up at least two engines or the
 			attribute will be ignored.
 		</ul>
-		
+
 		<h2 id="samplecfg">Sample Configuration</h2>
-		
+
 		This sample configuration shows how <a href="http://www.gnu.org/software/gnugo/">GNU Go</a>
 		can be connected to play on CGOS, 9x9 board size, and with GoGUI running locally to view all
 		games.
-		
+
 		In addition, the client will play round-robin between two engine configurations, running the
 		engine at level 8 for 5 games, followed by level 10 for 2 games, and then starting over.
-		
+
 		<p>
 <pre>Common:
   KillFile = kill.txt
-  
+
 GTPEngine:
   # Name to display on console / in logs
   Name = Gnugo Level 8
-  
+
   CommandLine = gnugo.exe --mode gtp --score aftermath --capture-all-dead --chinese-rules --level 8
-  
+
   ServerHost = cgos.boardspace.net
   ServerPort = 6867
   ServerUser = myuser
   ServerPassword = mypw
-  
+
   # Switch to next engine after this many games
   NumberOfGames = 5
-  
+
   # Optional: persist games here
   SGFDirectory = ..\sgf9x9
-  
+
 GTPEngine:
   Name = Gnugo Level 10
   CommandLine = gnugo.exe --mode gtp --score aftermath --capture-all-dead --chinese-rules --level 10
-  
+
   ServerHost = cgos.boardspace.net
   ServerPort = 6867
   ServerUser = myuser-level10
   ServerPassword = mypw-level10
-  
+
   # Switch back to first engine after this many games
   NumberOfGames = 2
-  
+
   # Optional: persist games here
   SGFDirectory = ..\sgf9x9
-  
-   
+
+
 # Observer engine (e.g. GoGUI)
 GTPObserver:
-  CommandLine = C:\Program Files\Java\jdk1.6.0_13\bin\java.exe -jar C:\path\to\gogui-1.1.9\lib\gogui-display.jar</pre>		
+  CommandLine = C:\Program Files\Java\jdk1.6.0_13\bin\java.exe -jar C:\path\to\gogui-1.1.9\lib\gogui-display.jar</pre>
 	</body>
 </html>
