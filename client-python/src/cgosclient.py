@@ -55,7 +55,7 @@ class CGOSClient(object):
     See _handlerloop for the command dispatcher, mainloop for the reconnect/play loop.
     """
 
-    CLIENT_ID = "e1 cgosPython 0.3.1 beta"
+    CLIENT_ID = "e1 cgosPython 1.0.0"
 
     __TIME_CHECKPOINT_FREQUENCY = 60 * 30
     """ How often to output stats, etc., in seconds """
