@@ -1846,9 +1846,15 @@ async def schedule_games_task() -> None:
     # after 45000ms schedule_games
     await asyncio.sleep(45.0)
 
+    n = 0
     while True:
         try:
             schedule_games()
+
+            if n % 4 == 0:
+                infoMsg(f"Games in progress: {last_game_count} Players:{len(act)}")
+                n = 0
+            n += 1
         except Exception as e:
             logger.error(f"Error while scheduling game {str(e)}")
             logger.error(traceback.format_exc())

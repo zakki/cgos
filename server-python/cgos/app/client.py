@@ -54,6 +54,10 @@ class Client:
     def send(self, *messages: str) -> bool:
         try:
             logger.debug(f"S -> {self.id}: '{list(messages)}'")
+            if self._writer.is_closing():
+                logger.info(f"writer is closing user: {self.id}")
+                self.alive = False
+                return False
             message = "\n".join(messages) + "\n"
             self._writeQueue.put_nowait(message)
             return True
