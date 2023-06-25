@@ -346,7 +346,8 @@
             if (!_this._disabled) _this.enable();
             delete _this._disabled;
           });
-          this.select();
+          if (player._cgos.cgosMode)
+            this.select();
           //player.addEventListener("update", update_board.bind(this));
         },
       },
@@ -361,7 +362,9 @@
       this.super(player);
 
       player._cgos = this._cgos || new WGo.Player.Cgos(player, player.board);
-      player._cgos.set(true);
+      var disabled = player.currentLayout.className.indexOf("wgo-small") >= 0 ||
+        player.currentLayout.className.indexOf("wgo-xsmall") >= 0;
+      player._cgos.set(!disabled);
 
       player.addEventListener("update", update_board.bind(player));
     }
@@ -370,6 +373,10 @@
   var bp_layouts = WGo.BasicPlayer.layouts;
   if (!bp_layouts["right_top"].bottom) bp_layouts["right_top"].bottom = [];
   bp_layouts["right_top"].bottom.push("AnalyzeBoard");
+  bp_layouts["right"].right.push("AnalyzeBoard");
+  bp_layouts["one_column"].top.push("AnalyzeBoard");
+  bp_layouts["no_comment"].top.push("AnalyzeBoard");
+
 
   WGo.BasicPlayer.component.AnalyzeBoard = AnalyzeBoard;
 
