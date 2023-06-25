@@ -1,0 +1,38 @@
+#games {
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+}
+#games > div {
+    border: solid lightgray;
+    margin: 2px;
+    flex-grow: 1;
+}
+.player {
+    min-width: 360px;
+    height: 380px;
+}
+
+#games a {
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.wgo-button::before {
+	font-size: 20px;
+}
+.wgo-button-menu::before  {
+	font-size: 20px;
+    padding-top: 0px;
+    padding-left: 0px;
+}
+button.wgo-button {
+	width: 24px;
+	height: 24px;
+	margin: 0 3px;
+}
+
+.wgo-440 .wgo-button-multiprev,
+.wgo-440 .wgo-button-multinext {
+	display: inline-block;
+}

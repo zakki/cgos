@@ -32,6 +32,8 @@ import random
 import re
 import traceback
 import json
+import shutil
+
 from typing import List, Tuple, Dict, Optional
 
 from passlib.context import CryptContext
@@ -1544,8 +1546,10 @@ def schedule_games() -> None:
 
     # should we begin another round of scheduling?
     # --------------------------------------------
-    if count == 0:
-
+    if count > 0:
+        ctme = datetime.datetime.now(datetime.timezone.utc)
+        write_web_data_file(ctme)
+    else:
         logger.info("Batch rating")
         batchRate()
 
@@ -1633,6 +1637,7 @@ def write_web_data_file(ctme: datetime.datetime) -> None:
             )
 
     os.rename(tmpf, cfg.web_data_file)
+    shutil.copy(cfg.web_data_file, cfg.htmlDir)
 
 
 def init_game(

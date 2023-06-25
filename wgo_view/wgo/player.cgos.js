@@ -390,20 +390,24 @@
     this.element.appendChild(this.winrate.box);
   };
 
-  var WIDTH = 490;
+  var WIDTH = 400;
+  var HEIGHT = 100;
 
   var prepare_dom_box = function (type, player) {
     this[type] = {};
     var self = this;
     var t = this[type];
+    this.width = Math.min(490, player.width);
+    this.height = Math.max(player.width, player.height) > 500 ? 100 : 50;
+
     var SVG = "http://www.w3.org/2000/svg";
     t.box = document.createElement("div");
     t.box.className = "wgo-box-wrapper wgo-player-wrapper wgo-" + type;
 
     t.graph = document.createElementNS(SVG, "svg");
-    t.graph.setAttribute("width", WIDTH);
-    t.graph.setAttribute("height", "100");
-    t.graph.setAttribute("viewbox", "-5 -5 410 110");
+    t.graph.setAttribute("width", self.width);
+    t.graph.setAttribute("height", self.height);
+    t.graph.setAttribute("viewBox", "-5 -5 410 110");
     t.graph.setAttribute("style", "background-color:#f0f0f0;");
     t.box.appendChild(t.graph);
     t.graph.onclick = function (e) {
@@ -531,8 +535,6 @@
   }
 
   var kifu_loaded = function (e) {
-    var info = e.kifu.info || {};
-
     this.black = [];
     this.white = [];
     this.blackScore = [];
@@ -601,6 +603,11 @@
     this.winrate.blackScore.setAttribute("points", this.blackScore.join(" "));
     this.winrate.whiteWinrate.setAttribute("points", this.white.join(" "));
     this.winrate.whiteScore.setAttribute("points", this.whiteScore.join(" "));
+
+    this.width = e.target.board.width;
+    this.height = this.width / WIDTH * HEIGHT;
+    this.winrate.graph.setAttribute("width", this.width);
+    this.winrate.graph.setAttribute("height", this.height);
   };
 
   var AnalyzeBox = WGo.extendClass(
@@ -620,8 +627,8 @@
   if (!bp_layouts["right_top"].bottom) bp_layouts["right_top"].bottom = [];
   bp_layouts["right_top"].bottom.push("AnalyzeBox");
   //bp_layouts["right"].right.push("AnalyzeBox");
-  //bp_layouts["one_column"].top.push("AnalyzeBox");
-  //bp_layouts["no_comment"].top.push("AnalyzeBox");
+  bp_layouts["one_column"].bottom.push("AnalyzeBox");
+  bp_layouts["no_comment"].bottom.push("AnalyzeBox");
 
   WGo.BasicPlayer.component.AnalyzeBox = AnalyzeBox;
 })(WGo);
