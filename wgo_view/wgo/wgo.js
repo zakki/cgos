@@ -253,6 +253,8 @@ var shadow_handler = {
 			yr = board.getY(args.y),
 			sr = board.stoneRadius;
 
+		if (sr < 10) return;
+
 		this.beginPath();
 
 		var blur = theme_variable("shadowBlur", board);
@@ -284,6 +286,8 @@ var shadow_handler_realistic = {
 			lsX = 1.0,
 			lsY = -5.0,
 			blur = 5.0;
+
+		if (sr < 10) return;
 
 		this.beginPath();
 
