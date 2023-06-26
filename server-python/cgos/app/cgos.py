@@ -494,6 +494,7 @@ def saveSgf(gid: int, game: Game, sc: str, err: str) -> None:
         game=game,
         serverName=cfg.serverName,
         level=cfg.level,
+        rule=cfg.rule,
         boardsize=cfg.boardsize,
         komi=cfg.komi,
         gid=gid,
@@ -1540,8 +1541,11 @@ def schedule_games() -> None:
 
         curTime = now_seconds()
         if curTime - last_est > 60:
-            if est > 2:
+            if cfg.matchMode == MatchMode.AUTO and est > 2:
                 infoMsg("Maximum time until next round: %02d:%02d" % (estMin, estSec))
+            else:
+                dt_now = datetime.datetime.now()
+                infoMsg("Next round will start soon: %02d:%02d" % (dt_now.hour, dt_now.minute))
             last_est = curTime
 
     # should we begin another round of scheduling?

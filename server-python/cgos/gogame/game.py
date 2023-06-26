@@ -93,6 +93,7 @@ def sgf(
     game: Game,
     serverName: str,
     level: int,
+    rule: str,
     boardsize: int,
     komi: float,
     gid: int,
@@ -109,7 +110,7 @@ def sgf(
     lv = level // 1000
 
     s = "(;GM[1]FF[4]CA[UTF-8]\n"
-    s += f"RU[Chinese]SZ[{boardsize}]KM[{komi}]TM[{lv}]\n"
+    s += f"RU[{rule}]SZ[{boardsize}]KM[{komi}]TM[{lv}]\n"
 
     comment = err
 

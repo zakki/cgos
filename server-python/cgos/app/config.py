@@ -41,6 +41,7 @@ class MatchMode(Enum):
 
 class Configs:
     serverName: str
+    rule: str
     boardsize: int
     komi: float
     koRule: KoRule
@@ -81,6 +82,7 @@ class Configs:
 
         self.serverName = str(cfg["serverName"])
         self.portNumber = int(cfg["portNumber"])
+        self.rule = str(cfg["rule"])
         self.boardsize = int(cfg["boardsize"])
         self.komi = float(cfg["komi"])
         if "ko" in cfg:

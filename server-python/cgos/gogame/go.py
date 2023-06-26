@@ -26,7 +26,9 @@ from __future__ import annotations
 from enum import Enum
 import re
 from typing import List, Dict
+from util.logutils import getLogger
 
+logger = getLogger("cgos_server")
 
 RE_MOVE = re.compile(r"^[a-z]\d+")
 
@@ -228,6 +230,10 @@ class GoGame:
 
         # test for KO
         # ------------
+        for i in range(self.ctm):
+            if self.his[i] == self.bd:
+                logger.info(f"KO positional: {i} == {self.ctm} {mov}")
+
         if self.rule.koRule == KoRule.POSITIONAL:
             for i in range(self.ctm):
                 if self.his[i] == self.bd:
