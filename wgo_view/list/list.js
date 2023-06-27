@@ -111,6 +111,7 @@ let players = new Map();
             }
         };
         xhr.open("GET", "wdata.txt");
+        xhr.setRequestHeader("Cache-Control", "no-cache, no-store, max-age=0");
         xhr.send();
     }
 
