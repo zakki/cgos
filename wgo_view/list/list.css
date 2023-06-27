@@ -16,6 +16,9 @@
 #games a {
     text-overflow: ellipsis;
     overflow: hidden;
+    display: block;
+    white-space: nowrap;
+    max-width: 350px;
 }
 
 .wgo-button::before {
