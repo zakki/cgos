@@ -28,6 +28,7 @@ let players = new Map();
 
     const POLL_INTERVAL = 10_000;
     const END_MOVES = 100000;
+    const FORCE_UPDATE_SGF = true;
 
     function createPlayer(elmList, gameId, sgfPath, title, mode) {
         let elmGame = document.createElement("div");
@@ -66,6 +67,8 @@ let players = new Map();
             } else if (tokens[0] === "s") {
                 gid = tokens[3];
                 sgfPath = "SGF/" + tokens[1].replaceAll("-", "/") + "/" + tokens[3] + ".sgf";
+                if (FORCE_UPDATE_SGF)
+                    sgfPath += "?_=" + Date.now();
                 white = tokens[4];
                 black = tokens[5];
                 result = "*";
