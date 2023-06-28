@@ -44,8 +44,12 @@ let players = new Map();
         let elmPlayer = document.createElement("div");
         elmPlayer.className = "player";
         elmGame.append(elmPlayer)
+
+        let sgfPath2 = sgfPath;
+        if (FORCE_UPDATE_SGF)
+            sgfPath2 += "?_=" + Date.now();
         let player = new WGo.BasicPlayer(elmPlayer, {
-            sgfFile: sgfPath,
+            sgfFile: sgfPath2,
             move: END_MOVES,
             markLastMove: true,
         });
@@ -67,8 +71,6 @@ let players = new Map();
             } else if (tokens[0] === "s") {
                 gid = tokens[3];
                 sgfPath = "SGF/" + tokens[1].replaceAll("-", "/") + "/" + tokens[3] + ".sgf";
-                if (FORCE_UPDATE_SGF)
-                    sgfPath += "?_=" + Date.now();
                 white = tokens[4];
                 black = tokens[5];
                 result = "*";
@@ -82,7 +84,7 @@ let players = new Map();
             if (elmGame) {
                 console.log("exists", gameId)
                 if (players[gameId][2] === "s") {
-                    players[gameId][1].loadSgfFromFile(sgfPath, END_MOVES)
+                    players[gameId][1].loadSgfFromFile(sgfPath, END_MOVES);
                     elmGame.querySelector("a").innerText = title;
                 }
                 players[gameId][2] = tokens[0];
