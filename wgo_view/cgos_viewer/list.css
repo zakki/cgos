@@ -1,16 +1,18 @@
 #games {
-    display: flex;
-    flex-wrap: wrap;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, auto));
+    /*grid-auto-rows: minmax(380px, auto);*/
 }
 #games > div {
     border: solid lightgray;
     margin: 2px;
-    flex-grow: 1;
+    aspect-ratio: 4 / 3;
 }
 .player {
+    /*
     min-width: 360px;
     height: 380px;
+    */
 }
 
 #games a {
