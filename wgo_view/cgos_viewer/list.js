@@ -33,13 +33,25 @@ let players = new Map();
     function createPlayer(elmList, gameId, sgfPath, title, mode) {
         let elmGame = document.createElement("div");
         elmGame.id = gameId;
+        elmGame.classList.add("game");
         //elmGame.setAttribute("data-go", sgfPath);
         elmList.prepend(elmGame);
 
+        let elmHeader = document.createElement("div");
+        elmHeader.classList.add("header");
         let elmTitle = document.createElement("a");
         elmTitle.innerText = title;
         elmTitle.href = "viewer.html?" + sgfPath;
-        elmGame.append(elmTitle);
+        elmHeader.append(elmTitle)
+        elmHeader.insertAdjacentHTML('beforeend', '<span class="spacer"/>');
+
+        let elmButtons = document.createElement("div");
+        elmButtons.classList.add("buttons");
+
+        elmButtons.insertAdjacentHTML('beforeend', '<span class="material-symbols-outlined close">close</span>');
+        elmHeader.append(elmButtons);
+
+        elmGame.append(elmHeader);
 
         let elmPlayer = document.createElement("div");
         elmPlayer.className = "player";
@@ -53,7 +65,11 @@ let players = new Map();
             move: END_MOVES,
             markLastMove: true,
         });
-        players[gameId] = [elmGame, player, mode];
+        elmButtons.querySelector(".close").onclick = () => {
+            console.log("click", gameId, elmGame);
+            elmGame.style.display = "none";
+        }
+        players.set(gameId, [elmGame, player, mode]);
     }
 
     function addWgo(lines) {
@@ -82,12 +98,12 @@ let players = new Map();
             const gameId = "game-"+gid;
             let elmGame = document.getElementById(gameId);
             if (elmGame) {
-                console.log("exists", gameId)
-                if (players[gameId][2] === "s") {
-                    players[gameId][1].loadSgfFromFile(sgfPath, END_MOVES);
+                // console.log("exists", gameId)
+                if (players.get(gameId)[2] === "s") {
+                    players.get(gameId)[1].loadSgfFromFile(sgfPath, END_MOVES);
                     elmGame.querySelector("a").innerText = title;
                 }
-                players[gameId][2] = tokens[0];
+                players.get(gameId)[2] = tokens[0];
             } else {
                 createPlayer(elmList, gameId, sgfPath, title, tokens[0]);
             }

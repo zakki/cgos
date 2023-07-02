@@ -1,26 +1,57 @@
 #games {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(400px, auto));
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     /*grid-auto-rows: minmax(380px, auto);*/
 }
-#games > div {
+.game {
     border: solid lightgray;
+    background: white;
     margin: 2px;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 3 / 4;
 }
-.player {
-    /*
-    min-width: 360px;
-    height: 380px;
-    */
+.game.large {
+    border: none;
+    margin: 0;
+    aspect-ratio: none;
 }
 
-#games a {
+/*
+.game .player {
+    min-width: 360px;
+    height: 380px;
+}
+*/
+.game.large .player {
+    min-width: 90vw;
+    min-height: 90vh;
+}
+.game.large {
+    position: absolute;
+    z-index: 1000;
+    width: calc(100vw - 20px);
+    height: calc(100vh - 20px);
+    top: 10px;
+    left: 10px;
+}
+
+.game .header {
+    display: flex;
+}
+.game .header a {
     text-overflow: ellipsis;
     overflow: hidden;
-    display: block;
+    display: inline-block;
     white-space: nowrap;
-    max-width: 350px;
+    /*max-width: 350px;*/
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+.game .header .spacer {
+    margin-left: auto;
+}
+.game .header .buttons {
+    flex-shrink: 0;
+    flex-grow: 0;
 }
 
 .wgo-button::before {
