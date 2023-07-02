@@ -410,8 +410,12 @@
     t.graph.setAttribute("viewBox", "-5 -5 410 110");
     t.graph.setAttribute("style", "background-color:#f0f0f0;");
     t.box.appendChild(t.graph);
+    var pt = t.graph.createSVGPoint();
     t.graph.onclick = function (e) {
-      var turn = (e.offsetX / self.xScale) | 0;
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      var cursor = pt.matrixTransform(t.graph.getScreenCTM().inverse());
+      var turn = (cursor.x / self.xScale) | 0;
       player.goTo(turn);
     }
 
