@@ -72,3 +72,10 @@ button.wgo-button {
 .wgo-440 .wgo-button-multinext {
 	display: inline-block;
 }
+
+.wgo-small .wgo-player-info-box-wrapper:nth-child(1),
+.wgo-small .wgo-player-info-box-wrapper:nth-child(4),
+.wgo-xsmall .wgo-player-info-box-wrapper:nth-child(1),
+.wgo-xsmall .wgo-player-info-box-wrapper:nth-child(4) {
+	display: none;
+}
