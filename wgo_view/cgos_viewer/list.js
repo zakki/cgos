@@ -64,6 +64,14 @@ let players = new Map();
             sgfFile: sgfPath2,
             move: END_MOVES,
             markLastMove: true,
+            kifuLoaded: function(e) {
+                setTimeout(() => {
+                    // To reflect rest time
+                    player.last();
+                    player.previous();
+                    player.next();
+                }, 0);
+            },
         });
         elmButtons.querySelector(".close").onclick = () => {
             console.log("click", gameId, elmGame);
