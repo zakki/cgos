@@ -36,6 +36,7 @@
         if (FORCE_UPDATE_SGF)
             path += "?_=" + Date.now();
         player.loadSgfFromFile(path, END_MOVES);
+        player.updateDimensions();
     }
 
     window.addEventListener('load', (event) => {
@@ -51,6 +52,11 @@
                         updateCheckbox.checked = false;
                         updatePollHandler();
                     }
+                    setTimeout(() => {
+                        player.last();
+                        player.previous();
+                        player.next();
+                    });
                 },
             });
         }

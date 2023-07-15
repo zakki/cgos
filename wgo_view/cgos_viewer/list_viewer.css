@@ -1,0 +1,54 @@
+body {
+    margin: 0px;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    overflow: hidden;
+}
+
+.wgo-button::before {
+	font-size: 20px;
+}
+.wgo-button-menu::before  {
+	font-size: 20px;
+    padding-top: 0px;
+    padding-left: 0px;
+}
+button.wgo-button {
+	width: 24px;
+	height: 24px;
+	margin: 0 3px;
+}
+
+.wgo-340 .wgo-button-first,
+.wgo-340 .wgo-button-multiprev,
+.wgo-340 .wgo-button-multinext,
+.wgo-340 .wgo-button-last,
+.wgo-440 .wgo-button-first,
+.wgo-440 .wgo-button-multiprev,
+.wgo-440 .wgo-button-multinext,
+.wgo-440 .wgo-button-last {
+	display: inline-block;
+}
+
+.wgo-small .wgo-player-info-box-wrapper:nth-child(1),
+.wgo-small .wgo-player-info-box-wrapper:nth-child(4),
+.wgo-xsmall .wgo-player-info-box-wrapper:nth-child(1),
+.wgo-xsmall .wgo-player-info-box-wrapper:nth-child(4) {
+	display: none;
+}
+
+.wgo-small .wgo-winrate svg {
+    /* FIXME wgo area is bit larger than page */
+    position: relative;
+    height: 55px;
+    bottom: 3px;
+}
+.wgo-xsmall .wgo-winrate svg {
+    /* FIXME wgo area is bit larger than page */
+    position: relative;
+    height: 45px;
+    bottom: 3px;
+}

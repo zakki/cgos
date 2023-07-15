@@ -27,14 +27,14 @@ let players = new Map();
     "use strict";
 
     const POLL_INTERVAL = 10_000;
-    const END_MOVES = 100000;
     const FORCE_UPDATE_SGF = true;
+
+    let updateCheckbox;
 
     function createPlayer(elmList, gameId, sgfPath, title, mode) {
         let elmGame = document.createElement("div");
         elmGame.id = gameId;
         elmGame.classList.add("game");
-        //elmGame.setAttribute("data-go", sgfPath);
         elmList.prepend(elmGame);
 
         let elmHeader = document.createElement("div");
@@ -53,34 +53,31 @@ let players = new Map();
 
         elmGame.append(elmHeader);
 
-        let elmPlayer = document.createElement("div");
-        elmPlayer.className = "player";
-        elmGame.append(elmPlayer)
-
         let sgfPath2 = sgfPath;
         if (FORCE_UPDATE_SGF)
             sgfPath2 += "?_=" + Date.now();
-        let player = new WGo.BasicPlayer(elmPlayer, {
-            sgfFile: sgfPath2,
-            move: END_MOVES,
-            markLastMove: true,
-            kifuLoaded: function(e) {
-                setTimeout(() => {
-                    // To reflect rest time
-                    player.last();
-                    player.previous();
-                    player.next();
-                }, 0);
-            },
-        });
-        elmButtons.querySelector(".close").onclick = () => {
-            console.log("click", gameId, elmGame);
-            elmGame.style.display = "none";
+
+        let elmPlayer = document.createElement("iframe");
+        elmPlayer.className = "player";
+        elmPlayer.src = "viewer_iframe.html?" + sgfPath2;
+        elmGame.append(elmPlayer)
+
+        const obj = {
+            "element": elmGame,
+            "mode": mode,
+            "active": true,
         }
-        players.set(gameId, [elmGame, player, mode]);
+        elmButtons.querySelector(".close").onclick = () => {
+            elmGame.style.display = "none";
+            obj.active = false;
+        }
+        players.set(gameId, obj);
     }
 
     function addWgo(lines) {
+        const elmNum = document.querySelector("#num-games");
+        const numGames = Number.parseInt(elmNum.value);
+        //console.log(elmNum, numGames);
         const elmList = document.getElementById("games");
         let gameKeys = new Set(Array.from(players.keys()));
         for (let line of lines) {
@@ -102,20 +99,41 @@ let players = new Map();
                 continue;
             }
             const title = gid + " " + white + " - " + black + " " + result;
-            //<div data-wgo="19x19/SGF/2023/01/07/895.sgf" style="width: 700px" ></div>
             const gameId = "game-"+gid;
-            let elmGame = document.getElementById(gameId);
-            if (elmGame) {
+            let obj = players.get(gameId);
+            // let elmGame = document.getElementById(gameId);
+            if (obj) {
                 // console.log("exists", gameId)
-                if (players.get(gameId)[2] === "s") {
-                    players.get(gameId)[1].loadSgfFromFile(sgfPath, END_MOVES);
-                    elmGame.querySelector("a").innerText = title;
+                if (obj.active && obj.mode === "s") {
+                    // obj.player.loadSgfFromFile(sgfPath, END_MOVES);
+                    obj.element.querySelector("a").innerText = title;
                 }
-                players.get(gameId)[2] = tokens[0];
+                players.get(gameId).mode = tokens[0];
             } else {
                 createPlayer(elmList, gameId, sgfPath, title, tokens[0]);
             }
             gameKeys.delete(gameId);
+        }
+
+        // Remove games
+        let keys = Array.from(players.keys());
+        keys.sort((a, b) => Number(b.split("-")[1]) - Number(a.split("-")[1]))
+        if (numGames > 0) {
+            let numVisible = 0;
+            for (let i = 0; i < keys.length; i++) {
+                const obj = players.get(keys[i]);
+                if (obj.active) {
+                    numVisible ++;
+                }
+                if (numVisible > numGames || !obj.active) {
+                    // console.log("remove", obj);
+                    obj.active = false;
+                    if (obj.element)
+                        elmList.removeChild(obj.element);
+                    obj.player = null;
+                    obj.element = null;
+                }
+            }
         }
         // console.log(gameKeys);
     }
@@ -133,7 +151,7 @@ let players = new Map();
 
                 const elmWdata = document.getElementById("wdata");
                 if (elmWdata) {
-                    console.log(lines);
+                    // console.log(lines);
                     elmWdata.innerText = xhr.responseText;
                 }
                 addWgo(lines);
@@ -144,8 +162,31 @@ let players = new Map();
         xhr.send();
     }
 
+    let pollHandlerId = null;
+    function updatePollHandler() {
+        if (updateCheckbox.checked) {
+            pollWebData();
+            pollHandlerId = window.setInterval(pollWebData, POLL_INTERVAL)
+        } else {
+            window.clearInterval(pollHandlerId);
+        }
+    }
+
     window.addEventListener('load', (event) => {
-        pollWebData();
-        window.setInterval(pollWebData, POLL_INTERVAL)
+        updateCheckbox = document.querySelector("#update");
+        updateCheckbox.addEventListener("click", (e) => {
+            updatePollHandler();
+        });
+
+
+        let resetButton = document.querySelector("#reset");
+        resetButton.addEventListener("click", (e) => {
+            players.clear();
+            const elmList = document.getElementById("games");
+            elmList.innerHTML = '';
+            pollWebData();
+        });
+
+        updatePollHandler();
     });
 })();

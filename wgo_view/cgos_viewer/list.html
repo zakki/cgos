@@ -2,16 +2,28 @@
 <html>
 <head>
 <title>sgf viewer</title>
-<script type="text/javascript" src="/wgo/wgo.min.js"></script>
-<script type="text/javascript" src="/wgo/wgo.player.min.js"></script>
 <script type="text/javascript" src="/js/list.js"></script>
-<link type="text/css" href="/wgo/wgo.player.css" rel="stylesheet" />
 <link type="text/css" href="/css/list.css" rel="stylesheet" />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 </head>
 <body>
-<div id="games">
-</div>
+    <main>
+        <div id="games"></div>
+    </main>
+<footer>
+    <span>
+    <input type="checkbox" id="update" name="update" checked>
+    <label for="update">Reload</label>
+    </span>
+    <div class="separator"></div>
+    <span>
+        <label for="num-games">View</label>
+        <input type="number" min="1" size="4" name="num-games" id="num-games" value="20">
+        <label for="num-games">games</label>
+    </span>
+    <div class="separator"></div>
+    <button type="button" id="reset">Reset</button>
+</footer>
 <!--
 <pre id="wdata"></pre>
 -->
