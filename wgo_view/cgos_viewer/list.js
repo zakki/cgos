@@ -41,6 +41,7 @@ let players = new Map();
         elmHeader.classList.add("header");
         let elmTitle = document.createElement("a");
         elmTitle.innerText = title;
+        elmTitle.title = title;
         elmTitle.href = "viewer.html?" + sgfPath;
         elmHeader.append(elmTitle)
         elmHeader.insertAdjacentHTML('beforeend', '<span class="spacer"/>');
