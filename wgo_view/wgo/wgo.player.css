@@ -719,11 +719,19 @@ input[type="text"].wgo-permalink {
 /*---  CGOS --*/
 .wgo-player-wrapper.wgo-winrate {
 	width: 100%;
-	height: 100%;
+	height: 100px;
     background: transparent;
     border: none;
+}
+.wgo-small .wgo-player-wrapper.wgo-winrate {
+	height: 60px;
+}
+.wgo-xsmall .wgo-player-wrapper.wgo-winrate {
+	height: 50px;
 }
 .wgo-player-wrapper.wgo-winrate svg {
 	display: block;
 	margin: auto;
+	width: 100%;
+	height: 100%;
 }
