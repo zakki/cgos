@@ -27,6 +27,7 @@
     const POLL_INTERVAL = 10_000;
     const END_MOVES = 100000;
     const FORCE_UPDATE_SGF = true;
+    const VALID_SGF_PATH = "^[/a-zA-Z0-9.]*(\\?_=[0-9]*)?$";
 
     let updateCheckbox;
     let player;
@@ -41,6 +42,10 @@
 
     window.addEventListener('load', (event) => {
         let path = location.search.substring(1);
+        if (!path.match(VALID_SGF_PATH)) {
+            console.error("bad sgf", path);
+            return;
+        }
         if (path.length > 0) {
             let elmPlayer = document.querySelector("#cgoswgo");
             player = new WGo.BasicPlayer(elmPlayer, {
@@ -60,6 +65,10 @@
                 },
             });
         }
+
+        let sgflink = document.querySelector("#sgflink");
+        if (sgflink)
+            sgflink.href = path;
 
         updateCheckbox = document.querySelector("#update");
         updateCheckbox.addEventListener("click", (e) => {
