@@ -125,10 +125,6 @@ def sgf(
 
         if mv.startswith("pas"):
             s += f";{colstr[ctm]}[]{colstr[ctm]}L[{tleft}]"
-            tmc += 1
-            if tmc > 7:
-                s += "\n"
-                tmc = 0
         else:
             ccs = ord(mv[0])
             if ccs > 104:
@@ -136,16 +132,16 @@ def sgf(
             rrs = int(mv[1:])
             rrs = (boardsize - rrs) + 97
             s += f";{colstr[ctm]}[{chr(ccs)}{chr(rrs)}]{colstr[ctm]}L[{tleft}]"
-            if analysis is not None:
-                s += f"CC[{escapeSgfText(analysis)}]\n"
-                v = json.loads(analysis)
-                if "comment" in v:
-                    c = v["comment"]
-                    s += f"C[{escapeSgfText(c)}]"
-            tmc += 1
-            if tmc > 7:
-                s += "\n"
-                tmc = 0
+        if analysis is not None:
+            s += f"CC[{escapeSgfText(analysis)}]\n"
+            v = json.loads(analysis)
+            if "comment" in v:
+                c = v["comment"]
+                s += f"C[{escapeSgfText(c)}]"
+        tmc += 1
+        if tmc > 7:
+            s += "\n"
+            tmc = 0
         ctm = ctm ^ 1
 
     if comment != "":
