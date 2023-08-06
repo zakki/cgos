@@ -71,6 +71,7 @@ dbrec: Optional[sqlite3.Connection]
 gme: Dict[int, GoGame] = dict()
 
 defaultRatingAverage = 0.0
+schedule_games_interval = 15.0
 
 badUsers: List[str] = []
 leeway: int
@@ -1526,6 +1527,16 @@ def schedule_games() -> None:
                 games[gid].black_remaining_time = time_left
                 gameover(gid, "W+Time", "")
 
+        # Warns about potentially problematic matches
+        if rec.w not in act:
+            logger.warn(f"Disconnected player:{rec.w} game:{gid}")
+        if rec.b not in act:
+            logger.warn(f"Disconnected player:{rec.b} game:{gid}")
+        if ct - rec.last_move_start_time > schedule_games_interval * 2:
+            sw = f"{rec.w}({rec.white_rate})"
+            sb = f"{rec.b}({rec.black_rate})"
+            logger.warn(f"Match {gid} {sw} {sb} last move is {(ct - rec.last_move_start_time) // 1000} seconds ago")
+
         count += 1
 
     if count != last_game_count:
@@ -1869,7 +1880,7 @@ async def schedule_games_task() -> None:
             logger.error(traceback.format_exc())
 
         # every 15 seconds
-        await asyncio.sleep(15.0)
+        await asyncio.sleep(schedule_games_interval)
 
 
 last_est = now_seconds()
