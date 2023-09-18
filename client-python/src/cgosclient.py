@@ -26,7 +26,8 @@ import os
 import os.path
 import string
 import random
-from typing import Optional
+import io
+from typing import Optional, List
 
 from gtpengine import EngineConnector, EngineConnectorError, GTPTools
 from sgf import SGFGame, SGFMove
@@ -36,10 +37,10 @@ from config import ConfigFile, ConfigSection
 ENCODING = "utf-8"
 
 class CGOSClientError(Exception):
-    def __init__(self, msg):
+    def __init__(self, msg: str) -> None:
         self._msg = msg
 
-    def __str__(self):
+    def __str__(self) -> str:
         return repr(self._msg)
 
 
@@ -60,9 +61,9 @@ class CGOSClient(object):
     __TIME_CHECKPOINT_FREQUENCY = 60 * 30
     """ How often to output stats, etc., in seconds """
 
-    def __init__(self, engineConfigurationSections: ConfigSection,
+    def __init__(self, engineConfigurationSections: List[ConfigSection],
                  killFileName: str = "kill.txt",
-                 logFileName: Optional[str] = None):
+                 logFileName: Optional[str] = None) -> None:
         """
         Initialise the client, without connecting anything yet
           - engineConfigurationSections is a list of ConfigSection objects containing
@@ -70,7 +71,7 @@ class CGOSClient(object):
           - killFileName is the file to look for when deciding whether to shut down
         """
         self._engineConfigs = engineConfigurationSections
-        self._engine = None  # Currently playing engine
+        self._engine: Optional[EngineConnector] = None  # Currently playing engine
         self._currentEngineIndex = (
             -1
         )  # Index in configuration sections of current engine
@@ -85,12 +86,12 @@ class CGOSClient(object):
             False  # Should the handler loop quit to allow an engine switch
         )
 
-        self._socketfile = None
+        self._socketfile: Optional[io.TextIOWrapper] = None
 
-        self._server = None  # Server host name (engine dependent)
-        self._port = None  # Server port (engine dependent)
-        self._username = None  # User name (engine dependent)
-        self._password = None  # Password (engine dependent)
+        self._server: Optional[str] = None  # Server host name (engine dependent)
+        self._port: Optional[int] = None  # Server port (engine dependent)
+        self._username: Optional[str] = None  # User name (engine dependent)
+        self._password: Optional[str] = None  # Password (engine dependent)
 
         self._gameInProgress = False  # Currently between setup and gameover?
         self._engineColour = (
@@ -108,7 +109,7 @@ class CGOSClient(object):
         )  # Last time checkpoint for outputting stats, mail, etc.
 
         self._observer = None  # GTP observer, if any - already connected
-        self._sgfDirectory = None  # Directory to store SGF. Leave None to disable.
+        self._sgfDirectory: Optional[str] = None  # Directory to store SGF. Leave None to disable.
 
         # movecount is only used for periodically outputting information messages
         self._movecount = 0
@@ -141,7 +142,8 @@ class CGOSClient(object):
 
         self.logger.addHandler(handler)
 
-    def connect(self):
+    def connect(self) -> None:
+        assert self._server is not None
         self.logger.info(
             "Attempting to connect to server '"
             + self._server
@@ -162,7 +164,7 @@ class CGOSClient(object):
 
         self.logger.info("Connected")
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         self.logger.info("Disconnecting")
         if self._socketfile is not None:
             self._socketfile.close()
@@ -193,18 +195,19 @@ class CGOSClient(object):
     #
     #        return chosenEngineIndex
 
-    def _respond(self, message):
+    def _respond(self, message: str) -> None:
+        assert self._socketfile is not None
         if self._socket is not None:
             self.logger.debug("Responding: " + message)
             self._socketfile.write(message + "\n")
             self._socketfile.flush()
 
-    def _handle_info(self, parameters):
+    def _handle_info(self, parameters: List[str]) -> None:
         """Event handler: "info". Ignored."""
         self.logger.info("Server info: " + (" ".join(parameters)))
         self._checkTimeCheckpoint()
 
-    def _handle_protocol(self, parameters):
+    def _handle_protocol(self, parameters: List[str]) -> None:
         """Event handler: "protocol" command. No parameters."""
         self._useAnalyze = "genmove_analyze" in parameters
         if self._useAnalyze:
@@ -213,15 +216,17 @@ class CGOSClient(object):
             self._respond(CGOSClient.CLIENT_ID)
 
 
-    def _handle_username(self, parameters):
+    def _handle_username(self, parameters) -> None:
         """Event handler: "username" command. No parameters."""
+        assert self._username is not None
         self._respond(self._username)
 
-    def _handle_password(self, parameters):
+    def _handle_password(self, parameters) -> None:
         """Event handler: "password" command. No parameters."""
+        assert self._password is not None
         self._respond(self._password)
 
-    def _handle_setup(self, parameters):
+    def _handle_setup(self, parameters) -> None:
         """
         Event handler: "setup" command to prepare for game.
         Expects the following parameters:
@@ -239,6 +244,7 @@ class CGOSClient(object):
         """
         if len(parameters) < 6:
             raise CGOSClientError("'setup' command requires at least 6 parameters")
+        assert self._engine is not None
 
         self._gameInProgress = True
 
@@ -331,7 +337,7 @@ class CGOSClient(object):
                 else:
                     colour = "b"
 
-    def _handle_play(self, parameters):
+    def _handle_play(self, parameters: List[str]) -> None:
         """
         Event handler: "play" command. Expects:
           - GTP colour
@@ -340,6 +346,8 @@ class CGOSClient(object):
         """
         if len(parameters) != 3:
             raise CGOSClientError("'play' command requires 3 parameters")
+        assert self._engine is not None
+        assert self._sgfGame is not None
 
         colour = parameters[0]
         coord = parameters[1].lower()
@@ -363,7 +371,7 @@ class CGOSClient(object):
 
         self._sgfGame.addMove(move)
 
-    def _handle_genmove(self, parameters):
+    def _handle_genmove(self, parameters: List[str]) -> None:
         """
         Event handler: "genmove". Expects:
           - GTP colour
@@ -371,6 +379,8 @@ class CGOSClient(object):
         """
         if len(parameters) != 2:
             raise CGOSClientError("'play' command requires 2 parameters")
+        assert self._engine is not None
+        assert self._sgfGame is not None
 
         self._movecount += 1
         if self._movecount % 10 == 0:
@@ -419,12 +429,14 @@ class CGOSClient(object):
         if move is not None:
             self._sgfGame.addMove(move)
 
-    def _handle_gameover(self, parameters):
+    def _handle_gameover(self, parameters: List[str]) -> None:
         """
         Event handler: "gameover". Expects:
           - A date
           - The result (unparsed) e.g. "B+Resign"
         """
+        assert self._engine is not None
+        assert self._sgfGame is not None
         result = parameters[1]
         self.logger.info("Game over. Result: " + result)
 
@@ -481,7 +493,7 @@ class CGOSClient(object):
 
         self._checkTimeCheckpoint()
 
-    def _handlerloop(self):
+    def _handlerloop(self) -> None:
         """
         Read from CGOS socket and dispatch to handlers. This uses reflection on the
         class to handle CGOS commands. Handler methods start with "_handle_" and
@@ -492,6 +504,7 @@ class CGOSClient(object):
         This loop will exit with an exception if the socket fails or an engine or
         client error occurs. Calling methods will have to handle this.
         """
+        assert self._socketfile is not None
         while not (self._finished) and not (self._engineSwitching):
             line = self._socketfile.readline()
             if len(line) == 0:
@@ -539,7 +552,7 @@ class CGOSClient(object):
             self._respond("quit")
             self.disconnect()
 
-    def _checkKillFile(self):
+    def _checkKillFile(self) -> None:
         """
         Check if the kill file exists and set _finished to true if yes.
         """
@@ -547,7 +560,7 @@ class CGOSClient(object):
         if self._finished:
             self.logger.info("Kill file found. Shutting down connection and engines.")
 
-    def _checkTimeCheckpoint(self):
+    def _checkTimeCheckpoint(self) -> None:
         """
         Check if the last time checkpoint was more than half an hour away, and
         perform maintenance tasks if necessary (information output, etc).
@@ -577,10 +590,10 @@ class CGOSClient(object):
                 + "."
             )
 
-    def isConnected(self):
+    def isConnected(self) -> bool:
         return self._server is not None
 
-    def mainloop(self):
+    def mainloop(self) -> None:
         """
         Main loop - keep trying to connect to CGOS, with reasonable wait times. Once connected,
         invoke the handler loop.
@@ -589,6 +602,7 @@ class CGOSClient(object):
         the loop exits. If a kill file is found (see killFileName parameter to constructor),
         an orderly shutdown is performed.
         """
+        assert self._server is not None
         self._finished = False
 
         while not (self._finished):
@@ -623,7 +637,7 @@ class CGOSClient(object):
         if os.path.exists(self._killFileName):
             os.remove(self._killFileName)
 
-    def pickNewEngine(self):
+    def pickNewEngine(self) -> None:
         """
         Choose a different engine and reconnect. If the engine fails to start,
         this throws an exception
@@ -683,14 +697,14 @@ class CGOSClient(object):
 
         self._engineSwitching = True
 
-    def setObserver(self, engine):
+    def setObserver(self, engine) -> None:
         self._observer = engine
 
-    def setSGFDirectory(self, dir):
+    def setSGFDirectory(self, dir) -> None:
         self._sgfDirectory = dir
         self.logger.info("SGF files will be saved in: " + dir)
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         self.logger.info("Shutting down CGOS connection")
 
         if self._socketfile is not None:
@@ -701,11 +715,11 @@ class CGOSClient(object):
             self._engine.shutdown()
 
 
-def main(argv):
+def main(argv: List[str]) -> None:
     print("Python CGOS client. " + CGOSClient.CLIENT_ID + " (c)2009 Christian Nentwich")
     if len(argv) != 1:
         print("Usage: python cgosclient.py config.cfg")
-        return 1
+        return
 
     # Here we go. Grab the configuration file
     config = ConfigFile()

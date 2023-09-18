@@ -19,7 +19,7 @@ import sys
 import traceback
 import os
 import os.path
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 
 class ConfigSection(object):
@@ -96,18 +96,19 @@ class ConfigFile(object):
 
         self._validate()
 
-    def getCommonSection(self):
+    def getCommonSection(self) -> ConfigSection:
         return [x for x in self._sections if x.name() == ConfigFile.COMMON_SECTION][0]
 
-    def getEngineSections(self):
+    def getEngineSections(self) -> List[ConfigSection]:
         return [x for x in self._sections if x.name() == ConfigFile.ENGINE_SECTION]
 
-    def getObserverSection(self):
+    def getObserverSection(self) -> Optional[ConfigSection]:
         result = [x for x in self._sections if x.name() == ConfigFile.OBSERVER_SECTION]
         if len(result) > 0:
             return result[0]
+        return None
 
-    def sections(self):
+    def sections(self) -> List[ConfigSection]:
         return self._sections
 
     def _validate(self):
