@@ -240,7 +240,7 @@ act: Dict[str, ActiveUser] = dict()  # users currently logged on
 games: Dict[int, Game] = dict()  # currently active games
 ratingOf: Dict[str, str] = dict()  # ratings of any player who logs on
 viewers = ViewerList()
-admin: Optional[ActiveUser] = None  # users currently logged on
+admin: Dict[str, ActiveUser] = dict()  # users currently logged on
 
 
 # a unique and temporary name for each login until a name is established
@@ -259,13 +259,14 @@ def nsend(name: str, msg: str) -> None:
         logger.info(f"alert: Cannot find active record for {name}")
 
 
+def is_admin(who: str) -> bool:
+    return who.startswith(ADMIN_USER)
+
+
 # -------------------------------------------------
 # send an informational message out to all clients
 # -------------------------------------------------
 def infoMsg(msg: str) -> None:
-    global act
-    global admin
-
     for (who, v) in list(act.items()):
         if v.msg_state != "protocol":
             soc = v.sock
@@ -279,12 +280,12 @@ def infoMsg(msg: str) -> None:
     viewers.sendAll(f"info {msg}")
 
     # send to admin
-    if admin:
-        soc = admin.sock
+    for (who, v) in list(admin.items()):
+        soc = v.sock
         if not soc.send(f"info {msg}"):
-            logger.error("admin disconnected")
+            logger.error(f"admin[{who}] disconnected")
             soc.close()
-            admin = None
+            del admin[who]
 
 
 # write an SGF game record
@@ -813,6 +814,14 @@ def _handle_player_password(sock: Client, data: str) -> None:
     res = cur.fetchone()
 
     if res is None:
+        if is_admin(who):
+            if cfg.hashPassword:
+                passctx.dummy_verify()
+            logger.warn(f"user {who} password hash doesn't match")
+            sock.send("Error: Sorry, password doesn't match")
+            sock.close()
+            del act[uid]
+            return
         logger.info(f"[{who}] new user")
         if cfg.hashPassword:
             pw_store = passctx.hash(pw)
@@ -885,23 +894,27 @@ def _handle_player_password(sock: Client, data: str) -> None:
         )
         db.commit()
 
+    def cleanup_old_connection(who: str, users: Dict[str, ActiveUser]) -> None:
+        if who in users:
+            # cleanup old connection
+            xsoc = users[who].sock
+            xsoc.send("info another login is being attempted using this user name")
+            xsoc.close()
+            logger.error(f"Error: user {who} apparently lost old connection")
+            del users[who]
+
     # Handle user who already logged on
-    if who in act:
-        # cleanup old connection
-        xsoc = act[who].sock
-        xsoc.send("info another login is being attempted using this user name")
-        xsoc.close()
-        logger.error(f"Error: user {who} apparently lost old connection")
-        del act[who]
+    cleanup_old_connection(who, act)
+    cleanup_old_connection(who, admin)
 
     sock.id = who
     client = act[uid]
     del act[uid]
 
-    if who == ADMIN_USER:
+    if is_admin(who):
         sock.send("ok")
-        global admin
-        admin = ActiveUser(sock, msg_state="waiting")
+
+        admin[who] = ActiveUser(sock, msg_state="waiting")
         logger.info(f"[{who}] logged on as admin")
         return
 
@@ -1121,11 +1134,8 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
 #  Handle admin client
 #
 def admin_respond(sock: Client, data: str) -> None:
-    global act
-    global admin
-
     who = sock.id
-    user = admin
+    user = admin[who]
 
     # If we can no longer read from sock, close it.
     # ---------------------------------------------
@@ -1133,7 +1143,7 @@ def admin_respond(sock: Client, data: str) -> None:
         logger.error(f"[{who}] disconnected")
 
         sock.close()
-        admin = None
+        del admin[who]
         return
 
     logger.debug(f"handle '{user.msg_state}' '{data}'")
@@ -1178,11 +1188,12 @@ def _handle_admin_waiting(sock: Client, data: str) -> None:
 
 
 def _admin_command_quit(sock: Client, tokens: List[str]) -> None:
-    global admin
+    who = sock.id
+
     logger.info("admin quits")
     sock.send("Quit")
     sock.close()
-    admin = None
+    del admin[who]
 
 
 def _admin_command_who(sock: Client, tokens: List[str]) -> None:
@@ -1326,9 +1337,7 @@ def _admin_command_match(sock: Client, tokens: List[str]) -> None:
 
 def _admin_command_abort(sock: Client, tokens: List[str]) -> None:
     if len(tokens) < 2:
-        sock.send(
-            "abort <game id> [<result>]"
-        )
+        sock.send("abort <game id> [<result>]")
         return
     gid = int(tokens[1])
 
@@ -1339,9 +1348,7 @@ def _admin_command_abort(sock: Client, tokens: List[str]) -> None:
     logger.info(f"Abort {gid}")
 
     if gid not in games:
-        sock.send(
-            "No game"
-        )
+        sock.send("No game")
         return
 
     game = games[gid]
@@ -1430,7 +1437,7 @@ async def handle_client(client: Client) -> None:
             if who in viewers.vact:
                 logger.debug(f"handle viewer {who}: {line}")
                 viewer_respond(client, line)
-            elif client.id == ADMIN_USER:
+            elif is_admin(client.id):
                 logger.debug(f"handle admin {who}: {line}")
                 admin_respond(client, line)
             else:
@@ -1535,7 +1542,9 @@ def schedule_games() -> None:
         if ct - rec.last_move_start_time > schedule_games_interval * 2:
             sw = f"{rec.w}({rec.white_rate})"
             sb = f"{rec.b}({rec.black_rate})"
-            logger.warn(f"Match {gid} {sw} {sb} last move is {(ct - rec.last_move_start_time) // 1000} seconds ago")
+            logger.warn(
+                f"Match {gid} {sw} {sb} last move is {(ct - rec.last_move_start_time) // 1000} seconds ago"
+            )
 
         count += 1
 
@@ -1556,7 +1565,10 @@ def schedule_games() -> None:
                 infoMsg("Maximum time until next round: %02d:%02d" % (estMin, estSec))
             else:
                 dt_now = datetime.datetime.now()
-                infoMsg("Next round will start soon: %02d:%02d" % (dt_now.hour, dt_now.minute))
+                infoMsg(
+                    "Next round will start soon: %02d:%02d"
+                    % (dt_now.hour, dt_now.minute)
+                )
             last_est = curTime
 
     # should we begin another round of scheduling?
