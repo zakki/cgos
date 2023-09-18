@@ -84,6 +84,9 @@ let players = new Map();
         for (let line of lines) {
             let tokens = line.split(" ");
             let gid, sgfPath, white, black, result;
+            let hasError = false;
+            let message = "";
+            let lastMoveTime = 0;
             if (tokens[0] === "g") {
                 gid = tokens[1];
                 sgfPath = "SGF/" + tokens[6].replaceAll("-", "/") + "/" + tokens[1] + ".sgf";
@@ -96,10 +99,26 @@ let players = new Map();
                 white = tokens[4];
                 black = tokens[5];
                 result = "*";
+                if (tokens.length > 13) {
+                    const wcon = Number.parseInt(tokens[11]);
+                    const bcon = Number.parseInt(tokens[12]);
+                    lastMoveTime = (Number.parseInt(tokens[13]) / 1000) | 0;
+                    if (wcon == 0) {
+                        message += "[W ERROR]";
+                        hasError = true;
+                    }
+                    if (bcon == 0) {
+                        message += "[B ERROR]";
+                        hasError = true;
+                    }
+                    if (lastMoveTime > 30) {
+                        message += lastMoveTime + "sec ";
+                    }
+                }
             } else {
                 continue;
             }
-            const title = gid + " " + white + " - " + black + " " + result;
+            const title = message + gid + " " + white + " - " + black + " " + result;
             const gameId = "game-"+gid;
             let obj = players.get(gameId);
             // let elmGame = document.getElementById(gameId);
@@ -108,6 +127,14 @@ let players = new Map();
                 if (obj.active && obj.mode === "s") {
                     // obj.player.loadSgfFromFile(sgfPath, END_MOVES);
                     obj.element.querySelector("a").innerText = title;
+                }
+                // warn slow games
+                if (hasError || lastMoveTime > 60) {
+                    obj.element.style["border-color"] = "red";
+                } else if (lastMoveTime > 30) {
+                    obj.element.style["border-color"] = "yellow";
+                } else {
+                    obj.element.style["border-color"] = null;
                 }
                 players.get(gameId).mode = tokens[0];
             } else {
