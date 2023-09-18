@@ -402,6 +402,8 @@ class CGOSClient(object):
 
         self._engine.notifyTimeLeft(colour, timeMSec)
         result, analyzeInfo = self._engine.requestGenMove(colour)
+        if self._genmoveDelay > 0:
+            time.sleep(self._genmoveDelay)
         response = result.lower()
         if self._useAnalyze and analyzeInfo is not None:
             response += " " + analyzeInfo
@@ -694,6 +696,11 @@ class CGOSClient(object):
         self._port = int(newEngineConfig.getValue("ServerPort"))
         self._username = newEngineConfig.getValue("ServerUser")
         self._password = newEngineConfig.getValue("ServerPassword")
+        delay = newEngineConfig.getValueOpt("GenmoveDelay")
+        if delay is None:
+            self._genmoveDelay = -1
+        else:
+            self._genmoveDelay = int(delay)
 
         self._engineSwitching = True
 
