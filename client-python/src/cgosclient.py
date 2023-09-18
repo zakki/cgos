@@ -595,7 +595,7 @@ class CGOSClient(object):
     def isConnected(self) -> bool:
         return self._server is not None
 
-    def mainloop(self) -> None:
+    def mainloop(self) -> bool:
         """
         Main loop - keep trying to connect to CGOS, with reasonable wait times. Once connected,
         invoke the handler loop.
@@ -630,14 +630,16 @@ class CGOSClient(object):
                 self.disconnect()
             except CGOSClientError as e:
                 self.logger.error(str(e))
-                return
+                return False
             except EngineConnectorError as e:
                 self.logger.error("GTP engine error: " + str(e))
-                return
+                return False
 
         self._respond("quit")
         if os.path.exists(self._killFileName):
             os.remove(self._killFileName)
+            return True
+        return False
 
     def pickNewEngine(self) -> None:
         """
@@ -722,11 +724,11 @@ class CGOSClient(object):
             self._engine.shutdown()
 
 
-def main(argv: List[str]) -> None:
+def main(argv: List[str]) -> bool:
     print("Python CGOS client. " + CGOSClient.CLIENT_ID + " (c)2009 Christian Nentwich")
     if len(argv) != 1:
         print("Usage: python cgosclient.py config.cfg")
-        return
+        return True
 
     # Here we go. Grab the configuration file
     config = ConfigFile()
@@ -754,7 +756,7 @@ def main(argv: List[str]) -> None:
     # And play until done
     try:
         client.pickNewEngine()
-        client.mainloop()
+        return client.mainloop()
     finally:
         client.shutdown()
         if observerEngine is not None:
@@ -762,7 +764,16 @@ def main(argv: List[str]) -> None:
 
 
 if __name__ == "__main__":
-    try:
-        main(sys.argv[1:])
-    except Exception as e:
-        traceback.print_exc(file=sys.stderr)
+    while True:
+        try:
+            expected = main(sys.argv[1:])
+            if expected:
+                print("Graceful shutdown")
+                break
+            else:
+                print("Error happened.")
+        except KeyboardInterrupt:
+            print("Exit by KeyboardInterrupt")
+            break
+        except Exception as e:
+            traceback.print_exc(file=sys.stderr)
