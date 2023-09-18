@@ -235,7 +235,7 @@ def buildWebPage() -> None:
             bcr[b] = 1
 
         if s[0] == "s":
-            _, dte, tme, gid, w, b, x, wtl, btl, wr, br = s.split(" ")
+            _, dte, tme, gid, w, b, x, wtl, btl, wr, br, *rests = s.split(" ")
             sch.append([gid, w, wr, b, br, f"{dte} {tme}"])
             active[w] = gid
             active[b] = gid

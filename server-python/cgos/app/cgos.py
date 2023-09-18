@@ -1644,11 +1644,19 @@ def write_web_data_file(ctme: datetime.datetime) -> None:
         ):
             wd.write(f"g {gid} {w} {wr} {b} {br} {dte} {wtu} {btu} {res}\n")
 
+        # ongoing games
+        ct = now_milliseconds()
         tmeSch = now_string()
         for (gid, rec) in games.items():
-            # "s" dte tme gid w b x wtl btl wr br
+            # "s" dte tme gid w b x wtl btl wr br wconnected bconnected lastmove
+            wconnected = 1 if rec.w in act else 0
+            bconnected = 1 if rec.b in act else 0
+            lastmove = ct - rec.last_move_start_time
+
             wd.write(
-                f"s {tmeSch} {gid} {rec.w} {rec.b} {rec.last_move_start_time} {rec.white_remaining_time} {rec.black_remaining_time} {rec.white_rate} {rec.black_rate}\n"
+                f"s {tmeSch} {gid} {rec.w} {rec.b} {rec.last_move_start_time}"
+                + f" {rec.white_remaining_time} {rec.black_remaining_time} {rec.white_rate} {rec.black_rate}"
+                + f" {wconnected} {bconnected} {lastmove}\n"
             )
 
     os.rename(tmpf, cfg.web_data_file)
