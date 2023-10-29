@@ -155,9 +155,9 @@ var update = function(e) {
 		}
 		if (winrate != null) {
 			if(e.node.move.c === WGo.B)
-				this.black.info.win.val.innerHTML = (info.moves[0].winrate * 100).toFixed(2);
+				this.black.info.win.val.innerHTML = (winrate * 100).toFixed(2);
 			if(e.node.move.c === WGo.W)
-				this.white.info.win.val.innerHTML = (info.moves[0].winrate * 100).toFixed(2);
+				this.white.info.win.val.innerHTML = (winrate * 100).toFixed(2);
 		}
 		var score = null;
 		if (info.score != undefined) {
@@ -167,9 +167,9 @@ var update = function(e) {
 		}
 		if (score != null) {
 			if(e.node.move.c === WGo.B)
-				this.black.info.score.val.innerHTML = info.moves[0].score.toFixed(2);
+				this.black.info.score.val.innerHTML = score.toFixed(2);
 			if(e.node.move.c === WGo.W)
-				this.white.info.score.val.innerHTML = info.moves[0].score.toFixed(2);
+				this.white.info.score.val.innerHTML = score.toFixed(2);
 		}
 	}
 }
