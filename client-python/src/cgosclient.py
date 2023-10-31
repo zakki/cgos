@@ -125,7 +125,9 @@ class CGOSClient(object):
 
         # Log debug output to file
         if logFileName is not None:
-            os.makedirs(os.path.dirname(logFileName), exist_ok=True)
+            logdir = os.path.dirname(logFileName)
+            if logdir != '':
+                os.makedirs(logdir, exist_ok=True)
             handler = logging.FileHandler(logFileName)
             handler.setLevel(logging.DEBUG)
 

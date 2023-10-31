@@ -256,7 +256,9 @@ class EngineConnector(object):
             )
 
             if logfile is not None:
-                os.makedirs(os.path.dirname(logfile), exist_ok=True)
+                logdir = os.path.dirname(logfile)
+                if logdir != '':
+                    os.makedirs(logdir, exist_ok=True)
                 self.handler = logging.FileHandler(logfile)
                 self.handler.setLevel(logging.DEBUG)
                 self.handler.setFormatter(self.formatter)
