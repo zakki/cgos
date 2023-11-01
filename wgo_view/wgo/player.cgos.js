@@ -468,6 +468,7 @@
 
     function createLabel(name, x, y) {
       var text = document.createElementNS(SVG, "text");
+      text.classList.add("legend");
       text.setAttribute('x', x);
       text.setAttribute('y', y);
       text.setAttribute('font-size', 10);
@@ -477,6 +478,7 @@
     }
     // legends
     var blackScore = document.createElementNS(SVG, "polygon");
+    blackScore.classList.add("legend");
     blackScore.setAttribute("points", "50,10 80,10, 80,5 50,5");
     blackScore.setAttribute("stroke", "#ff6666");
     blackScore.setAttribute("stroke-width", 1);
@@ -485,6 +487,7 @@
     t.graph.appendChild(createLabel('B Score', 0, 10));
 
     var whiteScore = document.createElementNS(SVG, "polygon");
+    whiteScore.classList.add("legend");
     whiteScore.setAttribute("points", "50,20 80,20 80,15 50,15");
     whiteScore.setAttribute("stroke", "#66ff66");
     whiteScore.setAttribute("stroke-width", 1);
@@ -493,6 +496,7 @@
     t.graph.appendChild(createLabel('W Score', 0, 20));
 
     var blackWinrate = document.createElementNS(SVG, "polyline");
+    blackWinrate.classList.add("legend");
     blackWinrate.setAttribute("points", "50,25 80,25");
     blackWinrate.setAttribute("stroke", "#ff0000");
     blackWinrate.setAttribute("stroke-width", 3);
@@ -501,12 +505,58 @@
     t.graph.appendChild(createLabel('B Winrate', 0, 30));
 
     var whiteWinrate = document.createElementNS(SVG, "polyline");
+    whiteWinrate.classList.add("legend");
     whiteWinrate.setAttribute("points", "50,35 80,35");
     whiteWinrate.setAttribute("stroke", "#006600");
     whiteWinrate.setAttribute("stroke-width", 3);
     whiteWinrate.setAttribute("fill", "none");
     t.graph.appendChild(whiteWinrate);
     t.graph.appendChild(createLabel('W Winrate', 0, 40));
+
+    var text;
+    text = document.createElementNS(SVG, "text");
+    text.classList.add("large-info");
+    text.setAttribute('x', 80);
+    text.setAttribute('y', 25);
+    text.setAttribute('font-size', 50);
+    text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('text-anchor', 'middle');
+    text.textContent = "--";
+    t.largeWinRateW = text;
+    t.graph.appendChild(text);
+
+    text = document.createElementNS(SVG, "text");
+    text.classList.add("large-info");
+    text.setAttribute('x', 80);
+    text.setAttribute('y', 75);
+    text.setAttribute('font-size', 50);
+    text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('text-anchor', 'middle');
+    text.textContent = "--";
+    t.largeScoreW = text;
+    t.graph.appendChild(text);
+
+    text = document.createElementNS(SVG, "text");
+    text.classList.add("large-info");
+    text.setAttribute('x', 320);
+    text.setAttribute('y', 25);
+    text.setAttribute('font-size', 50);
+    text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('text-anchor', 'middle');
+    text.textContent = "--";
+    t.largeWinRateB = text;
+    t.graph.appendChild(text);
+
+    text = document.createElementNS(SVG, "text");
+    text.classList.add("large-info");
+    text.setAttribute('x', 320);
+    text.setAttribute('y', 75);
+    text.setAttribute('font-size', 50);
+    text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('text-anchor', 'middle');
+    text.textContent = "--";
+    t.largeScoreB = text;
+    t.graph.appendChild(text);
   };
 
   function winrate(analysis) {
@@ -526,6 +576,9 @@
     } else {
       return null;
     }
+    return score;
+  }
+  function scoreToY(score) {
     var r = (score / 40 + 0.5);
     if (r < 0)
       r = 0;
@@ -563,6 +616,8 @@
     var turn = e.path.m;
     this.winrate.cursor.setAttribute("x", (turn - 1) * this.xScale);
     this.winrate.cursor.setAttribute("width", 3 * this.xScale);
+    var whiteUpdated = false;
+    var blackUpdated = false;
     while (node) {
       var winrateList, scoreList;
       if (!node.move || !node.CC) {
@@ -587,12 +642,28 @@
       }
       var sc = score(info);
       if (sc != null) {
+        var scY = scoreToY(sc);
         if (node.move.c == WGo.B)
-          sc = 100 - sc;
+          scY = 100 - scY;
         scoreList[turn*4]   = turn * this.xScale + "," + 50;
-        scoreList[turn*4+1] = turn * this.xScale + "," + sc;
-        scoreList[turn*4+2] = (turn + 0.4) * this.xScale + "," + sc;
+        scoreList[turn*4+1] = turn * this.xScale + "," + scY;
+        scoreList[turn*4+2] = (turn + 0.4) * this.xScale + "," + scY;
         scoreList[turn*4+3] = (turn + 0.4) * this.xScale + "," + 50;
+      }
+
+      if (node.move.c == WGo.B && !blackUpdated) {
+        if (rate != null)
+          this.winrate.largeWinRateB.textContent = (100 - rate).toFixed(2) + "%";
+        if (sc != null)
+          this.winrate.largeScoreB.textContent = (sc > 0 ? "B+" : "W+") + Math.abs(sc).toFixed(2);
+        blackUpdated = true;
+      }
+      if (node.move.c == WGo.W && !whiteUpdated) {
+        if (rate != null)
+          this.winrate.largeWinRateW.textContent = rate.toFixed(2) + "%";
+        if (sc != null)
+          this.winrate.largeScoreW.textContent = (sc > 0 ? "W+" : "B+") + Math.abs(sc).toFixed(2);
+        whiteUpdated = true;
       }
 
       node = node.parent;
