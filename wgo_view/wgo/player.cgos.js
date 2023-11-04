@@ -512,7 +512,9 @@
   function winrate(analysis) {
     if (analysis.winrate != undefined)
       return analysis.winrate * 100;
-    if (analysis.moves != undefined && analysis.moves[0].winrate)
+    if (analysis.moves != undefined
+        && analysis.moves.length > 0
+        && analysis.moves[0].winrate)
       return analysis.moves[0].winrate * 100;
     return null;
   }
@@ -521,7 +523,9 @@
     var score;
     if (analysis.score != undefined) {
       score = analysis.score;
-    } else if (analysis.moves != undefined && analysis.moves[0].score) {
+    } else if (analysis.moves != undefined
+        && analysis.moves.length > 0
+        && analysis.moves[0].score) {
       score = analysis.moves[0].score;
     } else {
       return null;
