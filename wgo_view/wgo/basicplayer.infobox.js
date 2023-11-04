@@ -150,7 +150,9 @@ var update = function(e) {
 		var winrate = null;
 		if (info.winrate != undefined) {
 			winrate = info.winrate;
-		} else if (info.moves != undefined && info.moves[0].winrate != undefined) {
+		} else if (info.moves != undefined
+				&& info.moves.length > 0
+				&& info.moves[0].winrate != undefined) {
 			winrate = info.moves[0].winrate;
 		}
 		if (winrate != null) {
@@ -162,7 +164,9 @@ var update = function(e) {
 		var score = null;
 		if (info.score != undefined) {
 			score = info.score;
-		} else if (info.moves != undefined && info.moves[0].score != undefined) {
+		} else if (info.moves != undefined
+				&& info.moves.length > 0
+				&& info.moves[0].score != undefined) {
 			score = info.moves[0].score;
 		}
 		if (score != null) {

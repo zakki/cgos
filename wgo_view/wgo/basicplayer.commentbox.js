@@ -177,7 +177,7 @@ CommentBox.prototype.getCommentText = function(comment, formatNicks, formatMoves
 		if (analyze.score != null) {
 			comm += "score:"+(+analyze.score).toFixed(1)+"<br>";
 		}
-		if (analyze.moves) {
+		if (analyze.moves && analyze.moves.length > 0) {
 			comm += "<h2>pv</h2>";
 			var info = analyze.moves[0];
 			if (info.move != null) {
