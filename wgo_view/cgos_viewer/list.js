@@ -123,20 +123,22 @@ let players = new Map();
             let obj = players.get(gameId);
             // let elmGame = document.getElementById(gameId);
             if (obj) {
-                // console.log("exists", gameId)
-                if (obj.active && obj.mode === "s") {
-                    // obj.player.loadSgfFromFile(sgfPath, END_MOVES);
-                    obj.element.querySelector("a").innerText = title;
+                obj.mode = tokens[0];
+                if (obj.element) {
+                    // console.log("exists", gameId)
+                    if (obj.active && obj.mode === "s") {
+                        // obj.player.loadSgfFromFile(sgfPath, END_MOVES);
+                        obj.element.querySelector("a").innerText = title;
+                    }
+                    // warn slow games
+                    if (hasError || lastMoveTime > 60) {
+                        obj.element.style["border-color"] = "red";
+                    } else if (lastMoveTime > 30) {
+                        obj.element.style["border-color"] = "yellow";
+                    } else {
+                        obj.element.style["border-color"] = null;
+                    }
                 }
-                // warn slow games
-                if (hasError || lastMoveTime > 60) {
-                    obj.element.style["border-color"] = "red";
-                } else if (lastMoveTime > 30) {
-                    obj.element.style["border-color"] = "yellow";
-                } else {
-                    obj.element.style["border-color"] = null;
-                }
-                players.get(gameId).mode = tokens[0];
             } else {
                 createPlayer(elmList, gameId, sgfPath, title, tokens[0]);
             }
