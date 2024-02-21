@@ -1051,6 +1051,12 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
             gameover(gid, over, "")
             return
 
+    def add_move(mv: str):
+        if ctm & 1:
+            game.moves.append((mv, wrt, analysis))
+        else:
+            game.moves.append((mv, brt, analysis))
+
     if mv.lower() == "resign":
         err = 0
         over = maybe
@@ -1062,7 +1068,8 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
             # nsend $w "play b $mv $brt"
             vmsg = f"{mv} {brt}"
         viewers.sendObservers(gid, f"update {gid} {vmsg}")
-        gameover(gid, over, "")
+        add_move("resign")
+        gameover(gid, over, "Resignation")
         return
     else:
         err = gme[gid].make(mv)
@@ -1071,16 +1078,13 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
         xerr = err * -1
         over = maybe
         over += "Illegal"
-        gameover(gid, over, ERR_MSG[xerr])
+        add_move("pass")
+        gameover(gid, over, f"Illegal move error:{ERR_MSG[xerr]} move:{mv}")
         return
 
     # record the moves and times
     # --------------------------
-    if ctm & 1:
-        game.moves.append((mv, wrt, analysis))
-    else:
-        game.moves.append((mv, brt, analysis))
-    games[gid].moves = game.moves
+    add_move(mv)
 
     if game.w == who:
         nsend(game.b, f"play w {mv} {wrt}")

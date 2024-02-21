@@ -123,7 +123,7 @@ def sgf(
         mv = m.lower()
         tleft = t // 1000
 
-        if mv.startswith("pas"):
+        if mv.startswith("pas") or mv == "resign":
             s += f";{colstr[ctm]}[]{colstr[ctm]}L[{tleft}]"
         else:
             ccs = ord(mv[0])
