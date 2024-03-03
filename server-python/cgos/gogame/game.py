@@ -114,7 +114,7 @@ def sgf(
 
     comment = err
 
-    s += f"PW[{game.w}]PB[{game.b}]WR[{game.white_rate}]BR[{game.black_rate}]DT[{dte}]PC[{serverName}]RE[{res}]GN[{gid}]\n"
+    s += f"PW[{game.w}]PB[{game.b}]WR[{game.white_rate}]BR[{game.black_rate}]DT[{dte}]PC[{serverName}]RE[{res: <10}]GN[{gid}]\n"
 
     tmc = 0  # total move count
 
@@ -146,6 +146,9 @@ def sgf(
 
     if comment != "":
         s += f";C[{escapeSgfText(comment)}]\n"
+
+    if res == "?":
+        s += '\nCZ[]'
 
     s += ")\n"
 

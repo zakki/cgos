@@ -27,7 +27,7 @@ let players = new Map();
     "use strict";
 
     const POLL_INTERVAL = 10_000;
-    const FORCE_UPDATE_SGF = true;
+    const FORCE_UPDATE_SGF = false;
 
     let updateCheckbox;
 
@@ -126,7 +126,7 @@ let players = new Map();
                 obj.mode = tokens[0];
                 if (obj.element) {
                     // console.log("exists", gameId)
-                    if (obj.active && obj.mode === "s") {
+                    if (obj.active) {
                         // obj.player.loadSgfFromFile(sgfPath, END_MOVES);
                         obj.element.querySelector("a").innerText = title;
                     }

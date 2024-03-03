@@ -488,7 +488,7 @@ def rating(who: str) -> str:
     return strRate(u.rating, u.k)
 
 
-def saveSgf(gid: int, game: Game, sc: str, err: str) -> None:
+def saveSgf(gid: int, game: Game, sc: Optional[str], err: str) -> None:
 
     dte = game.ctime.strftime("%Y-%m-%d")
 
@@ -500,7 +500,7 @@ def saveSgf(gid: int, game: Game, sc: str, err: str) -> None:
         boardsize=cfg.boardsize,
         komi=cfg.komi,
         gid=gid,
-        res=sc,
+        res="?" if sc is None else sc,
         dte=dte,
         err=err,
     )
@@ -512,14 +512,22 @@ def saveSgf(gid: int, game: Game, sc: str, err: str) -> None:
         game.ctime.strftime("%m"),
         game.ctime.strftime("%d"),
     )
+
     os.makedirs(dest_dir, exist_ok=True)  # make directory if it doesn't exist
 
-    if cfg.compressSgf:
-        with gzip.open(f"{dest_dir}/{gid}.sgf.gz", "wb") as f:
+    if cfg.compressSgf and sc is not None:
+        # Compress only ended game to support range requests
+        with gzip.open(f"{dest_dir}/{gid}.sgf.gz.tmp", "wb") as f:
             f.write(sgfString.encode(ENCODING))
+        os.replace(f"{dest_dir}/{gid}.sgf.gz.tmp", f"{dest_dir}/{gid}.sgf.gz")
+        try:
+            os.remove(f"{dest_dir}/{gid}.sgf")
+        except OSError:
+            pass
     else:
-        with open(f"{dest_dir}/{gid}.sgf", "wb") as f:
+        with open(f"{dest_dir}/{gid}.sgf.tmp", "wb") as f:
             f.write(sgfString.encode(ENCODING))
+        os.replace(f"{dest_dir}/{gid}.sgf.tmp", f"{dest_dir}/{gid}.sgf")
 
 
 def gameover(gid: int, sc: str, err: str) -> None:
@@ -1099,7 +1107,7 @@ def _handle_player_genmove(sock: Client, data: str) -> None:
         cfg.moveIntervalBetweenSave > 0
         and len(game.moves) % cfg.moveIntervalBetweenSave == 0
     ):
-        saveSgf(gid, games[gid], "?", "")
+        saveSgf(gid, games[gid], None, "")
 
     # game over due to natural causes?
     # --------------------------------
@@ -1675,7 +1683,7 @@ def write_web_data_file(ctme: datetime.datetime) -> None:
                 + f" {wconnected} {bconnected} {lastmove}\n"
             )
 
-    os.rename(tmpf, cfg.web_data_file)
+    os.replace(tmpf, cfg.web_data_file)
     shutil.copy(cfg.web_data_file, cfg.htmlDir)
 
 
