@@ -33,8 +33,9 @@
     let updateCheckbox;
     let player;
 
-    let sgfBuffer = null;
+    let sgfBuffer = new Uint8Array(1_000_000);
     let sgfSize = 0;
+    let lastSgfPos = 0;
     let useRangeFetch = USE_FETCH;
 
     function pollSgf() {
@@ -47,26 +48,32 @@
             return
         }
 
-        if (sgfBuffer == null) {
-            sgfSize = 0;
-            sgfBuffer = new Uint8Array(1024);
-        }
-        let startPos = Math.max(0, sgfSize - 8);
+        let startPos = lastSgfPos;
+
         // console.log("fetch", sgfSize, startPos);
         let init = {
             cache: "no-store"
         };
-        if (startPos > 0) {
+        if (startPos == 0) {
+            player.loadSgfFromFile(path, END_MOVES);
+            player.updateDimensions();
+        } else {
+            //startPos = ((startPos / CHUNK_SIZE) | 0) * CHUNK_SIZE;
             init["headers"] = {
                     'range': 'bytes=' + startPos + "-" + (startPos+10_000_000),
             };
         }
+        path = path.replace(".sgf", `.bin`)
         fetch(path, init)
         .then(r => {
             if (r.ok) {
                 return r.arrayBuffer();
             } else {
                 if (r.status == 404) {
+                    if (player && player.kifu && player.kifu.nodeCount > 0) {
+                        useRangeFetch = false;
+                        return null;
+                    }
                     return Promise.reject("404");
                 }
                 useRangeFetch = false;
@@ -74,6 +81,8 @@
             }
         })
         .then(buf => {
+            if (buf == null)
+                return;
             let size = startPos + buf.byteLength;
             if (size >= sgfBuffer.byteLength) {
                 let newBuffer = new Uint8Array(size * 2);
@@ -84,19 +93,37 @@
 
             sgfBuffer.set(new Uint8Array(buf), startPos);
             sgfSize = size;
-            let sgf = new TextDecoder().decode(sgfBuffer.slice(0, sgfSize));
+
+            let sgf = "";
+            const decoder = new TextDecoder();
+            const view = new DataView(sgfBuffer.buffer);
+            for (let i = 0; i < sgfSize;) {
+                let size = view.getInt32(i, true);
+                let buf;
+                if (size < 0) {
+                    size = -size;
+                    buf = pako.inflate(new Uint8Array(sgfBuffer.buffer, i + 4, size));
+                } else {
+                    buf = new Uint8Array(sgfBuffer.buffer, i + 4, size);
+                }
+                const chunk = decoder.decode(buf);
+                // console.log(i, chunk);
+                if (chunk.indexOf('CZ[]') > 0) {
+                    lastSgfPos = i;
+                }
+
+                sgf += chunk;
+
+                i += 4 + size;
+            }
             // console.log(sgf);
             if (!sgf.trim().endsWith(")")) {
-                pollSgf();
+                console.log("ignroe bad sgf", sgf)
+                //pollSgf();
                 return;
             }
             player.loadSgf(sgf, END_MOVES);
             player.updateDimensions();
-            if (sgf.indexOf('CZ[]') > 0) {
-                useRangeFetch = true;
-            } else {
-                useRangeFetch = false;
-            }
         });
     }
 

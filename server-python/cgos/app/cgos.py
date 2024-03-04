@@ -33,6 +33,7 @@ import re
 import traceback
 import json
 import shutil
+import zlib
 
 from typing import List, Tuple, Dict, Optional
 
@@ -515,15 +516,33 @@ def saveSgf(gid: int, game: Game, sc: Optional[str], err: str) -> None:
 
     os.makedirs(dest_dir, exist_ok=True)  # make directory if it doesn't exist
 
-    if cfg.compressSgf and sc is not None:
-        # Compress only ended game to support range requests
+    if sc is None:
+        # Save ongoing game as binary format for ranged request.
+        lines = re.split("([^;]*;)", sgfString)
+        lines = [e for e in lines if len(e) > 0]
+        with open(f"{dest_dir}/{gid}.bin.tmp", "wb") as f:
+            for line in lines:
+                data = line.encode(ENCODING)
+                comp = zlib.compress(data)
+                if len(data) < len(comp):
+                    f.write(len(data).to_bytes(4, "little", signed=True))
+                    f.write(data)
+                else:
+                    f.write((-len(comp)).to_bytes(4, "little", signed=True))
+                    f.write(comp)
+        os.replace(f"{dest_dir}/{gid}.bin.tmp", f"{dest_dir}/{gid}.bin")
+
+    if cfg.compressSgf:
         with gzip.open(f"{dest_dir}/{gid}.sgf.gz.tmp", "wb") as f:
             f.write(sgfString.encode(ENCODING))
         os.replace(f"{dest_dir}/{gid}.sgf.gz.tmp", f"{dest_dir}/{gid}.sgf.gz")
-        try:
-            os.remove(f"{dest_dir}/{gid}.sgf")
-        except OSError:
-            pass
+        # Clean up
+        if sc is not None:
+            for file in [f"{dest_dir}/{gid}.bin", f"{dest_dir}/{gid}.sgf"]:
+                try:
+                    os.remove(file)
+                except OSError:
+                    pass
     else:
         with open(f"{dest_dir}/{gid}.sgf.tmp", "wb") as f:
             f.write(sgfString.encode(ENCODING))
@@ -1739,6 +1758,9 @@ def init_game(
 
     vmsg = f"match {gid} - - {cfg.boardsize} {cfg.komi} {wp}({wr}) {bp}({br}) -"
     viewers.sendAll(vmsg)
+
+    if cfg.moveIntervalBetweenSave > 0:
+        saveSgf(gid, games[gid], None, "")
 
     logger.info(f"starting {wp} {wr} {bp} {br}")
 

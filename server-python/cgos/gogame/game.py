@@ -148,7 +148,7 @@ def sgf(
         s += f";C[{escapeSgfText(comment)}]\n"
 
     if res == "?":
-        s += '\nCZ[]'
+        s += "CZ[]"
 
     s += ")\n"
 
