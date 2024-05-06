@@ -385,6 +385,12 @@
 (function () {
   "use strict";
 
+  var SVG = "http://www.w3.org/2000/svg";
+
+  var COLOR_BLACK = "#333333";
+  var COLOR_WHITE = "#efefef";
+  var COLOR_BOARD = "#ddbb66";
+
   var prepare_dom = function (player) {
     prepare_dom_box.call(this, "winrate", player);
     this.element.appendChild(this.winrate.box);
@@ -393,18 +399,28 @@
   var WIDTH = 400;
   var HEIGHT = 100;
 
+  function createStone() {
+    var stone = document.createElementNS(SVG, "circle");
+    stone.setAttribute("cx", "0");
+    stone.setAttribute("cy", "0");
+    stone.setAttribute("r", "3");
+    stone.setAttribute("stroke", "#999999");
+    stone.setAttribute("stroke-width", 1);
+    stone.setAttribute("fill", "#999999");
+    return stone;
+  }
+
   var prepare_dom_box = function (type, player) {
     this[type] = {};
     var self = this;
     var t = this[type];
 
-    var SVG = "http://www.w3.org/2000/svg";
     t.box = document.createElement("div");
     t.box.className = "wgo-box-wrapper wgo-player-wrapper wgo-" + type;
 
     t.graph = document.createElementNS(SVG, "svg");
     t.graph.setAttribute("viewBox", "-5 -5 410 110");
-    t.graph.setAttribute("style", "background-color:#f0f0f0;");
+    t.graph.setAttribute("style", "background-color:"+COLOR_BOARD);
     t.box.appendChild(t.graph);
     var pt = t.graph.createSVGPoint();
     t.graph.onclick = function (e) {
@@ -426,7 +442,7 @@
 
     var blackScore = document.createElementNS(SVG, "polyline");
     blackScore.setAttribute("points", "0,0 0,0");
-    blackScore.setAttribute("stroke", "#ff6666");
+    blackScore.setAttribute("stroke", COLOR_WHITE);
     blackScore.setAttribute("stroke-width", 1);
     blackScore.setAttribute("fill", "none");
     t.blackScore = blackScore;
@@ -434,27 +450,19 @@
 
     var whiteScore = document.createElementNS(SVG, "polyline");
     whiteScore.setAttribute("points", "0,0 0,0");
-    whiteScore.setAttribute("stroke", "#66ff66");
+    whiteScore.setAttribute("stroke", COLOR_BLACK);
     whiteScore.setAttribute("stroke-width", 1);
     whiteScore.setAttribute("fill", "none");
     t.whiteScore = whiteScore;
     t.graph.appendChild(whiteScore);
 
-    var blackWinrate = document.createElementNS(SVG, "polyline");
-    blackWinrate.setAttribute("points", "0,0 0,0");
-    blackWinrate.setAttribute("stroke", "#ff0000");
-    blackWinrate.setAttribute("stroke-width", 3);
-    blackWinrate.setAttribute("fill", "none");
-    t.blackWinrate = blackWinrate;
-    t.graph.appendChild(blackWinrate);
-
-    var whiteWinrate = document.createElementNS(SVG, "polyline");
-    whiteWinrate.setAttribute("points", "0,0 0,0");
-    whiteWinrate.setAttribute("stroke", "#006600");
-    whiteWinrate.setAttribute("stroke-width", 3);
-    whiteWinrate.setAttribute("fill", "none");
-    t.whiteWinrate = whiteWinrate;
-    t.graph.appendChild(whiteWinrate);
+    t.winrateStones = [];
+    for (var i = 0; i < 1000; i++) {
+      var stone = createStone();
+      stone.style.display = "none";
+      t.winrateStones.push(stone);
+      t.graph.appendChild(stone);
+    }
 
     var cursor = document.createElementNS(SVG, "rect");
     cursor.setAttribute("x", 0);
@@ -475,38 +483,48 @@
       text.textContent = name;
       return text;
     }
+
     // legends
+    var legendsArea = document.createElementNS(SVG, "rect");
+    legendsArea.setAttribute("x", -5);
+    legendsArea.setAttribute("y", -5);
+    legendsArea.setAttribute("width", 110);
+    legendsArea.setAttribute("height", 30);
+    legendsArea.setAttribute("stroke", "none");
+    legendsArea.setAttribute("fill", COLOR_BOARD);
+    legendsArea.setAttribute("fill-opacity", "0.5");
+    t.graph.appendChild(legendsArea);
+
+    t.graph.appendChild(createLabel('Black Score', 0, 10));
+
     var blackScore = document.createElementNS(SVG, "polygon");
-    blackScore.setAttribute("points", "50,10 80,10, 80,5 50,5");
-    blackScore.setAttribute("stroke", "#ff6666");
+    blackScore.setAttribute("points", "75,10 85,10, 85,5 75,5");
+    blackScore.setAttribute("stroke", COLOR_BLACK);
     blackScore.setAttribute("stroke-width", 1);
-    blackScore.setAttribute("fill", "none");
+    blackScore.setAttribute("fill", COLOR_BLACK);
     t.graph.appendChild(blackScore);
-    t.graph.appendChild(createLabel('B Score', 0, 10));
 
     var whiteScore = document.createElementNS(SVG, "polygon");
-    whiteScore.setAttribute("points", "50,20 80,20 80,15 50,15");
-    whiteScore.setAttribute("stroke", "#66ff66");
+    whiteScore.setAttribute("points", "90,10 100,10 100,5 90,5");
+    whiteScore.setAttribute("stroke", COLOR_WHITE);
     whiteScore.setAttribute("stroke-width", 1);
-    whiteScore.setAttribute("fill", "none");
+    whiteScore.setAttribute("fill", COLOR_WHITE);
     t.graph.appendChild(whiteScore);
-    t.graph.appendChild(createLabel('W Score', 0, 20));
 
-    var blackWinrate = document.createElementNS(SVG, "polyline");
-    blackWinrate.setAttribute("points", "50,25 80,25");
-    blackWinrate.setAttribute("stroke", "#ff0000");
-    blackWinrate.setAttribute("stroke-width", 3);
-    blackWinrate.setAttribute("fill", "none");
+    t.graph.appendChild(createLabel('Black Win Rate', 0, 20));
+
+    var blackWinrate = createStone();
+    blackWinrate.setAttribute("cx", "80");
+    blackWinrate.setAttribute("cy", "17");
+    blackWinrate.setAttribute("fill", COLOR_BLACK);
     t.graph.appendChild(blackWinrate);
-    t.graph.appendChild(createLabel('B Winrate', 0, 30));
 
-    var whiteWinrate = document.createElementNS(SVG, "polyline");
-    whiteWinrate.setAttribute("points", "50,35 80,35");
-    whiteWinrate.setAttribute("stroke", "#006600");
-    whiteWinrate.setAttribute("stroke-width", 3);
-    whiteWinrate.setAttribute("fill", "none");
+    var whiteWinrate = createStone();
+    whiteWinrate.setAttribute("cx", "95");
+    whiteWinrate.setAttribute("cy", "17");
+    whiteWinrate.setAttribute("fill", COLOR_WHITE);
     t.graph.appendChild(whiteWinrate);
-    t.graph.appendChild(createLabel('W Winrate', 0, 40));
+
   };
 
   function winrate(analysis) {
@@ -539,18 +557,18 @@
   }
 
   var kifu_loaded = function (e) {
-    this.black = [];
-    this.white = [];
+    this.winrateLinePoints = [];
     this.blackScore = [];
     this.whiteScore = [];
 
     for (var i = 0; i < e.kifu.nodeCount; i++) {
-      this.black.push("");
+      this.winrateLinePoints.push("");
+
       this.blackScore.push("");
       this.blackScore.push("");
       this.blackScore.push("");
       this.blackScore.push("");
-      this.white.push("");
+
       this.whiteScore.push("");
       this.whiteScore.push("");
       this.whiteScore.push("");
@@ -567,18 +585,21 @@
     var turn = e.path.m;
     this.winrate.cursor.setAttribute("x", (turn - 1) * this.xScale);
     this.winrate.cursor.setAttribute("width", 3 * this.xScale);
+    var winrateStones = this.winrate.winrateStones;
     while (node) {
-      var winrateList, scoreList;
+      var scoreList;
+      var fillColor;
       if (!node.move || !node.CC) {
         node = node.parent;
         turn--;
         continue;
       }
+
       if (node.move.c == WGo.B) {
-        winrateList = this.black;
+        fillColor = COLOR_BLACK;
         scoreList = this.blackScore;
       } else {
-        winrateList = this.white;
+        fillColor = COLOR_WHITE;
         scoreList = this.whiteScore;
       }
 
@@ -587,7 +608,12 @@
       if (rate != null) {
         if (node.move.c == WGo.B)
           rate = 100 - rate;
-        winrateList[turn] = turn * this.xScale + "," + rate;
+        var x = turn * this.xScale
+        var y = rate;
+        winrateStones[turn].setAttribute("cx", x);
+        winrateStones[turn].setAttribute("cy", y);
+        winrateStones[turn].setAttribute("fill", fillColor);
+        winrateStones[turn].style.display = "block";
       }
       var sc = score(info);
       if (sc != null) {
@@ -603,9 +629,7 @@
       turn--;
     }
 
-    this.winrate.blackWinrate.setAttribute("points", this.black.join(" "));
     this.winrate.blackScore.setAttribute("points", this.blackScore.join(" "));
-    this.winrate.whiteWinrate.setAttribute("points", this.white.join(" "));
     this.winrate.whiteScore.setAttribute("points", this.whiteScore.join(" "));
   };
 
