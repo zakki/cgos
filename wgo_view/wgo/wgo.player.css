@@ -735,3 +735,13 @@ input[type="text"].wgo-permalink {
 	width: 100%;
 	height: 100%;
 }
+
+/*
+.score-stone {
+	filter: drop-shadow(2px 2px 3px #399);
+}
+*/
+
+.winrate-line {
+	filter: drop-shadow(2px 2px 3px #399);
+}

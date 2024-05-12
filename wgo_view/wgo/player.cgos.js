@@ -401,9 +401,10 @@
 
   function createStone() {
     var stone = document.createElementNS(SVG, "circle");
+    stone.setAttribute("class", "score-stone")
     stone.setAttribute("cx", "0");
     stone.setAttribute("cy", "0");
-    stone.setAttribute("r", "3");
+    stone.setAttribute("r", "5");
     stone.setAttribute("stroke", "#999999");
     stone.setAttribute("stroke-width", 1);
     stone.setAttribute("fill", "#999999");
@@ -456,13 +457,25 @@
     t.whiteScore = whiteScore;
     t.graph.appendChild(whiteScore);
 
+    var blackWinrateLine = document.createElementNS(SVG, "polyline");
+    blackWinrateLine.setAttribute("class", "winrate-line black");
+    blackWinrateLine.setAttribute("points", "0,0 0,0");
+    blackWinrateLine.setAttribute("stroke", COLOR_BLACK);
+    blackWinrateLine.setAttribute("stroke-width", 4);
+    blackWinrateLine.setAttribute("fill", "none");
+    t.blackWinrateLine = blackWinrateLine;
+    t.graph.appendChild(blackWinrateLine);
+
+    var whiteWinrateLine = document.createElementNS(SVG, "polyline");
+    whiteWinrateLine.setAttribute("class", "winrate-line white");
+    whiteWinrateLine.setAttribute("points", "0,0 0,0");
+    whiteWinrateLine.setAttribute("stroke", COLOR_WHITE);
+    whiteWinrateLine.setAttribute("stroke-width", 4);
+    whiteWinrateLine.setAttribute("fill", "none");
+    t.whiteWinrateLine = whiteWinrateLine;
+    t.graph.appendChild(whiteWinrateLine);
+
     t.winrateStones = [];
-    for (var i = 0; i < 1000; i++) {
-      var stone = createStone();
-      stone.style.display = "none";
-      t.winrateStones.push(stone);
-      t.graph.appendChild(stone);
-    }
 
     var cursor = document.createElementNS(SVG, "rect");
     cursor.setAttribute("x", 0);
@@ -557,24 +570,21 @@
   }
 
   var kifu_loaded = function (e) {
-    this.winrateLinePoints = [];
     this.blackScore = [];
     this.whiteScore = [];
+    this.blackWinrate = [];
+    this.whiteWinrate = [];
 
     for (var i = 0; i < e.kifu.nodeCount; i++) {
-      this.winrateLinePoints.push("");
-
-      this.blackScore.push("");
-      this.blackScore.push("");
-      this.blackScore.push("");
-      this.blackScore.push("");
-
-      this.whiteScore.push("");
-      this.whiteScore.push("");
-      this.whiteScore.push("");
-      this.whiteScore.push("");
+      for (var j = 0; j < 4; j++) {
+        this.blackScore.push("");
+        this.whiteScore.push("");
+      }
+      this.blackWinrate.push("");
+      this.whiteWinrate.push("");
     }
 
+    this.nodeCount = e.kifu.nodeCount;
     this.xScale = WIDTH / Math.max(100, e.kifu.nodeCount + 10)
   };
 
@@ -586,8 +596,11 @@
     this.winrate.cursor.setAttribute("x", (turn - 1) * this.xScale);
     this.winrate.cursor.setAttribute("width", 3 * this.xScale);
     var winrateStones = this.winrate.winrateStones;
+    var stoneSpan = Math.max(5, Math.round(this.nodeCount / 20));
+    if (stoneSpan % 2 == 0)
+      stoneSpan ++;
     while (node) {
-      var scoreList;
+      var scoreList, winrateList;
       var fillColor;
       if (!node.move || !node.CC) {
         node = node.parent;
@@ -598,9 +611,11 @@
       if (node.move.c == WGo.B) {
         fillColor = COLOR_BLACK;
         scoreList = this.blackScore;
+        winrateList = this.blackWinrate;
       } else {
         fillColor = COLOR_WHITE;
         scoreList = this.whiteScore;
+        winrateList = this.whiteWinrate;
       }
 
       var info = JSON.parse(node.CC);
@@ -608,12 +623,26 @@
       if (rate != null) {
         if (node.move.c == WGo.B)
           rate = 100 - rate;
-        var x = turn * this.xScale
+        var x = turn;
         var y = rate;
-        winrateStones[turn].setAttribute("cx", x);
-        winrateStones[turn].setAttribute("cy", y);
-        winrateStones[turn].setAttribute("fill", fillColor);
-        winrateStones[turn].style.display = "block";
+
+        if ((turn - 1) % stoneSpan == 0) {
+          if (winrateStones[turn] == null) {
+            winrateStones[turn] = createStone();
+            this.winrate.graph.appendChild(winrateStones[turn]);
+          }
+          winrateStones[turn].setAttribute("cx", (x + 0.5) * this.xScale);
+          winrateStones[turn].setAttribute("cy", y);
+          // winrateStones[turn].setAttribute("r", 1 * this.xScale);
+          // winrateStones[turn].setAttribute("stroke-width", 0.5 * this.xScale);
+          winrateStones[turn].setAttribute("fill", fillColor);
+          winrateStones[turn].style.display = "block";
+        } else {
+          if (winrateStones[turn])
+            winrateStones[turn].style.display = "none";
+        }
+
+        winrateList[turn] = x * this.xScale + "," + y;
       }
       var sc = score(info);
       if (sc != null) {
@@ -631,6 +660,8 @@
 
     this.winrate.blackScore.setAttribute("points", this.blackScore.join(" "));
     this.winrate.whiteScore.setAttribute("points", this.whiteScore.join(" "));
+    this.winrate.blackWinrateLine.setAttribute("points", this.blackWinrate.join(" "));
+    this.winrate.whiteWinrateLine.setAttribute("points", this.whiteWinrate.join(" "));
   };
 
   var AnalyzeBox = WGo.extendClass(
