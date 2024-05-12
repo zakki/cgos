@@ -440,19 +440,19 @@
     line.setAttribute("stroke-width", 2);
     t.graph.appendChild(line);
 
-    var blackScore = document.createElementNS(SVG, "polyline");
+    var blackScore = document.createElementNS(SVG, "polygon");
     blackScore.setAttribute("points", "0,0 0,0");
     blackScore.setAttribute("stroke", COLOR_WHITE);
-    blackScore.setAttribute("stroke-width", 1);
-    blackScore.setAttribute("fill", "none");
+    blackScore.setAttribute("stroke-width", 0);
+    blackScore.setAttribute("fill", COLOR_WHITE);
     t.blackScore = blackScore;
     t.graph.appendChild(blackScore);
 
-    var whiteScore = document.createElementNS(SVG, "polyline");
+    var whiteScore = document.createElementNS(SVG, "polygon");
     whiteScore.setAttribute("points", "0,0 0,0");
     whiteScore.setAttribute("stroke", COLOR_BLACK);
-    whiteScore.setAttribute("stroke-width", 1);
-    whiteScore.setAttribute("fill", "none");
+    whiteScore.setAttribute("stroke-width", 0);
+    whiteScore.setAttribute("fill", COLOR_BLACK);
     t.whiteScore = whiteScore;
     t.graph.appendChild(whiteScore);
 
@@ -621,8 +621,8 @@
           sc = 100 - sc;
         scoreList[turn*4]   = turn * this.xScale + "," + 50;
         scoreList[turn*4+1] = turn * this.xScale + "," + sc;
-        scoreList[turn*4+2] = (turn + 0.4) * this.xScale + "," + sc;
-        scoreList[turn*4+3] = (turn + 0.4) * this.xScale + "," + 50;
+        scoreList[turn*4+2] = (turn + 1.0) * this.xScale + "," + sc;
+        scoreList[turn*4+3] = (turn + 1.0) * this.xScale + "," + 50;
       }
 
       node = node.parent;
