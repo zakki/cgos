@@ -352,7 +352,6 @@ def buildWebPage() -> None:
         "cfg": cfg,
         "right_now": right_now,
         "players": render_players,
-        "rat": rat,
         "gms": games,
         "sch": plaing_games,
     }
@@ -363,7 +362,7 @@ def buildWebPage() -> None:
     with open(tmpfile, "w") as wf:
         wf.write(result)
 
-    os.rename(tmpfile, pageName)
+    os.replace(tmpfile, pageName)
 
     for n in bcr.keys():
         print(f"ready crosstable {n}")

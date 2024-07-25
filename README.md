@@ -5,6 +5,7 @@
 Start a cgos server and web page builder.
 
 ```sh
+python3 -m pip install -r requirements.txt
 python3 cgos/server.py cgos19.ini &
 python3 cgos/webuild.py cgos19.ini &
 ```

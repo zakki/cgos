@@ -94,8 +94,7 @@ def initDatabase() -> None:
     ):
         conn = sqlite3.connect(cfg.game_archive_database)
         conn.execute("create table games(gid int, dta, analysis)")
-        conn.execute("create index white on games(w)")
-        conn.execute("create index black on games(b)")
+        conn.execute("create index white on games(gid)")
         conn.commit()
         conn.close()
         # conn.execute("ALTER TABLE games ADD COLUMN analysis")
@@ -111,6 +110,8 @@ def initDatabase() -> None:
         conn.execute(
             "create table games(gid int, w, wr, b, br, dte, wtu, btu, res, final, primary key(gid))"
         )
+        conn.execute("create index white on games(w)")
+        conn.execute("create index black on games(b)")
         conn.execute("create table anchors(name, rating, primary key(name))")
         conn.execute("create table clients(name, count)")
         conn.execute("INSERT into gameid VALUES(1)")
@@ -2013,6 +2014,18 @@ def runServer() -> None:
     except:
         logger.error(f"error making sgfDir: {cfg.sgfDir}")
         sys.exit(1)
+
+    os.makedirs(cfg.htmlDir, exist_ok=True)
+
+    # make databale directory
+    def create_parent_dir(file: str) -> None:
+        dir = os.path.dirname(file)
+        if not os.path.exists(dir):
+            os.makedirs(os.path.dirname(dir))
+
+    if cfg.game_archive_database is not None:
+        create_parent_dir(cfg.game_archive_database)
+    create_parent_dir(cfg.database_state_file)
 
     initDatabase()
     openDatabase()
