@@ -26,9 +26,8 @@ import sys
 from enum import Enum
 from typing import Optional
 
-from util.logutils import getLogger
 from gogame import KoRule
-
+from util.logutils import getLogger
 
 # Setup logger
 logger = getLogger("cgos_server.client")

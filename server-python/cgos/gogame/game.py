@@ -23,8 +23,7 @@
 
 import datetime
 import json
-from typing import List, Tuple, Optional
-
+from typing import List, Optional, Tuple
 
 # -----------------------------------------------
 # games - currently active games and their states
@@ -118,7 +117,7 @@ def sgf(
 
     tmc = 0  # total move count
 
-    for (m, t, analysis) in game.moves:
+    for m, t, analysis in game.moves:
 
         mv = m.lower()
         tleft = t // 1000

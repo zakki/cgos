@@ -23,7 +23,7 @@
 import textwrap
 from unittest import TestCase
 
-from gogame import GoGame, Rule, KoRule
+from gogame import GoGame, KoRule, Rule
 
 
 class TestGoGame(TestCase):
@@ -80,71 +80,92 @@ class TestGoGame(TestCase):
         board.make("d3")
         board.make("D4")
         board.make("C4")
-        self.assertEqual(board.to_string(),
-                         textwrap.dedent("""\
+        self.assertEqual(
+            board.to_string(),
+            textwrap.dedent(
+                """\
                          .....
                          ..OX.
                          ..XO.
                          .....
                          .....
-                         """))
+                         """
+            ),
+        )
         board.make("B4")
         board.make("B3")
         board.make("C5")
         board.make("C2")
-        self.assertEqual(board.to_string(),
-                         textwrap.dedent("""\
+        self.assertEqual(
+            board.to_string(),
+            textwrap.dedent(
+                """\
                          ..X..
                          .X.X.
                          .OXO.
                          ..O..
                          .....
-                         """))
+                         """
+            ),
+        )
         board.make("A5")
         board.make("C1")
         board.make("D2")
         board.make("A4")
         board.make("D1")
 
-        self.assertEqual(board.to_string(),
-                         textwrap.dedent("""\
+        self.assertEqual(
+            board.to_string(),
+            textwrap.dedent(
+                """\
                          X.X..
                          OX.X.
                          .OXO.
                          ..OX.
                          ..OX.
-                         """))
+                         """
+            ),
+        )
 
     def test_from_string(self):
         board = GoGame.from_string(
-            textwrap.dedent("""\
+            textwrap.dedent(
+                """\
                             O.O..
                             XO.O.
                             .XOX.
                             ..XO.
                             ..XO.
-                            """),
-            Rule(KoRule.POSITIONAL))
+                            """
+            ),
+            Rule(KoRule.POSITIONAL),
+        )
         self.assertEqual(board.size, 5)
 
-        self.assertEqual(board.to_string(),
-                         textwrap.dedent("""\
+        self.assertEqual(
+            board.to_string(),
+            textwrap.dedent(
+                """\
                          O.O..
                          XO.O.
                          .XOX.
                          ..XO.
                          ..XO.
-                         """))
+                         """
+            ),
+        )
 
     def test_positional_ko(self):
-        BOARD = textwrap.dedent("""\
+        BOARD = textwrap.dedent(
+            """\
             .o.xxo
             oxxxo.
             o.x.oo
             xx.oo.
             oooo.o
             oooooo
-            """)
+            """
+        )
         board = GoGame.from_string(BOARD, Rule(KoRule.POSITIONAL))
         # print(); board.display()
 
@@ -180,14 +201,16 @@ class TestGoGame(TestCase):
         self.assertEqual(board.make("F5"), -2)
 
     def test_simple_ko(self):
-        BOARD = textwrap.dedent("""\
+        BOARD = textwrap.dedent(
+            """\
             .o.xxo
             oxxxo.
             o.x.oo
             xx.oo.
             oooo.o
             oooooo
-            """)
+            """
+        )
         board = GoGame.from_string(BOARD, Rule(KoRule.SIMPLE))
         # rint(); board.display()
 
@@ -224,37 +247,38 @@ class TestGoGame(TestCase):
         self.assertEqual(board.make("PASS"), 0)
 
     def test_ttScore(self):
-        BOARD = textwrap.dedent("""\
+        BOARD = textwrap.dedent(
+            """\
             .o.x
             oxx.
             ooxx
             .ox.
-            """)
+            """
+        )
         board = GoGame.from_string(BOARD, Rule(KoRule.POSITIONAL))
         # print(); board.display()
 
         fb = board.getFinalBoard([])
         # print(fb)
-        self.assertEqual(fb,
-                         [1, 1, 0, 2,
-                          1, 2, 2, 2,
-                          1, 1, 2, 2,
-                          1, 1, 2, 2]
-                         )
-        self.assertEqual(board.ttScore(), 8-7)
+        self.assertEqual(fb, [1, 1, 0, 2, 1, 2, 2, 2, 1, 1, 2, 2, 1, 1, 2, 2])
+        self.assertEqual(board.ttScore(), 8 - 7)
 
-        BOARD = textwrap.dedent("""\
+        BOARD = textwrap.dedent(
+            """\
             .xx
             .x.
             ...
-            """)
+            """
+        )
         board = GoGame.from_string(BOARD, Rule(KoRule.POSITIONAL))
         self.assertEqual(board.ttScore(), 9)
 
-        BOARD = textwrap.dedent("""\
+        BOARD = textwrap.dedent(
+            """\
             .xo
             ooo
             ...
-            """)
+            """
+        )
         board = GoGame.from_string(BOARD, Rule(KoRule.POSITIONAL))
         self.assertEqual(board.ttScore(), 1 - 7)

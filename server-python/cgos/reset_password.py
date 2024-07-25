@@ -20,12 +20,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import sqlite3
 import sys
 
-import sqlite3
-from passlib.context import CryptContext
-
 from app.config import Configs
+from passlib.context import CryptContext
 
 if __name__ == "__main__":
 

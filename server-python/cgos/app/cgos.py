@@ -24,28 +24,26 @@
 import asyncio
 import datetime
 import gzip
-import sys
-import time
+import json
 import os
-import sqlite3
 import random
 import re
-import traceback
-import json
 import shutil
+import sqlite3
+import sys
+import time
+import traceback
 import zlib
+from typing import Dict, List, Optional, Tuple
 
-from typing import List, Tuple, Dict, Optional
-
+from gogame import Game, GoGame, Rule, sgf
 from passlib.context import CryptContext
-
-from gogame import GoGame, Game, Rule, sgf
-from .config import Configs, MatchMode
-from .client import Client
-from .rating import strRate, newrating
 from util.logutils import getLogger
-from util.timeutils import now_string, now_seconds, now_milliseconds
+from util.timeutils import now_milliseconds, now_seconds, now_string
 
+from .client import Client
+from .config import Configs, MatchMode
+from .rating import newrating, strRate
 
 # Setup logger
 logger = getLogger("cgos_server")
@@ -268,7 +266,7 @@ def is_admin(who: str) -> bool:
 # send an informational message out to all clients
 # -------------------------------------------------
 def infoMsg(msg: str) -> None:
-    for (who, v) in list(act.items()):
+    for who, v in list(act.items()):
         if v.msg_state != "protocol":
             soc = v.sock
             if not soc.send(f"info {msg}"):
@@ -281,7 +279,7 @@ def infoMsg(msg: str) -> None:
     viewers.sendAll(f"info {msg}")
 
     # send to admin
-    for (who, v) in list(admin.items()):
+    for who, v in list(admin.items()):
         soc = v.sock
         if not soc.send(f"info {msg}"):
             logger.error(f"admin[{who}] disconnected")
@@ -309,7 +307,7 @@ def getAnchors() -> Dict[str, float]:
     global db
 
     anchors = dict()
-    for (nme, rat) in db.execute("SELECT name, rating FROM anchors"):
+    for nme, rat in db.execute("SELECT name, rating FROM anchors"):
         anchors[nme] = rat
     return anchors
 
@@ -734,7 +732,7 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
         # -----------------------------------------------
         matchList: List[str] = []
         if dbrec:
-            for (gid, stuff) in dbrec.execute(
+            for gid, stuff in dbrec.execute(
                 "select gid, dta from games where gid > (select max(gid) from games) - 40 order by gid"
             ):
                 dte, tme, bs, kom, w, b, lev, *lst = stuff.split(" ")
@@ -743,7 +741,7 @@ def _handle_player_protocol(sock: Client, data: str) -> None:
 
         # send out information about current games
         # ----------------------------------------
-        for (gid, rec) in games.items():
+        for gid, rec in games.items():
             sw = f"{rec.w}({rec.white_rate})"
             sb = f"{rec.b}({rec.black_rate})"
             logger.info(
@@ -957,7 +955,7 @@ def _handle_player_password(sock: Client, data: str) -> None:
 
     # determine if there are any games pending
     # ----------------------------------------
-    for (gid, inf) in games.items():
+    for gid, inf in games.items():
 
         logger.info(f"testing {gid} {inf.w} {inf.b}")
 
@@ -1237,7 +1235,7 @@ def _admin_command_quit(sock: Client, tokens: List[str]) -> None:
 def _admin_command_who(sock: Client, tokens: List[str]) -> None:
     activeList: List[str] = []
 
-    for (name, v) in act.items():
+    for name, v in act.items():
         activeList.append(f"{name} {v.msg_state} {v.gid} {v.rating} {v.k}")
 
     sock.send(*activeList)
@@ -1249,14 +1247,14 @@ def _admin_command_games(sock: Client, tokens: List[str]) -> None:
 
     matchList: List[str] = []
     if dbrec:
-        for (gid, stuff) in dbrec.execute(
+        for gid, stuff in dbrec.execute(
             "select gid, dta from games where gid > (select max(gid) from games) - 40 order by gid"
         ):
             dte, tme, bs, kom, w, b, lev, *lst = stuff.split(" ")
             res = lst[-1]
             matchList.append(f"match {gid} {dte} {tme} {bs} {kom} {w} {b} - - - {res}")
 
-    for (gid, rec) in games.items():
+    for gid, rec in games.items():
         sw = f"{rec.w}({rec.white_rate})"
         sb = f"{rec.b}({rec.black_rate})"
         tw = f"{rec.white_remaining_time}"
@@ -1629,7 +1627,7 @@ def schedule_games() -> None:
         else:
             logger.info("bad_users_file is not found.")
 
-        for (name, v) in list(act.items()):
+        for name, v in list(act.items()):
             if v.msg_state == "waiting":
                 if name in badUsers:
                     logger.info(f"found bad user {name}. kick.")
@@ -1678,7 +1676,7 @@ def write_web_data_file(ctme: datetime.datetime) -> None:
         # ------------------------------------------------------------------
         atme = ctme - datetime.timedelta(seconds=86400 * 190)
         lutme = atme.strftime("%Y-%m-%d %H:%M:%S")
-        for (nme, gms, rat, k, lg) in db.execute(
+        for nme, gms, rat, k, lg in db.execute(
             "SELECT name, games, rating, K, last_game FROM password WHERE last_game >= ?",
             (lutme,),
         ):
@@ -1688,7 +1686,17 @@ def write_web_data_file(ctme: datetime.datetime) -> None:
         # ------------------------
         atme = ctme - datetime.timedelta(seconds=3600 * 4)  # get 4 hours worth of games
         lutme = atme.strftime("%Y-%m-%d %H:%M:%S")
-        for (gid, w, wr, b, br, dte, wtu, btu, res,) in db.execute(
+        for (
+            gid,
+            w,
+            wr,
+            b,
+            br,
+            dte,
+            wtu,
+            btu,
+            res,
+        ) in db.execute(
             "SELECT gid, w, wr, b, br, dte, wtu, btu, res FROM games WHERE dte >= ?",
             (lutme,),
         ):
@@ -1697,7 +1705,7 @@ def write_web_data_file(ctme: datetime.datetime) -> None:
         # ongoing games
         ct = now_milliseconds()
         tmeSch = now_string()
-        for (gid, rec) in games.items():
+        for gid, rec in games.items():
             # "s" dte tme gid w b x wtl btl wr br wconnected bconnected lastmove
             wconnected = 1 if rec.w in act else 0
             bconnected = 1 if rec.b in act else 0
@@ -1808,7 +1816,7 @@ def match_games(ctme: datetime.datetime) -> None:
     lst: List[Tuple[str, float]] = []
     r_sum = 0.0
 
-    for (name, v) in act.items():
+    for name, v in act.items():
         # sock, state, gid, rating = v
 
         if v.msg_state == "waiting":
@@ -1855,7 +1863,7 @@ def match_games(ctme: datetime.datetime) -> None:
     # ------------------------------------------
     lst = []
 
-    for (name, v) in act.items():
+    for name, v in act.items():
         # sock, state, gid, rating = v
 
         if v.msg_state == "waiting":
@@ -1871,7 +1879,7 @@ def match_games(ctme: datetime.datetime) -> None:
         anchors = getAnchors()
 
         lst_pairs = iter(lst)
-        for (aa, bb) in zip(lst_pairs, lst_pairs):
+        for aa, bb in zip(lst_pairs, lst_pairs):
 
             if bb is None:
                 continue
@@ -1914,7 +1922,7 @@ def match_games(ctme: datetime.datetime) -> None:
         # gentlemen, start your clocks!
         # -------------------------------------
         # [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S" -timezone :UTC]
-        for (gid, rec) in games.items():
+        for gid, rec in games.items():
             # wp, bp = rec
             logger.info(
                 f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })"

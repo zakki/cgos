@@ -23,9 +23,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
 import re
-from typing import List, Dict
+from enum import Enum
+from typing import Dict, List
+
 from util.logutils import getLogger
 
 logger = getLogger("cgos_server")

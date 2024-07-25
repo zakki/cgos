@@ -27,7 +27,6 @@ from typing import Optional
 
 from util.logutils import getLogger
 
-
 # Setup logger
 logger = getLogger("cgos_server.client")
 
