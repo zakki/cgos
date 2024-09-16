@@ -21,15 +21,17 @@
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 * THE SOFTWARE.
 */
-let players = new Map();
-
-(function(){
+(function (cgos) {
     "use strict";
+
+    let players = new Map();
+    cgos.players = players;
 
     const POLL_INTERVAL = 10_000;
     const FORCE_UPDATE_SGF = false;
 
     let updateCheckbox;
+    let analysisCheckbox;
 
     function createPlayer(elmList, gameId, sgfPath, title, mode) {
         let elmGame = document.createElement("div");
@@ -58,19 +60,23 @@ let players = new Map();
         if (FORCE_UPDATE_SGF)
             sgfPath2 += "?_=" + Date.now();
 
-        let elmPlayer = document.createElement("iframe");
+        let elmPlayer = document.createElement("div");
         elmPlayer.className = "player";
-        elmPlayer.src = "viewer_iframe.html?" + sgfPath2;
+        // elmPlayer.src = "viewer_iframe.html?" + sgfPath2;
         elmGame.append(elmPlayer)
+        let player = new cgos.WGoPlayer(elmPlayer, sgfPath2);
+        player.player._cgos.set(analysisCheckbox.checked);
 
         const obj = {
             "element": elmGame,
             "mode": mode,
             "active": true,
+            "player": player,
         }
         elmButtons.querySelector(".close").onclick = () => {
             elmGame.style.display = "none";
             obj.active = false;
+            player.stop();
         }
         players.set(gameId, obj);
     }
@@ -80,6 +86,8 @@ let players = new Map();
         const numGames = Number.parseInt(elmNum.value);
         //console.log(elmNum, numGames);
         const elmList = document.getElementById("games");
+        if (elmList == null)
+            throw Error("no games element");
         let gameKeys = new Set(Array.from(players.keys()));
         for (let line of lines) {
             let tokens = line.split(" ");
@@ -119,7 +127,7 @@ let players = new Map();
                 continue;
             }
             const title = message + gid + " " + white + " - " + black + " " + result;
-            const gameId = "game-"+gid;
+            const gameId = "game-" + gid;
             let obj = players.get(gameId);
             // let elmGame = document.getElementById(gameId);
             if (obj) {
@@ -153,7 +161,7 @@ let players = new Map();
             for (let i = 0; i < keys.length; i++) {
                 const obj = players.get(keys[i]);
                 if (obj.active) {
-                    numVisible ++;
+                    numVisible++;
                 }
                 if (numVisible > numGames || !obj.active) {
                     // console.log("remove", obj);
@@ -204,19 +212,41 @@ let players = new Map();
 
     window.addEventListener('load', (event) => {
         updateCheckbox = document.querySelector("#update");
-        updateCheckbox.addEventListener("click", (e) => {
-            updatePollHandler();
-        });
+        if (updateCheckbox) {
+            updateCheckbox.addEventListener("click", (e) => {
+                updatePollHandler();
+            });
+        }
 
+        analysisCheckbox = document.querySelector("#analysis-mode");
+        if (analysisCheckbox) {
+            analysisCheckbox.addEventListener("click", (e) => {
+                for (const obj of players.values()) {
+                    obj.player.player._cgos.set(analysisCheckbox.checked);
+                    obj.player.player.update();
+                    /*
+                    obj.player.player.dispatchEvent({
+                        type: "update",
+                        target: obj.player.player,
+                    });
+                    */
+                }
+            });
+        }
 
         let resetButton = document.querySelector("#reset");
-        resetButton.addEventListener("click", (e) => {
-            players.clear();
-            const elmList = document.getElementById("games");
-            elmList.innerHTML = '';
-            pollWebData();
-        });
+        if (resetButton) {
+            resetButton.addEventListener("click", (e) => {
+                players.clear();
+                const elmList = document.getElementById("games");
+                if (elmList == null)
+                    throw Error("no games element");
+                elmList.innerHTML = '';
+                pollWebData();
+            });
+        }
 
         updatePollHandler();
     });
-})();
+
+})(window.cgos = window.cgos || {});

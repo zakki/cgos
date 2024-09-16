@@ -10,6 +10,7 @@
     aspect-ratio: 3 / 4;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 .game.large {
     border: none;
@@ -81,8 +82,14 @@ footer {
     margin-left: 5px;
 }
 
+.wgo-340 .wgo-button-first,
+.wgo-340 .wgo-button-multiprev,
+.wgo-340 .wgo-button-multinext,
+.wgo-340 .wgo-button-last,
+.wgo-440 .wgo-button-first,
 .wgo-440 .wgo-button-multiprev,
-.wgo-440 .wgo-button-multinext {
+.wgo-440 .wgo-button-multinext,
+.wgo-440 .wgo-button-last {
 	display: inline-block;
 }
 
@@ -91,4 +98,15 @@ footer {
 .wgo-xsmall .wgo-player-info-box-wrapper:nth-child(1),
 .wgo-xsmall .wgo-player-info-box-wrapper:nth-child(4) {
 	display: none;
+}
+
+.wgo-small .wgo-winrate svg {
+    position: relative;
+    height: 55px;
+    bottom: 3px;
+}
+.wgo-xsmall .wgo-winrate svg {
+    position: relative;
+    height: 45px;
+    bottom: 3px;
 }
