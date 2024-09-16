@@ -27,7 +27,7 @@ pwd
 
 # compress wgo.js
 java -jar $GODIR/compiler/compiler.jar \
-	--language_in ECMASCRIPT5 \
+	--language_in ECMASCRIPT6 \
 	--js_output_file=_tmp.js wgo.js
 
 # prepend licence information
@@ -37,7 +37,7 @@ rm _tmp.js
 
 # compress player
 java -jar $GODIR/compiler/compiler.jar \
-	--language_in ECMASCRIPT5 \
+	--language_in ECMASCRIPT6 \
 	--js_output_file=_tmp.js \
 		kifu.js \
 		sgfparser.js \
