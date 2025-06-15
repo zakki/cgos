@@ -109,7 +109,7 @@
     },
   }
 
-  OwnershipLayer = WGo.extendClass(WGo.Board.CanvasLayer, function() {
+  let OwnershipLayer = WGo.extendClass(WGo.Board.CanvasLayer, function() {
     this.super.call(this);
   });
 

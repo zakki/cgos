@@ -1,8 +1,8 @@
 all:
-	./build.sh
+	npm run build
 
 install:
-	cp wgo/*.min.js wgo/*.css /home/cgosboar/public_html/wgo/
+	cp dist/*.min.js wgo/*.css /home/cgosboar/public_html/wgo/
 	mkdir -p /home/cgosboar/public_html/js
 	mkdir -p /home/cgosboar/public_html/css
 	cp cgos_viewer/*.js /home/cgosboar/public_html/js

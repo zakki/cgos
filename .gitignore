@@ -2,3 +2,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
+
+# WGo
+## Node
+node_modules/
+# build output
+wgo_view/dist/
