@@ -2,6 +2,7 @@ import { WGo } from "./wgo";
 
 import { BasicPlayer } from "./basicplayer";
 import { Component } from "./basicplayer.component";
+import { Control, MenuItem } from "./basicplayer.control";
 
 // board mousemove callback for cgos move - adds highlighting
 const cgos_board_mouse_move = function (x, y) {
@@ -328,9 +329,9 @@ Cgos.prototype.set = function (set) {
 	// this.setGraph(this.cgosMode)
 };
 
-if (BasicPlayer && BasicPlayer.component.Control) {
-	BasicPlayer.component.Control.menu.push({
-		constructor: BasicPlayer.control.MenuItem,
+if (Control) {
+	Control.menu.push({
+		constructor: MenuItem,
 		args: {
 			name: "cgos",
 			togglable: true,

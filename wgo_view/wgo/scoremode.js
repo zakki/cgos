@@ -1,6 +1,7 @@
 import { WGo } from "./wgo";
 
 import { BasicPlayer } from "./basicplayer";
+import { Control, MenuItem } from "./basicplayer.control";
 
 export const ScoreMode = function(position, board, komi, output) {
 	this.originalPosition = position;
@@ -201,9 +202,9 @@ ScoreMode.prototype.calculate = function() {
 	}
 }
 
-if(BasicPlayer && BasicPlayer.component.Control) {
-	BasicPlayer.component.Control.menu.push({
-		constructor: BasicPlayer.control.MenuItem,
+if(Control) {
+	Control.menu.push({
+		constructor: MenuItem,
 		args: {
 			name: "scoremode",
 			togglable: true,

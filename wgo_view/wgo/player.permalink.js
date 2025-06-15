@@ -1,7 +1,7 @@
 import { WGo } from "./wgo";
 
 import { Player } from "./player";
-import { BasicPlayer } from "./basicplayer";
+import { Control, MenuItem } from "./basicplayer.control";
 
 const permalink = {
 	active: true,
@@ -58,9 +58,9 @@ const move_from_hash = function() {
 Player.default.move = move_from_hash;
 
 // add menu item
-if(BasicPlayer && BasicPlayer.component.Control) {
-	BasicPlayer.component.Control.menu.push({
-		constructor: BasicPlayer.control.MenuItem,
+if(Control) {
+	Control.menu.push({
+		constructor: MenuItem,
 		args: {
 			name: "permalink",
 			click: function(player) {

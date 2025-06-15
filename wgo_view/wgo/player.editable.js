@@ -1,6 +1,6 @@
 import { WGo } from "./wgo";
 
-import { BasicPlayer } from "./basicplayer";
+import { Control, MenuItem } from "./basicplayer.control";
 import { KNode, KifuReader } from "./kifu";
 
 // board mousemove callback for edit move - adds highlighting
@@ -119,9 +119,9 @@ Editable.prototype.play = function(x,y) {
 	this.player.next(this.player.kifuReader.node.children.length-1);
 }
 
-if(BasicPlayer && BasicPlayer.component.Control) {
-	BasicPlayer.component.Control.menu.push({
-		constructor: BasicPlayer.control.MenuItem,
+if(Control) {
+	Control.menu.push({
+		constructor: MenuItem,
 		args: {
 			name: "editmode",
 			togglable: true,

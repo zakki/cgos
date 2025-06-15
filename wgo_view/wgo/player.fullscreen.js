@@ -1,5 +1,6 @@
 // not finished yet
-/* global WGo */
+import { Player } from "./player";
+import { Control, MenuItem } from "./basicplayer.control";
 //--- Fullscreen mode ---------------------------------------------------------------------------------------------------
 
 const FSCHANGE = document.onfullscreenchange !== undefined ? "onfullscreenchange" : (
@@ -64,9 +65,9 @@ Player.prototype.toggleFullscreen = function() {
 	}
 };
 
-if(WGo.BasicPlayer && WGo.BasicPlayer.component.Control) {
-	WGo.BasicPlayer.component.Control.menu.push({
-		constructor: control.MenuItem,
+if(Control) {
+	Control.menu.push({
+		constructor: MenuItem,
 		args: {
 			name: "fullscreen",
 			togglable: true,
