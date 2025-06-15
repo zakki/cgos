@@ -1,21 +1,17 @@
+import { WGo } from "./wgo";
 
-/* global WGo */
-(function(WGo){
+import { Kifu, KifuReader } from "./kifu";
 
-"use strict";
-
-const FileError = function(path, code) {
+export const FileError = function(path, code) {
 	this.name = "FileError";
 
-    if(code == 1) this.message = "File '"+path+"' is empty.";
+	if(code == 1) this.message = "File '"+path+"' is empty.";
 	else if(code == 2) this.message = "Network error. It is not possible to read '"+path+"'.";
 	else this.message = "File '"+path+"' hasn't been found on server.";
 }
 
 FileError.prototype = new Error();
 FileError.prototype.constructor = FileError;
-
-WGo.FileError = FileError;
 
 // ajax function for loading of files
 const loadFromUrl = WGo.loadFromUrl = function(url, callback) {
@@ -219,7 +215,7 @@ const board_click_default = function(x,y) {
  * @param {object} config object if form: {key1: value1, key2: value2, ...}
  */
 
-const Player = function(config) {
+export const Player = function(config) {
 	this.config = config;
 
 	// add default configuration
@@ -306,7 +302,7 @@ Player.prototype = {
 	/**
 	 * Prepare kifu for replaying. Event 'kifuLoaded' is triggered.
 	 *
-	 * @param {WGo.Kifu} kifu object
+	 * @param {Kifu} kifu object
 	 * @param {Array} path array
 	 */
 
@@ -314,7 +310,7 @@ Player.prototype = {
 		this.kifu = kifu;
 
 		// kifu is replayed by KifuReader, it manipulates a Kifu object and gets all changes
-		this.kifuReader = new WGo.KifuReader(this.kifu, this.config.rememberPath, this.config.allowIllegalMoves);
+		this.kifuReader = new KifuReader(this.kifu, this.config.rememberPath, this.config.allowIllegalMoves);
 
 		// fire kifu loaded event
 		this.dispatchEvent({
@@ -351,7 +347,7 @@ Player.prototype = {
 
 	loadSgf: function(sgf, path) {
 		try {
-			this.loadKifu(WGo.Kifu.fromSgf(sgf), path);
+			this.loadKifu(Kifu.fromSgf(sgf), path);
 		}
 		catch(err) {
 			this.error(err);
@@ -364,7 +360,7 @@ Player.prototype = {
 
 	loadJSON: function(json, path) {
 		try {
-			this.loadKifu(WGo.Kifu.fromJGO(json), path);
+			this.loadKifu(Kifu.fromJGO(json), path);
 		}
 		catch(err) {
 			this.error(err);
@@ -555,9 +551,9 @@ Player.prototype = {
 		if(!this.kifu) return null;
 		const info = {};
 		for(const key in this.kifu.info) {
-			if(WGo.Kifu.infoList.indexOf(key) == -1) continue;
-			if(WGo.Kifu.infoFormatters[key]) {
-				info[WGo.t(key)] = WGo.Kifu.infoFormatters[key](this.kifu.info[key]);
+			if(Kifu.infoList.indexOf(key) == -1) continue;
+			if(Kifu.infoFormatters[key]) {
+				info[WGo.t(key)] = Kifu.infoFormatters[key](this.kifu.info[key]);
 			}
 			else info[WGo.t(key)] = WGo.filterHTML(this.kifu.info[key]);
 		}
@@ -659,8 +655,6 @@ Player.default = {
 	displayVariations: true
 }
 
-WGo.Player = Player;
-
 //--- i18n support ------------------------------------------------------------------------------------------
 
 /**
@@ -698,5 +692,3 @@ const player_terms = {
 };
 
 for(const key in player_terms) WGo.i18n.en[key] = player_terms[key];
-
-})(WGo);

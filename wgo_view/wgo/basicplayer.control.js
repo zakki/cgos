@@ -1,7 +1,7 @@
-/* global WGo */
-(function(WGo, undefined) {
+import { WGo } from "./wgo";
 
-"use strict";
+import { BasicPlayer } from "./basicplayer.js";
+import { Component  } from "./basicplayer.component.js";
 
 const compare_widgets = function(a,b) {
 	if(a.weight < b.weight) return -1;
@@ -24,7 +24,7 @@ const prepare_dom = function(player) {
 	}
 }
 
-const Control = WGo.extendClass(WGo.BasicPlayer.component.Component, function(player) {
+export const Control = WGo.extendClass(Component, function(player) {
 	this.super(player);
 	
 	this.widgets = [];
@@ -39,7 +39,8 @@ Control.prototype.updateDimensions = function() {
 	else this.element.className = "wgo-player-control";
 }
 
-const control = WGo.BasicPlayer.control = {};
+export const control = {};
+BasicPlayer.control = control;
 
 const butupd_first = function(e) {
 	if(!e.node.parent && !this.disabled) this.disable();
@@ -72,14 +73,15 @@ const but_unfrozen = function(e) {
  * }
  */
  
-control.Widget = function(player, args) {
+export const Widget = function(player, args) {
 	this.element = this.element || document.createElement(args.type || "div");
 	this.element.className = "wgo-widget-"+args.name;
 	this.init(player, args);
 }
+control.Widget = Widget;
 
-control.Widget.prototype = {
-	constructor: control.Widget,
+Widget.prototype = {
+	constructor: Widget,
 	
 	/**
 	 * Initialization function.
@@ -126,7 +128,7 @@ control.Widget.prototype = {
  * Group of widgets
  */
 
-control.Group = WGo.extendClass(control.Widget, function(player, args) {
+export const Group = WGo.extendClass(Widget, function(player, args) {
 	this.element = document.createElement("div");
 	this.element.className = "wgo-ctrlgroup wgo-ctrlgroup-"+args.name;
 	
@@ -136,6 +138,7 @@ control.Group = WGo.extendClass(control.Widget, function(player, args) {
 		widget.appendTo(this.element);
 	}
 });
+control.Group = Group;
 
 /**
  * Clickable widget - for example button. It has click action. 
@@ -151,11 +154,12 @@ control.Group = WGo.extendClass(control.Widget, function(player, args) {
  * }
 */
 
-control.Clickable = WGo.extendClass(control.Widget, function(player, args) {
+export const Clickable = WGo.extendClass(control.Widget, function(player, args) {
 	this.super(player, args);
 });
+control.Clickable = Clickable;
 
-control.Clickable.prototype.init = function(player, args) {
+Clickable.prototype.init = function(player, args) {
 	let fn;
 	const _this = this;
 	
@@ -200,12 +204,12 @@ control.Clickable.prototype.init = function(player, args) {
 	if(args.init) args.init.call(this, player);
 };
 
-control.Clickable.prototype.select = function() {
+Clickable.prototype.select = function() {
 	this.selected = true;
 	if(this.element.className.search("wgo-selected") == -1) this.element.className += " wgo-selected";
 };
 
-control.Clickable.prototype.unselect = function() {
+Clickable.prototype.unselect = function() {
 	this.selected = false;
 	this.element.className = this.element.className.replace(" wgo-selected","");
 };
@@ -214,21 +218,22 @@ control.Clickable.prototype.unselect = function() {
  * Widget of button with image icon. 
  */
 
-control.Button = WGo.extendClass(control.Clickable, function(player, args) {
+export const Button = WGo.extendClass(Clickable, function(player, args) {
 	const elem = this.element = document.createElement("button");
 	elem.className = "wgo-button wgo-button-"+args.name;
 	elem.title = WGo.t(args.name);
 	
 	this.init(player, args);
 });
+control.Button = Button;
 
-control.Button.prototype.disable = function() {
-	control.Button.prototype.super.prototype.disable.call(this);
+Button.prototype.disable = function() {
+	Button.prototype.super.prototype.disable.call(this);
 	this.element.disabled = "disabled";
 }
-	
-control.Button.prototype.enable = function() {
-	control.Button.prototype.super.prototype.enable.call(this);
+
+Button.prototype.enable = function() {
+	Button.prototype.super.prototype.enable.call(this);
 	this.element.disabled = "";
 }
 
@@ -236,7 +241,7 @@ control.Button.prototype.enable = function() {
  * Widget used in menu
  */
 
-control.MenuItem = WGo.extendClass(control.Clickable, function(player, args) {
+export const MenuItem = WGo.extendClass(Clickable, function(player, args) {
 	const elem = this.element = document.createElement("div");
 	elem.className = "wgo-menu-item wgo-menu-item-"+args.name;
 	elem.title = WGo.t(args.name);
@@ -244,12 +249,13 @@ control.MenuItem = WGo.extendClass(control.Clickable, function(player, args) {
 	
 	this.init(player, args);
 });
+control.MenuItem = MenuItem;
 
 /**
  * Widget for move counter.
  */
 
-control.MoveNumber = WGo.extendClass(control.Widget, function(player) {
+export const MoveNumber = WGo.extendClass(control.Widget, function(player) {
 	this.element = document.createElement("form");
 	this.element.className = "wgo-player-mn-wrapper";
 	
@@ -274,22 +280,23 @@ control.MoveNumber = WGo.extendClass(control.Widget, function(player) {
 	player.addEventListener("frozen", this.disable.bind(this));
 	player.addEventListener("unfrozen", this.enable.bind(this));
 });
+control.MoveNumber = MoveNumber;
 
-control.MoveNumber.prototype.disable = function() {
-	control.MoveNumber.prototype.super.prototype.disable.call(this);
+MoveNumber.prototype.disable = function() {
+	MoveNumber.prototype.super.prototype.disable.call(this);
 	this.move.disabled = "disabled";
 };
 
-control.MoveNumber.prototype.enable = function() {
-	control.MoveNumber.prototype.super.prototype.enable.call(this);
+MoveNumber.prototype.enable = function() {
+	MoveNumber.prototype.super.prototype.enable.call(this);
 	this.move.disabled = "";
 };
 
-control.MoveNumber.prototype.setValue = function(n) {
+MoveNumber.prototype.setValue = function(n) {
 	this.move.value = n;
 };
 
-control.MoveNumber.prototype.getValue = function() {
+MoveNumber.prototype.getValue = function() {
 	return parseInt(this.move.value);
 };
 
@@ -380,11 +387,11 @@ Control.menu = [{
 */
 
 Control.widgets = [ {
-	constructor: control.Group,
+	constructor: Group,
 	args: {
 		name: "left",
 		widgets: [{
-			constructor: control.Button,
+			constructor: Button,
 			args: {
 				name: "menu",
 				togglable: true,
@@ -393,11 +400,11 @@ Control.widgets = [ {
 		}]
 	}
 }, {
-	constructor: control.Group,
+	constructor: Group,
 	args: {
 		name: "right",
 		widgets: [{
-			constructor: control.Button,
+			constructor: Button,
 			args: {
 				name: "about",
 				click: function(player) {
@@ -407,11 +414,11 @@ Control.widgets = [ {
 		}]
 	}
 }, {
-	constructor: control.Group,
+	constructor: Group,
 	args: {
 		name: "control",
 		widgets: [{
-			constructor: control.Button,
+			constructor: Button,
 			args: {
 				name: "first",
 				disabled: true,
@@ -425,7 +432,7 @@ Control.widgets = [ {
 				},
 			}
 		}, {
-			constructor: control.Button,
+			constructor: Button,
 			args: {
 				name: "multiprev",
 				disabled: true,
@@ -442,7 +449,7 @@ Control.widgets = [ {
 				},
 			}
 		},{
-			constructor: control.Button,
+			constructor: Button,
 			args: {
 				name: "previous",
 				disabled: true,
@@ -457,9 +464,9 @@ Control.widgets = [ {
 				},
 			}
 		}, {
-			constructor: control.MoveNumber,
+			constructor: MoveNumber,
 		}, {
-			constructor: control.Button,
+			constructor: Button,
 			args: {
 				name: "next",
 				disabled: true,
@@ -474,7 +481,7 @@ Control.widgets = [ {
 				},
 			}
 		}, {
-			constructor: control.Button,
+			constructor: Button,
 			args: {
 				name: "multinext",
 				disabled: true,
@@ -491,7 +498,7 @@ Control.widgets = [ {
 				},
 			}
 		}, {
-			constructor: control.Button,
+			constructor: Button,
 			args: {
 				name: "last",
 				disabled: true,
@@ -508,7 +515,7 @@ Control.widgets = [ {
 	}
 }];
 
-const bp_layouts = WGo.BasicPlayer.layouts;
+const bp_layouts = BasicPlayer.layouts;
 bp_layouts["right_top"].top.push("Control");
 bp_layouts["right"].right.push("Control");
 bp_layouts["one_column"].top.push("Control");
@@ -529,6 +536,4 @@ const player_terms = {
 
 for(const key in player_terms) WGo.i18n.en[key] = player_terms[key];
 
-WGo.BasicPlayer.component.Control = Control;
-
-})(WGo);
+BasicPlayer.component.Control = Control;

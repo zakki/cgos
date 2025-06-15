@@ -1,4 +1,6 @@
-﻿
+﻿import { WGo } from "./wgo";
+
+import { SGF } from "./sgfparser";
 
 /** 
  * This extension handles go game records(kifu). In WGo kifu is stored in JSON. Kifu structure example:
@@ -20,11 +22,6 @@
  *
  */
  
-/* global WGo */
-(function(WGo, undefined) {
-
-"use strict";
-
 const recursive_clone = function(node) {
 	const n = new KNode(JSON.parse(JSON.stringify(node.getProperties())));
 	for(const ch in node.children) {
@@ -173,7 +170,7 @@ const sgf_write_variantion = function(node, output) {
  * Kifu class - for storing go game record and easy manipulation with it
  */
 
-const Kifu = function() {
+export const Kifu = function() {
 	this.size = 19;
 	this.info = {};
 	this.root = new KNode();
@@ -202,7 +199,7 @@ Kifu.prototype ={
  */
 
 Kifu.fromSgf = function(sgf) {
-	return WGo.SGF.parse(sgf);
+	return SGF.parse(sgf);
 }
 
 /**
@@ -330,8 +327,6 @@ Kifu.infoFormatters = {
 
 Kifu.infoList = ["black", "white", "AN", "CP", "DT", "EV", "GN", "GC", "HA", "ON", "OT", "RE", "RO", "RU", "SO", "TM", "US","PC", "KM"];
 
-WGo.Kifu = Kifu;
-
 const no_add = function(arr, obj, key) {
 	for(let i = 0; i < arr.length; i++) {
 		if(arr[i].x == obj.x && arr[i].y == obj.y) {
@@ -359,7 +354,7 @@ const no_remove = function(arr, obj) {
  * @param {KNode} parent (null for root node)
  */
 
-const KNode = function(properties, parent) {
+export const KNode = function(properties, parent) {
 	this.parent = parent || null;
 	this.children = [];
 	// save all properties
@@ -481,8 +476,6 @@ KNode.prototype = {
 	}
 }
 
-WGo.KNode = KNode;
-
 const pos_diff = function(old_p, new_p) {
 	const size = old_p.size, add = [], remove = [];
 	
@@ -504,7 +497,7 @@ const pos_diff = function(old_p, new_p) {
  * If parameter allowIllegalMoves is set, illegal moves will be played instead of throwing an exception
  */
 
-const KifuReader = function(kifu, rememberPath, allowIllegalMoves) {
+export const KifuReader = function(kifu, rememberPath, allowIllegalMoves) {
 	this.kifu = kifu;
 	this.node = this.kifu.root;
 	this.allow_illegal = allowIllegalMoves || false;
@@ -744,8 +737,6 @@ KifuReader.prototype = {
 	}
 }
 
-WGo.KifuReader = KifuReader;
-
 // Class handling invalid moves in kifu
 const InvalidMoveError = function(code, node) {
 	this.name = "InvalidMoveError";
@@ -784,5 +775,3 @@ WGo.InvalidMoveError = InvalidMoveError;
 
 WGo.i18n.en["show"] = "show";
 WGo.i18n.en["res-show-tip"] =  "Click to show result.";
-
-})(WGo);

@@ -18,11 +18,6 @@
  */
 
 /* WGo.js 2.3.1 */
-
-(function(window, undefined) {
-
-"use strict";
-
 const scripts= document.getElementsByTagName('script');
 const path= scripts[scripts.length-1].src.split('?')[0];      // remove any ?query
 const mydir= path.split('/').slice(0, -1).join('/')+'/';
@@ -32,7 +27,7 @@ const mydir= path.split('/').slice(0, -1).join('/')+'/';
  * You must call WGo.init() if you want to use library, without calling WGo.
  */
 
-const WGo = {
+export const WGo = {
 	// basic information
 	version: "2.3.1",
 
@@ -2157,5 +2152,3 @@ WGo.Game = Game;
 
 // register WGo
 window.WGo = WGo;
-
-})(window);

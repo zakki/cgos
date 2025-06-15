@@ -1,6 +1,7 @@
+import { WGo } from "./wgo";
 
-/* global WGo */
-(function(WGo) {
+import { BasicPlayer } from "./basicplayer";
+import { KNode, KifuReader } from "./kifu";
 
 // board mousemove callback for edit move - adds highlighting
 const edit_board_mouse_move = function(x,y) {
@@ -52,25 +53,23 @@ const pos_diff = function(old_p, new_p) {
 	}
 }
 
-WGo.Player.Editable = {};
-
 /**
  * Toggle edit mode.
  */
 	
-WGo.Player.Editable = function(player, board) {
+export const Editable = function(player, board) {
 	this.player = player;
 	this.board = board;
 	this.editMode = false;
 }
 
-WGo.Player.Editable.prototype.set = function(set) {
+Editable.prototype.set = function(set) {
 	if(!this.editMode && set) {
 		// save original kifu reader
 		this.originalReader = this.player.kifuReader;
 		
 		// create new reader with cloned kifu
-		this.player.kifuReader = new WGo.KifuReader(this.player.kifu.clone(), this.originalReader.rememberPath, this.originalReader.allow_illegal, this.originalReader.allow_illegal);
+		this.player.kifuReader = new KifuReader(this.player.kifu.clone(), this.originalReader.rememberPath, this.originalReader.allow_illegal, this.originalReader.allow_illegal);
 		
 		// go to current position
 		this.player.kifuReader.goTo(this.originalReader.path);
@@ -106,10 +105,10 @@ WGo.Player.Editable.prototype.set = function(set) {
 	}
 }
 
-WGo.Player.Editable.prototype.play = function(x,y) {
+Editable.prototype.play = function(x,y) {
 	if(this.player.frozen || !this.player.kifuReader.game.isValid(x, y)) return;
 	
-	this.player.kifuReader.node.appendChild(new WGo.KNode({
+	this.player.kifuReader.node.appendChild(new KNode({
 		move: {
 			x: x, 
 			y: y, 
@@ -120,14 +119,14 @@ WGo.Player.Editable.prototype.play = function(x,y) {
 	this.player.next(this.player.kifuReader.node.children.length-1);
 }
 
-if(WGo.BasicPlayer && WGo.BasicPlayer.component.Control) {
-	WGo.BasicPlayer.component.Control.menu.push({
-		constructor: WGo.BasicPlayer.control.MenuItem,
+if(BasicPlayer && BasicPlayer.component.Control) {
+	BasicPlayer.component.Control.menu.push({
+		constructor: BasicPlayer.control.MenuItem,
 		args: {
 			name: "editmode",
 			togglable: true,
 			click: function(player) { 
-				this._editable = this._editable || new WGo.Player.Editable(player, player.board);
+				this._editable = this._editable || new Editable(player, player.board);
 				this._editable.set(!this._editable.editMode);
 				return this._editable.editMode;
 			},
@@ -147,5 +146,3 @@ if(WGo.BasicPlayer && WGo.BasicPlayer.component.Control) {
 }
 
 WGo.i18n.en["editmode"] = "Edit mode";
-
-})(WGo);

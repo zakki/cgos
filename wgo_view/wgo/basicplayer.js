@@ -1,8 +1,6 @@
+import { WGo } from "./wgo";
 
-/* global WGo */
-(function(WGo){
-
-"use strict";
+import { Player } from "./player.js";
 
 // player counter - for creating unique ids
 let pl_count = 0;
@@ -148,13 +146,13 @@ const manageComponents = function() {
  * You also must specify main DOMElement of player. 
  */
 
-const BasicPlayer = WGo.extendClass(WGo.Player, function(elem, config) {
+export const BasicPlayer = WGo.extendClass(Player, function(elem, config) {
 	this.config = config;
 	
 	// add default configuration of BasicPlayer
 	for(const key in BasicPlayer.default) if(this.config[key] === undefined && BasicPlayer.default[key] !== undefined) this.config[key] = BasicPlayer.default[key];
 	// add default configuration of Player class
-	for(const key in WGo.Player.default) if(this.config[key] === undefined && WGo.Player.default[key] !== undefined) this.config[key] = WGo.Player.default[key];
+	for(const key in Player.default) if(this.config[key] === undefined && Player.default[key] !== undefined) this.config[key] = Player.default[key];
 	
 	this.element = elem
 	this.element.innerHTML = "";
@@ -509,8 +507,6 @@ const player_from_tag = function(elem) {
 	elem._wgo_player = pl;
 }
 
-WGo.BasicPlayer = BasicPlayer;
-
 window.addEventListener("load", function() {
 	const pl_elems = document.querySelectorAll("[data-wgo],[data-wgo-diagram]");
 
@@ -518,5 +514,3 @@ window.addEventListener("load", function() {
 		player_from_tag(pl_elems[i]);
 	}
 });
-
-})(WGo);

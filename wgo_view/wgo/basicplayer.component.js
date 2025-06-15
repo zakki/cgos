@@ -1,13 +1,8 @@
-/* global WGo */
-(function(WGo, undefined) {
-
-"use strict";
-
 /**
  * Base class for BasicPlayer's component. Each component should implement this interface.
  */
 
-const Component = function() {
+export const Component = function() {
 	this.element = document.createElement("div");
 }
 
@@ -49,7 +44,3 @@ Component.prototype = {
 	
 	}
 }
-
-WGo.BasicPlayer.component.Component = Component;
-
-})(WGo);

@@ -30,11 +30,7 @@ export default [
   {
     input: "wgo/player.entry.js",
     external: [
-      "./wgo.core",
-      "./wgo.game",
-      "./wgo.board",
       "./wgo",
-      "./wgo.board.layer",
     ],
     output: [
       {

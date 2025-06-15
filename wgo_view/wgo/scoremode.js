@@ -1,8 +1,8 @@
+import { WGo } from "./wgo";
 
-/* global WGo */
-(function(WGo){
+import { BasicPlayer } from "./basicplayer";
 
-const ScoreMode = function(position, board, komi, output) {
+export const ScoreMode = function(position, board, komi, output) {
 	this.originalPosition = position;
 	this.position = position.clone();
 	this.board = board;
@@ -201,11 +201,9 @@ ScoreMode.prototype.calculate = function() {
 	}
 }
 
-WGo.ScoreMode = ScoreMode;
-
-if(WGo.BasicPlayer && WGo.BasicPlayer.component.Control) {
-	WGo.BasicPlayer.component.Control.menu.push({
-		constructor: WGo.BasicPlayer.control.MenuItem,
+if(BasicPlayer && BasicPlayer.component.Control) {
+	BasicPlayer.component.Control.menu.push({
+		constructor: BasicPlayer.control.MenuItem,
 		args: {
 			name: "scoremode",
 			togglable: true,
@@ -221,7 +219,7 @@ if(WGo.BasicPlayer && WGo.BasicPlayer.component.Control) {
 				else {
 					player.setFrozen(true);
 					player.help("<p>"+WGo.t("help_score")+"</p>");
-					this._score_mode = new WGo.ScoreMode(player.kifuReader.game.position, player.board, player.kifu.info.KM || 0.5, player.notification);
+					this._score_mode = new ScoreMode(player.kifuReader.game.position, player.board, player.kifu.info.KM || 0.5, player.notification);
 					this._score_mode.start();
 					return true;
 				}
@@ -235,5 +233,3 @@ WGo.i18n.en["score"] = "Score";
 WGo.i18n.en["bwin"] = "Black wins by $ points.";
 WGo.i18n.en["wwin"] = "White wins by $ points.";
 WGo.i18n.en["help_score"] = "Click on stones to mark them dead or alive. You can also set and unset territory points by clicking on them. Territories must be completely bordered.";
-
-})(WGo);

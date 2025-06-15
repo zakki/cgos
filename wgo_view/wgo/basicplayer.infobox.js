@@ -1,7 +1,7 @@
-/* global WGo */
-(function(WGo) {
+import { WGo } from "./wgo";
 
-"use strict";
+import { BasicPlayer } from "./basicplayer";
+import { Component } from "./basicplayer.component";
 
 const prepare_dom = function() {
 	prepare_dom_box.call(this,"white");
@@ -182,7 +182,7 @@ const update = function(e) {
  * Implements box with basic informations about go players.
  */
 
-const InfoBox = WGo.extendClass(WGo.BasicPlayer.component.Component, function(player) {
+const InfoBox = WGo.extendClass(Component, function(player) {
 	this.super(player);
 	this.element.className = "wgo-infobox";
 	
@@ -204,7 +204,7 @@ InfoBox.prototype.updateDimensions = function() {
 	modify_font_size(this.white.name);
 };
 
-const bp_layouts = WGo.BasicPlayer.layouts;
+const bp_layouts = BasicPlayer.layouts;
 bp_layouts["right_top"].right.push("InfoBox");
 bp_layouts["right"].right.push("InfoBox");
 bp_layouts["one_column"].top.push("InfoBox");
@@ -216,6 +216,4 @@ WGo.i18n.en["time"] = "Time";
 WGo.i18n.en["win"] = "Win";
 WGo.i18n.en["score"] = "Score";
 
-WGo.BasicPlayer.component.InfoBox = InfoBox;
-
-})(WGo);
+BasicPlayer.component.InfoBox = InfoBox;

@@ -1,7 +1,7 @@
-/* global WGo */
-(function(WGo, undefined){
+import { WGo } from "./wgo";
 
-"use strict";
+import { BasicPlayer } from "./basicplayer";
+import { Component } from "./basicplayer.component";
 
 const prepare_dom = function() {
 	this.box = document.createElement("div");
@@ -75,7 +75,7 @@ const format_info = function(info, title) {
  * Implements box for comments and game informations.
  */
 
-const CommentBox = WGo.extendClass(WGo.BasicPlayer.component.Component, function(player) {
+export const CommentBox = WGo.extendClass(Component, function(player) {
 	this.super(player);
 	this.player = player;
 	
@@ -219,24 +219,22 @@ CommentBox.prototype.getCommentText = function(comment, formatNicks, formatMoves
  * - formatMoves: tries to highlight coordinates in comments (default: true)
  */
  
-WGo.BasicPlayer.default.formatNicks = true;
-WGo.BasicPlayer.default.formatMoves = true;
+BasicPlayer.default.formatNicks = true;
+BasicPlayer.default.formatMoves = true;
 
-WGo.BasicPlayer.attributes["data-wgo-formatnicks"] = function(value) {
+BasicPlayer.attributes["data-wgo-formatnicks"] = function(value) {
 	if(value.toLowerCase() == "false") this.formatNicks = false;
 }
 	
-WGo.BasicPlayer.attributes["data-wgo-formatmoves"] = function(value) {
+BasicPlayer.attributes["data-wgo-formatmoves"] = function(value) {
 	if(value.toLowerCase() == "false") this.formatMoves = false;
 }
 
-WGo.BasicPlayer.layouts["right_top"].right.push("CommentBox");
-WGo.BasicPlayer.layouts["right"].right.push("CommentBox");
-WGo.BasicPlayer.layouts["one_column"].bottom.push("CommentBox");
+BasicPlayer.layouts["right_top"].right.push("CommentBox");
+BasicPlayer.layouts["right"].right.push("CommentBox");
+BasicPlayer.layouts["one_column"].bottom.push("CommentBox");
 
 WGo.i18n.en["comments"] = "Comments";
 WGo.i18n.en["gameinfo"] = "Game info";
 
-WGo.BasicPlayer.component.CommentBox = CommentBox
-
-})(WGo);
+BasicPlayer.component.CommentBox = CommentBox

@@ -1,7 +1,7 @@
-/* global WGo */
-(function(WGo, undefined) {
+import { WGo } from "./wgo";
 
-"use strict";
+import { Player } from "./player";
+import { BasicPlayer } from "./basicplayer";
 
 const permalink = {
 	active: true,
@@ -55,12 +55,12 @@ const move_from_hash = function() {
 	}
 }
 
-WGo.Player.default.move = move_from_hash;
+Player.default.move = move_from_hash;
 
 // add menu item
-if(WGo.BasicPlayer && WGo.BasicPlayer.component.Control) {
-	WGo.BasicPlayer.component.Control.menu.push({
-		constructor: WGo.BasicPlayer.control.MenuItem,
+if(BasicPlayer && BasicPlayer.component.Control) {
+	BasicPlayer.component.Control.menu.push({
+		constructor: BasicPlayer.control.MenuItem,
 		args: {
 			name: "permalink",
 			click: function(player) {
@@ -71,7 +71,5 @@ if(WGo.BasicPlayer && WGo.BasicPlayer.component.Control) {
 	});
 }
 
-WGo.Player.permalink = permalink;
+Player.permalink = permalink;
 WGo.i18n.en["permalink"] = "Permanent link";
-
-})(WGo);
