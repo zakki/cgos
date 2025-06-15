@@ -1,20 +1,21 @@
 
+/* global WGo */
 (function(WGo, undefined){
 
 WGo.SGF = {};
 
-var to_num = function(str, i) {
+const to_num = function(str, i) {
 	return str.charCodeAt(i)-97;
 }
 
-var sgf_player_info = function(type, black, kifu, node, value, ident) {
-	var c = ident == black ? "black" : "white";
+const sgf_player_info = function(type, black, kifu, node, value, ident) {
+	const c = ident == black ? "black" : "white";
 	kifu.info[c] = kifu.info[c] || {};
 	kifu.info[c][type] = value[0];
 }
 
 // handling properties specifically
-var properties = WGo.SGF.properties = {}
+const properties = WGo.SGF.properties = {}
 
 // Move properties
 properties["B"] = properties["W"] = function(kifu, node, value, ident) {
@@ -31,7 +32,7 @@ properties["B"] = properties["W"] = function(kifu, node, value, ident) {
 	
 // Setup properties
 properties["AB"] = properties["AW"] = function(kifu, node, value, ident) {
-	for(var i in value) {
+	for(const i in value) {
 		node.addSetup({
 			x: to_num(value[i], 0), 
 			y: to_num(value[i], 1), 
@@ -40,7 +41,7 @@ properties["AB"] = properties["AW"] = function(kifu, node, value, ident) {
 	}
 }
 properties["AE"] = function(kifu, node, value) {
-	for(var i in value) {
+	for(const i in value) {
 		node.addSetup({
 			x: to_num(value[i], 0), 
 			y: to_num(value[i], 1), 
@@ -58,7 +59,7 @@ properties["C"] = function(kifu, node, value) {
 	
 // Markup properties
 properties["LB"] = function(kifu, node, value) {
-	for(var i in value) {
+	for(const i in value) {
 		node.addMarkup({
 			x: to_num(value[i],0), 
 			y: to_num(value[i],1), 
@@ -68,7 +69,7 @@ properties["LB"] = function(kifu, node, value) {
 	}
 }
 properties["CR"] = properties["SQ"] = properties["TR"] = properties["SL"] = properties["MA"] = function(kifu, node, value, ident) {
-	for(var i in value) {
+	for(const i in value) {
 		node.addMarkup({
 			x: to_num(value[i],0), 
 			y: to_num(value[i],1), 
@@ -92,23 +93,22 @@ properties["TM"] =  function(kifu, node, value, ident) {
 	node.WL = value[0];
 }
 
-var reg_seq = /\(|\)|(;(\s*[A-Z]+(\s*((\[\])|(\[(.|\s)*?([^\\]\]))))+)*)/g;
-var reg_node = /[A-Z]+(\s*((\[\])|(\[(.|\s)*?([^\\]\]))))+/g;
-var reg_ident = /[A-Z]+/;
-var reg_props = /(\[\])|(\[(.|\s)*?([^\\]\]))/g;
+const reg_seq = /\(|\)|(;(\s*[A-Z]+(\s*((\[\])|(\[(.|\s)*?([^\\]\]))))+)*)/g;
+const reg_node = /[A-Z]+(\s*((\[\])|(\[(.|\s)*?([^\\]\]))))+/g;
+const reg_ident = /[A-Z]+/;
+const reg_props = /(\[\])|(\[(.|\s)*?([^\\]\]))/g;
 
 // parse SGF string, return WGo.Kifu object
 WGo.SGF.parse = function(str) { 
 
-	var stack = [],
-		sequence, props, vals, ident,
-		kifu = new WGo.Kifu(),
-		node = null;
+	const stack = [];
+	const kifu = new WGo.Kifu();
+	let node = null;
 		
 	// make sequence of elements and process it
-	sequence = str.match(reg_seq);
+	const sequence = str.match(reg_seq);
 	
-	for(var i in sequence) {
+	for(const i in sequence) {
 		// push stack, if new variant
 		if(sequence[i] == "(") stack.push(node);
 		
@@ -122,19 +122,19 @@ WGo.SGF.parse = function(str) {
 			node = node ? node.appendChild(new WGo.KNode()) : kifu.root;
 			
 			// make array of properties
-			props = sequence[i].match(reg_node) || [];
+			const props = sequence[i].match(reg_node) || [];
 			kifu.propertyCount += props.length;
 			
 			// insert all properties to node
-			for(var j in props) {
+			for(const j in props) {
 				// get property's identificator
-				ident = reg_ident.exec(props[j])[0];
+				const ident = reg_ident.exec(props[j])[0];
 				
 				// separate property's values
-				vals = props[j].match(reg_props);
+				let vals = props[j].match(reg_props);
 				
 				// remove additional braces [ and ]
-				for(var k in vals) vals[k] = vals[k].substring(1, vals[k].length-1).replace(/\\(?!\\)/g, "");
+				for(const k in vals) vals[k] = vals[k].substring(1, vals[k].length-1).replace(/\\(?!\\)/g, "");
 				
 				// call property handler if any
 				if(WGo.SGF.properties[ident]) WGo.SGF.properties[ident](kifu, node, vals, ident);

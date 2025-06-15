@@ -1,8 +1,9 @@
+/* global WGo */
 (function(WGo, undefined){
 
 "use strict";
 
-var prepare_dom = function() {
+const prepare_dom = function() {
 	this.box = document.createElement("div");
 	this.box.className = "wgo-box-wrapper wgo-comments-wrapper";
 	this.element.appendChild(this.box);
@@ -31,8 +32,8 @@ var prepare_dom = function() {
 	this.comments.appendChild(this.comment_text);
 }
 
-var mark = function(move) {
-	var x,y;
+const mark = function(move) {
+	let x,y;
 	
 	x = move.charCodeAt(0)-'a'.charCodeAt(0);
 	if(x < 0) x += 'a'.charCodeAt(0)-'A'.charCodeAt(0);
@@ -45,13 +46,13 @@ var mark = function(move) {
 	this.board.addObject(this._tmp_mark);
 }
 
-var unmark = function() {
+const unmark = function() {
 	this.board.removeObject(this._tmp_mark);
 	delete this._tmp_mark;
 }
 
-var search_nodes = function(nodes, player) {
-	for(var i in nodes) {
+const search_nodes = function(nodes, player) {
+	for(const i in nodes) {
 		if(nodes[i].className && nodes[i].className == "wgo-move-link") {
 			nodes[i].addEventListener("mouseover", mark.bind(player, nodes[i].innerHTML));
 			nodes[i].addEventListener("mouseout", unmark.bind(player));
@@ -60,10 +61,10 @@ var search_nodes = function(nodes, player) {
 	}
 }	
 
-var format_info = function(info, title) {
-	var ret = '<div class="wgo-info-list">';
+const format_info = function(info, title) {
+	let ret = '<div class="wgo-info-list">';
 	if(title) ret += '<div class="wgo-info-title">'+WGo.t("gameinfo")+'</div>';
-	for(var key in info) {
+	for(const key in info) {
 		ret += '<div class="wgo-info-item"><span class="wgo-info-label">'+key+'</span><span class="wgo-info-value">'+info[key]+'</span></div>';
 	}
 	ret += '</div>';
@@ -74,7 +75,7 @@ var format_info = function(info, title) {
  * Implements box for comments and game informations.
  */
 
-var CommentBox = WGo.extendClass(WGo.BasicPlayer.component.Component, function(player) {
+const CommentBox = WGo.extendClass(WGo.BasicPlayer.component.Component, function(player) {
 	this.super(player);
 	this.player = player;
 	
@@ -137,7 +138,7 @@ var CommentBox = WGo.extendClass(WGo.BasicPlayer.component.Component, function(p
 CommentBox.prototype.setComments = function(e) {
 	if(this.player._tmp_mark) unmark.call(this.player);
 
-	var msg = "";
+	let msg = "";
 	if(!e.node.parent) {
 		msg = format_info(e.target.getGameInfo(), true);
 	}
@@ -152,15 +153,15 @@ CommentBox.prototype.setComments = function(e) {
 CommentBox.prototype.getCommentText = function(comment, formatNicks, formatMoves, cgos) {
 	// to avoid XSS we must transform < and > to entities, it is highly recomanded not to change it
 	//.replace(/</g,"&lt;").replace(/>/g,"&gt;") : "";
-	var comm = "";
+	let comm = "";
 	if(comment) {
-		var comm =  "<p>"+WGo.filterHTML(comment).replace(/\n/g, "</p><p>")+"</p>";
+		comm =  "<p>"+WGo.filterHTML(comment).replace(/\n/g, "</p><p>")+"</p>";
 		if(formatNicks) comm = comm.replace(/(<p>)([^:]{3,}:)\s/g, '<p><span class="wgo-comments-nick">$2</span> ');
 		if(formatMoves) comm = comm.replace(/\b[a-zA-Z]1?\d\b/g, '<a href="javascript:void(0)" class="wgo-move-link">$&</a>');
 	}
 	if (cgos) {
-		var analyze = JSON.parse(cgos);
-		var hasRoot;
+		const analyze = JSON.parse(cgos);
+		let hasRoot;
 		comm += "<h1>CGOS analyze</h1>";
 		if (analyze.visits != null || analyze.winrate != null || analyze.score != null) {
 			comm += "<h2>root</h2>";
@@ -179,7 +180,7 @@ CommentBox.prototype.getCommentText = function(comment, formatNicks, formatMoves
 		}
 		if (analyze.moves && analyze.moves.length > 0) {
 			comm += "<h2>pv</h2>";
-			var info = analyze.moves[0];
+			const info = analyze.moves[0];
 			if (info.move != null) {
 				comm += "move:"+'<a href="javascript:void(0)" class="wgo-move-link">'+WGo.filterHTML(info.move)+"</a><br>";
 			}
@@ -196,12 +197,12 @@ CommentBox.prototype.getCommentText = function(comment, formatNicks, formatMoves
 				comm += "prior:"+((+info.prior)*100).toFixed(1)+"%<br>";
 			}
 			if (info.pv != null) {
-			  var moves = info.pv.split(" ");
+			  const moves = info.pv.split(" ");
 			  if (info.move && moves[0] != info.move) {
 				moves.unshift(info.move)
 			  }
 			  comm += "pv:";
-			  for (var k = 0; k < moves.length; k++) {
+			  for (let k = 0; k < moves.length; k++) {
 				comm += " "+(k+1)+":"+'<a href="javascript:void(0)" class="wgo-move-link">'+WGo.filterHTML(moves[k])+"</a>";
 			  }
 			  comm += "<br>";

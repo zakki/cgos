@@ -1,7 +1,8 @@
 
+/* global WGo */
 (function(WGo){
 
-var ScoreMode = function(position, board, komi, output) {
+const ScoreMode = function(position, board, komi, output) {
 	this.originalPosition = position;
 	this.position = position.clone();
 	this.board = board;
@@ -9,7 +10,7 @@ var ScoreMode = function(position, board, komi, output) {
 	this.output = output;
 }
 
-var state = ScoreMode.state = {
+const state = ScoreMode.state = {
 	UNKNOWN: 0,
 	BLACK_STONE: 1, // must be equal to WGo.B
 	WHITE_STONE: -1, // must be equal to WGo.W
@@ -20,8 +21,8 @@ var state = ScoreMode.state = {
 	NEUTRAL: 4,
 }
 
-var territory_set = function(pos, x, y, color, margin) {
-	var p = pos.get(x, y);
+const territory_set = function(pos, x, y, color, margin) {
+	const p = pos.get(x, y);
 	if(p === undefined || p == color || p == margin) return;
 	
 	pos.set(x, y, color);
@@ -32,8 +33,8 @@ var territory_set = function(pos, x, y, color, margin) {
 	territory_set(pos, x, y+1, color, margin);
 }
 
-var territory_reset = function(pos, orig, x, y, margin) {
-	var o = orig.get(x, y);
+const territory_reset = function(pos, orig, x, y, margin) {
+	const o = orig.get(x, y);
 	if(pos.get(x, y) == o) return;
 	
 	pos.set(x, y, o);
@@ -49,7 +50,7 @@ ScoreMode.prototype.start = function() {
 	this.displayScore();
 	
 	this._click = (function(x,y) {
-		var c = this.originalPosition.get(x,y);
+		const c = this.originalPosition.get(x,y);
 		
 		if(c == WGo.W) {
 			if(this.position.get(x, y) == state.WHITE_STONE) territory_set(this.position, x, y, state.BLACK_CANDIDATE, state.BLACK_STONE);
@@ -66,7 +67,7 @@ ScoreMode.prototype.start = function() {
 			}
 		}
 		else {
-			var p = this.position.get(x, y);
+			const p = this.position.get(x, y);
 			
 			if(p == state.BLACK_CANDIDATE) this.position.set(x, y, state.BLACK_NEUTRAL);
 			else if(p == state.WHITE_CANDIDATE) this.position.set(x, y, state.WHITE_NEUTRAL);
@@ -87,7 +88,7 @@ ScoreMode.prototype.end = function() {
 }
 
 ScoreMode.prototype.displayScore = function() {
-	var score = {
+	const score = {
 		black: [],
 		white: [],
 		neutral: [],
@@ -97,10 +98,10 @@ ScoreMode.prototype.displayScore = function() {
 		white_alive: [],
 	}
 	
-	for(var i = 0; i < this.position.size; i++) {
-		for(var j = 0; j < this.position.size; j++) {
-			s = this.position.get(i,j);
-			t = this.originalPosition.get(i,j);
+	for(let i = 0; i < this.position.size; i++) {
+		for(let j = 0; j < this.position.size; j++) {
+			const s = this.position.get(i,j);
+			const t = this.originalPosition.get(i,j);
 			
 			if(s == state.BLACK_CANDIDATE) score.black.push({x: i, y: j, type: "mini", c: WGo.B});
 			else if(s == state.WHITE_CANDIDATE) score.white.push({x: i, y: j, type: "mini", c: WGo.W});
@@ -113,12 +114,12 @@ ScoreMode.prototype.displayScore = function() {
 			else if(t == WGo.B && s == state.BLACK_STONE) score.black_alive.push({x: i, y: j, type: "outline", c: WGo.B});
 		}
 	}
-	
-	for(var i = 0; i < score.black_captured.length; i++) {
+
+	for(let i = 0; i < score.black_captured.length; i++) {
 		this.board.removeObjectsAt(score.black_captured[i].x, score.black_captured[i].y);
 	}
-	
-	for(var i = 0; i < score.white_captured.length; i++) {
+
+	for(let i = 0; i < score.white_captured.length; i++) {
 		this.board.removeObjectsAt(score.white_captured[i].x, score.white_captured[i].y);
 	}
 	
@@ -127,9 +128,9 @@ ScoreMode.prototype.displayScore = function() {
 	this.board.addObject(score.black);
 	this.board.addObject(score.white);
 	
-	var sb;
-	var sw;
-	var msg = "";
+	let sb;
+	let sw;
+	let msg = "";
 	sb = score.black.length+score.black_alive.length;
 	sw = score.white.length+score.white_alive.length+parseFloat(this.komi);
 	msg += "<p style='font-weight: bold;'>Area "+WGo.t("RE")+"</p>";
@@ -150,29 +151,29 @@ ScoreMode.prototype.displayScore = function() {
 }
 
 ScoreMode.prototype.calculate = function() {
-	var p, s, t, b, w, change;
+	let t;
 	
 	// 1. create testing position, empty fields has flag ScoreMode.UNKNOWN
-	p = this.position;
+	const p = this.position;
 	
 	// 2. repeat until there is some change of state:
-	change = true;
+	let change = true;
 	while(change) {
 		change = false;
 		
 		// go through the whole position
-		for(var i = 0; i < p.size; i++) {
+		for(let i = 0; i < p.size; i++) {
 			//var str = "";
-			for(var j = 0; j < p.size; j++) {
-				s = p.get(j,i);
+			for(let j = 0; j < p.size; j++) {
+				const s = p.get(j,i);
 				
 				if(s == state.UNKNOWN || s == state.BLACK_CANDIDATE || s == state.WHITE_CANDIDATE) {
 					// get new state
 					t = [p.get(j-1, i), p.get(j, i-1), p.get(j+1, i), p.get(j, i+1)];
-					b = false;
-					w = false;
+					let b = false;
+					let w = false;
 
-					for(var k = 0; k < 4; k++) {
+					for(let k = 0; k < 4; k++) {
 						if(t[k] == state.BLACK_STONE || t[k] == state.BLACK_CANDIDATE) b = true;
 						else if(t[k] == state.WHITE_STONE || t[k] == state.WHITE_CANDIDATE) w = true;
 						else if(t[k] == state.NEUTRAL) {

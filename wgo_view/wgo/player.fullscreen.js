@@ -1,22 +1,22 @@
 // not finished yet
-
+/* global WGo */
 //--- Fullscreen mode ---------------------------------------------------------------------------------------------------
 
-var FSCHANGE = document.onfullscreenchange !== undefined ? "onfullscreenchange" : (
+const FSCHANGE = document.onfullscreenchange !== undefined ? "onfullscreenchange" : (
 			     document.onmozfullscreenchange !== undefined ? "onmozfullscreenchange" : (
 			       document.onwebkitfullscreenchange !== undefined ? "onwebkitfullscreenchange" : (
 			         document.onmsfullscreenchange !== undefined ? "onmsfullscreenchange" : false
 			       )
 				 )
 			   );
-var FSCLOSE = document.exitFullscreen ? "exitFullscreen" : (
+const FSCLOSE = document.exitFullscreen ? "exitFullscreen" : (
 			    document.mozCancelFullScreen ? "mozCancelFullScreen" : (
 			      document.webkitCancelFullScreen ? "webkitCancelFullScreen" : (
 			        document.msCancelFullScreene !== undefined ? "document.msCancelFullScreen" : false
 			      )
 			    )
 			  );
-var FSREQUEST = Element.prototype.requestFullscreen !== undefined ? "requestFullscreen" : (
+const FSREQUEST = Element.prototype.requestFullscreen !== undefined ? "requestFullscreen" : (
 			      Element.prototype.mozRequestFullScreen !== undefined ? "mozRequestFullScreen" : (
 			        Element.prototype.webkitRequestFullScreen !== undefined ? "webkitRequestFullScreen" : (
 			          Element.prototype.msRequestFullScreen !== undefined ? "msRequestFullScreen" : false
@@ -24,7 +24,7 @@ var FSREQUEST = Element.prototype.requestFullscreen !== undefined ? "requestFull
 				  )
 				);
 
-var fullscreenChange = function() {
+const fullscreenChange = function() {
 	if (document.fullscreenElement || document.mozFullScreen || document.webkitIsFullScreen || document.msFullScreen) {
 		this.dispatchEvent({
 			type: "fullscreenChange",
@@ -42,7 +42,7 @@ var fullscreenChange = function() {
 	}
 }
 
-var fullscreenProcess = function(elem) {
+const fullscreenProcess = function(elem) {
 	if (document.fullscreenElement || document.mozFullScreen || document.webkitIsFullScreen || document.msFullScreen) {
 		document[FSCLOSE]();
 		return false;
@@ -57,7 +57,7 @@ var fullscreenProcess = function(elem) {
  * Toggle fullscreen mode.
  */
 	
-Player.prototype.toggleFullscreen: function() {
+Player.prototype.toggleFullscreen = function() {
 	if(FSCHANGE) {
 		document[FSCHANGE] = fullscreenChange.bind(this);
 		fullscreenProcess.call(undefined, this.view.element);

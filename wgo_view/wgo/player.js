@@ -1,9 +1,10 @@
 
+/* global WGo */
 (function(WGo){
 
 "use strict";
 
-var FileError = function(path, code) {
+const FileError = function(path, code) {
 	this.name = "FileError";
 
     if(code == 1) this.message = "File '"+path+"' is empty.";
@@ -17,9 +18,9 @@ FileError.prototype.constructor = FileError;
 WGo.FileError = FileError;
 
 // ajax function for loading of files
-var loadFromUrl = WGo.loadFromUrl = function(url, callback) {
+const loadFromUrl = WGo.loadFromUrl = function(url, callback) {
 
-	var xmlhttp = new XMLHttpRequest();
+	const xmlhttp = new XMLHttpRequest();
 	xmlhttp.onreadystatechange = function() {
 		if (xmlhttp.readyState == 4) {
 			if(xmlhttp.status == 200) {
@@ -47,7 +48,7 @@ var loadFromUrl = WGo.loadFromUrl = function(url, callback) {
 }
 
 // basic updating function - handles board changes
-var update_board = function(e) {
+const update_board = function(e) {
 	// update board's position
 	if(e.change) this.board.update(e.change);
 
@@ -55,7 +56,7 @@ var update_board = function(e) {
 	if(this.temp_marks) this.board.removeObject(this.temp_marks);
 
 	// init array for new objects
-	var add = [];
+	let add = [];
 
 	this.notification();
 
@@ -71,7 +72,7 @@ var update_board = function(e) {
 
 	// add variation letters
 	if(e.node.children.length > 1 && this.config.displayVariations) {
-		for(var i = 0; i < e.node.children.length; i++) {
+		for(let i = 0; i < e.node.children.length; i++) {
 			if(e.node.children[i].move && !e.node.children[i].move.pass)	add.push({
 				type: "LB",
 				text: String.fromCharCode(65+i),
@@ -84,8 +85,8 @@ var update_board = function(e) {
 
 	// add other markup
 	if(e.node.markup) {
-		for(var i in e.node.markup) {
-			for(var j = 0; j < add.length; j++) {
+		for(const i in e.node.markup) {
+			for(let j = 0; j < add.length; j++) {
 				if(e.node.markup[i].x == add[j].x && e.node.markup[i].y == add[j].y) {
 					add.splice(j,1);
 					j--;
@@ -101,7 +102,7 @@ var update_board = function(e) {
 }
 
 // preparing board
-var prepare_board = function(e) {
+const prepare_board = function(e) {
 	// set board size
 	this.board.setSize(e.kifu.size);
 
@@ -113,15 +114,15 @@ var prepare_board = function(e) {
 }
 
 // detecting scrolling of element - e.g. when we are scrolling text in comment box, we want to be aware.
-var detect_scrolling = function(node, bp) {
+const detect_scrolling = function(node, bp) {
 	if(node == bp.element || node == bp.element) return false;
 	else if(node._wgo_scrollable || (node.scrollHeight > node.offsetHeight && window.getComputedStyle(node).overflow == "auto")) return true;
 	else return detect_scrolling(node.parentNode, bp);
 }
 
 // mouse wheel event callback, for replaying a game
-var wheel_lis = function(e) {
-	var delta = e.wheelDelta || e.detail*(-1);
+const wheel_lis = function(e) {
+	const delta = e.wheelDelta || e.detail*(-1);
 
 	// if there is scrolling in progress within an element, don't change position
 	if(detect_scrolling(e.target, this)) return true;
@@ -140,9 +141,9 @@ var wheel_lis = function(e) {
 };
 
 // keyboard click callback, for replaying a game
-var key_lis = function(e) {
+const key_lis = function(e) {
 	// disable game replay, when there is focus on some form text field
-	var focusedElements = document.querySelector("input:focus, textarea:focus");
+	const focusedElements = document.querySelector("input:focus, textarea:focus");
 	if(focusedElements) return true;
 	
 	switch(e.keyCode){
@@ -156,9 +157,9 @@ var key_lis = function(e) {
 };
 
 // function handling board clicks in normal mode
-var board_click_default = function(x,y) {
+const board_click_default = function(x,y) {
 	if(!this.kifuReader || !this.kifuReader.node) return false;
-	for(var i in this.kifuReader.node.children) {
+	for(const i in this.kifuReader.node.children) {
 		if(this.kifuReader.node.children[i].move && this.kifuReader.node.children[i].move.x == x && this.kifuReader.node.children[i].move.y == y) {
 			this.next(i);
 			return;
@@ -218,11 +219,11 @@ var board_click_default = function(x,y) {
  * @param {object} config object if form: {key1: value1, key2: value2, ...}
  */
 
-var Player = function(config) {
+const Player = function(config) {
 	this.config = config;
 
 	// add default configuration
-	for(var key in Player.default) if(this.config[key] === undefined && Player.default[key] !== undefined) this.config[key] = Player.default[key];
+	for(const key in Player.default) if(this.config[key] === undefined && Player.default[key] !== undefined) this.config[key] = Player.default[key];
 
 	this.element = document.createElement("div");
 	this.board = new WGo.Board(this.element, this.config.board);
@@ -287,7 +288,7 @@ Player.prototype = {
 	update: function(op) {
 		if(!this.kifuReader || !this.kifuReader.change) return;
 
-		var ev = {
+		const ev = {
 			type: "update",
 			op: op,
 			target: this,
@@ -375,7 +376,7 @@ Player.prototype = {
 	 */
 
 	loadSgfFromFile: function(file_path, game_path) {
-		var _this = this;
+		const _this = this;
 		try {
 			loadFromUrl(file_path, function(sgf) {
 				_this.loadSgf(sgf, game_path);
@@ -408,7 +409,7 @@ Player.prototype = {
 
 	removeEventListener: function(type, listener) {
 		if(!this.listeners[type]) return;
-		var i = this.listeners[type].indexOf(listener);
+		const i = this.listeners[type].indexOf(listener);
 		if(i != -1) this.listeners[type].splice(i,1);
 	},
 
@@ -420,7 +421,7 @@ Player.prototype = {
 
 	dispatchEvent: function(evt) {
 		if(!this.listeners[evt.type]) return;
-		for(var l in this.listeners[evt.type]) this.listeners[evt.type][l](evt);
+		for(const l in this.listeners[evt.type]) this.listeners[evt.type][l](evt);
 	},
 
 	/**
@@ -526,7 +527,7 @@ Player.prototype = {
 
 	goTo: function(move) {
 		if(this.frozen || !this.kifu) return;
-		var path;
+		let path;
 		if(typeof move == "function") move = move.call(this);
 
 		if(typeof move == "number") {
@@ -552,8 +553,8 @@ Player.prototype = {
 
 	getGameInfo: function() {
 		if(!this.kifu) return null;
-		var info = {};
-		for(var key in this.kifu.info) {
+		const info = {};
+		for(const key in this.kifu.info) {
 			if(WGo.Kifu.infoList.indexOf(key) == -1) continue;
 			if(WGo.Kifu.infoFormatters[key]) {
 				info[WGo.t(key)] = WGo.Kifu.infoFormatters[key](this.kifu.info[key]);
@@ -611,11 +612,11 @@ Player.prototype = {
 	setWheel: function(b) {
 		if(!this._wheel_listener && b) {
 			this._wheel_listener = wheel_lis.bind(this);
-			var type = (document.onmousewheel !== undefined) ? "mousewheel" : "DOMMouseScroll";
+			const type = (document.onmousewheel !== undefined) ? "mousewheel" : "DOMMouseScroll";
 			this.element.addEventListener(type, this._wheel_listener);
 		}
 		else if(this._wheel_listener && !b) {
-			var type = (document.onmousewheel !== undefined) ? "mousewheel" : "DOMMouseScroll";
+			const type = (document.onmousewheel !== undefined) ? "mousewheel" : "DOMMouseScroll";
 			this.element.removeEventListener(type, this._wheel_listener);
 			delete this._wheel_listener;
 		}
@@ -666,7 +667,7 @@ WGo.Player = Player;
  * For another language support, extend this object with similiar object.
  */
 
-var player_terms = {
+const player_terms = {
 	"about-text": "<h1>WGo.js Player 2.0</h1>"
 				+ "<p>WGo.js Player is extension of WGo.js, HTML5 library for purposes of game of go. It allows to replay go game records and it has many features like score counting. It is also designed to be easily extendable.</p>"
 				+ "<p>WGo.js is open source licensed under <a href='http://en.wikipedia.org/wiki/MIT_License' target='_blank'>MIT license</a>. You can use and modify any code from this project.</p>"
@@ -696,6 +697,6 @@ var player_terms = {
 	"wpass": "White passed.",
 };
 
-for(var key in player_terms) WGo.i18n.en[key] = player_terms[key];
+for(const key in player_terms) WGo.i18n.en[key] = player_terms[key];
 
 })(WGo);

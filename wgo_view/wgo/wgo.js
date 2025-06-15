@@ -23,16 +23,16 @@
 
 "use strict";
 
-var scripts= document.getElementsByTagName('script');
-var path= scripts[scripts.length-1].src.split('?')[0];      // remove any ?query
-var mydir= path.split('/').slice(0, -1).join('/')+'/';
+const scripts= document.getElementsByTagName('script');
+const path= scripts[scripts.length-1].src.split('?')[0];      // remove any ?query
+const mydir= path.split('/').slice(0, -1).join('/')+'/';
 
 /**
  * Main namespace - it initializes WGo in first run and then execute main function.
  * You must call WGo.init() if you want to use library, without calling WGo.
  */
 
-var WGo = {
+const WGo = {
 	// basic information
 	version: "2.3.1",
 
@@ -61,9 +61,9 @@ WGo.mozilla = navigator.userAgent.search(/(mozilla)(?:.*? rv:([\w.]+))?/i) != -1
 
 // translating function
 WGo.t = function(str) {
-	var loc = WGo.i18n[WGo.lang][str] || WGo.i18n.en[str];
+	let loc = WGo.i18n[WGo.lang][str] || WGo.i18n.en[str];
 	if(loc) {
-		for(var i = 1; i < arguments.length; i++) {
+		for(let i = 1; i < arguments.length; i++) {
 			loc = loc.replace("$", arguments[i]);
 		}
 		return loc;
@@ -88,9 +88,9 @@ WGo.abstractMethod = function() {
 // helping function for deep cloning of simple objects,
 WGo.clone = function(obj) {
 	if(obj && typeof obj == "object") {
-		var n_obj = obj.constructor == Array ? [] : {};
+		const n_obj = obj.constructor == Array ? [] : {};
 
-		for(var key in obj) {
+		for(const key in obj) {
 			if(obj[key] == obj) n_obj[key] = obj;
 			else n_obj[key] = WGo.clone(obj[key]);
 		}
@@ -139,17 +139,17 @@ WGo.filterHTML = function(text) {
  * Note: properties lineWidth, autoLineWidth, starPoints, starSize, stoneSize and shadowSize will be considered only if you set property 'theme' to 'WGo.Board.themes.old'.
  */
 
-var Board = function(elem, config) {
-	var config = config || {};
+const Board = function(elem, config) {
+	config = config || {};
 
 	// set user configuration
-	for(var key in config) this[key] = config[key];
+	for(const key in config) this[key] = config[key];
 
 	// add default configuration
-	for(var key in WGo.Board.default) if(this[key] === undefined) this[key] = WGo.Board.default[key];
+	for(const key in WGo.Board.default) if(this[key] === undefined) this[key] = WGo.Board.default[key];
 
 	// add default theme variables
-	for(var key in Board.themes.default) if(this.theme[key] === undefined) this.theme[key] = Board.themes.default[key];
+	for(const key in Board.themes.default) if(this.theme[key] === undefined) this.theme[key] = Board.themes.default[key];
 
 	// set section if set
 	this.tx = this.section.left;
@@ -243,13 +243,13 @@ Board.themes.default = {
 	linesShift: 0.25
 }
 
-var theme_variable = function(key, board) {
+const theme_variable = function(key, board) {
 	return typeof board.theme[key] == "function" ? board.theme[key](board) : board.theme[key];
 }
 
-var shadow_handler = {
+const shadow_handler = {
 	draw: function(args, board) {
-		var xr = board.getX(args.x),
+		const xr = board.getX(args.x),
 			yr = board.getY(args.y),
 			sr = board.stoneRadius;
 
@@ -257,9 +257,9 @@ var shadow_handler = {
 
 		this.beginPath();
 
-		var blur = theme_variable("shadowBlur", board);
-		var radius = Math.max(0, sr-0.5);
-		var gradient = this.createRadialGradient(xr-board.ls, yr-board.ls, radius-1-blur, xr-board.ls, yr-board.ls, radius+blur);
+		const blur = theme_variable("shadowBlur", board);
+		const radius = Math.max(0, sr-0.5);
+		const gradient = this.createRadialGradient(xr-board.ls, yr-board.ls, radius-1-blur, xr-board.ls, yr-board.ls, radius+blur);
 
 		gradient.addColorStop(0, theme_variable("shadowColor", board));
 		gradient.addColorStop(1, theme_variable("shadowTransparentColor", board));
@@ -270,7 +270,7 @@ var shadow_handler = {
 		this.fill();
 	},
 	clear: function(args, board) {
-		var xr = board.getX(args.x),
+		const xr = board.getX(args.x),
 			yr = board.getY(args.y),
 			sr = board.stoneRadius;
 		this.clearRect(xr-1.1*sr-board.ls,yr-1.1*sr-board.ls, 2.2*sr, 2.2*sr);
@@ -278,9 +278,9 @@ var shadow_handler = {
 }
 
 // Shadow handler for the 'REALISITC' rendering mode
-var shadow_handler_realistic = {
+const shadow_handler_realistic = {
 	draw: function(args, board) {
-		var xr = board.getX(args.x),
+		const xr = board.getX(args.x),
 			yr = board.getY(args.y),
 			sr = board.stoneRadius,
 			lsX = 1.0,
@@ -291,8 +291,8 @@ var shadow_handler_realistic = {
 
 		this.beginPath();
 
-		var radius = Math.max(0, (sr-0.5)*0.85);
-		var gradient = this.createRadialGradient(xr-lsX, yr-lsY, radius-1-blur, xr-lsX, yr-lsY, radius+blur);
+		const radius = Math.max(0, (sr-0.5)*0.85);
+		const gradient = this.createRadialGradient(xr-lsX, yr-lsY, radius-1-blur, xr-lsX, yr-lsY, radius+blur);
 
 		gradient.addColorStop(0, theme_variable("shadowColor", board));
 		gradient.addColorStop(1, theme_variable("shadowTransparentColor", board));
@@ -303,37 +303,35 @@ var shadow_handler_realistic = {
 		this.fill();
 	},
 	clear: function(args, board) {
-		var xr = board.getX(args.x),
+		const xr = board.getX(args.x),
 			yr = board.getY(args.y),
 			sr = board.stoneRadius,
 			lsX = 1.0,
-			lsY = -5.0,
-			blur = 5.0;
+			lsY = -5.0;
 
 		this.clearRect(xr-1.1*sr-lsX,yr-1.1*sr-lsY, 2.2*sr, 2.2*sr);
 	}
 }
 
-var get_markup_color = function(board, x, y) {
+const get_markup_color = function(board, x, y) {
 	if(board.obj_arr[x][y][0].c == WGo.B) return theme_variable("markupBlackColor", board);
 	else if(board.obj_arr[x][y][0].c == WGo.W) return theme_variable("markupWhiteColor", board);
 	return theme_variable("markupNoneColor", board);
 }
 
-var is_here_stone = function(board, x, y) {
+const is_here_stone = function(board, x, y) {
 	return (board.obj_arr[x][y][0] && board.obj_arr[x][y][0].c == WGo.W || board.obj_arr[x][y][0].c == WGo.B);
 }
 
-var redraw_layer = function(board, layer) {
-	var handler;
-
+const redraw_layer = function(board, layer) {
 	board[layer].clear();
 	board[layer].draw(board);
 
-	for(var x = 0; x < board.size; x++) {
-		for(var y = 0; y < board.size; y++) {
-			for(var z = 0; z < board.obj_arr[x][y].length; z++) {
-				var obj = board.obj_arr[x][y][z];
+	for(let x = 0; x < board.size; x++) {
+		for(let y = 0; y < board.size; y++) {
+			for(let z = 0; z < board.obj_arr[x][y].length; z++) {
+				const obj = board.obj_arr[x][y][z];
+				let handler;
 				if(!obj.type) handler = board.stoneHandler;
 				else if(typeof obj.type == "string") handler = Board.drawHandlers[obj.type];
 				else handler = obj.type;
@@ -343,9 +341,9 @@ var redraw_layer = function(board, layer) {
 		}
 	}
 
-	for(var i = 0; i < board.obj_list.length; i++) {
-		var obj = board.obj_list[i];
-		var handler = obj.handler;
+	for(let i = 0; i < board.obj_list.length; i++) {
+		const obj = board.obj_list[i];
+		const handler = obj.handler;
 
 		if(handler[layer]) handler[layer].draw.call(board[layer].getContext(obj.args), obj.args, board);
 	}
@@ -354,9 +352,9 @@ WGo.redraw_layer = redraw_layer;
 
 // shell stone helping functions
 
-var shell_seed;
+let shell_seed;
 
-var draw_shell_line = function(ctx, x, y, radius, start_angle, end_angle, factor, thickness) {
+const draw_shell_line = function(ctx, x, y, radius, start_angle, end_angle, factor, thickness) {
 	ctx.strokeStyle = "rgba(64,64,64,0.2)";
 
 	ctx.lineWidth = (radius/30)*thickness;
@@ -364,12 +362,12 @@ var draw_shell_line = function(ctx, x, y, radius, start_angle, end_angle, factor
 
 	radius -= Math.max(1, ctx.lineWidth);
 
-	var x1 = x + radius*Math.cos(start_angle*Math.PI);
-	var y1 = y + radius*Math.sin(start_angle*Math.PI);
-	var x2 = x + radius*Math.cos(end_angle*Math.PI);
-	var y2 = y + radius*Math.sin(end_angle*Math.PI);
+	const x1 = x + radius*Math.cos(start_angle*Math.PI);
+	const y1 = y + radius*Math.sin(start_angle*Math.PI);
+	const x2 = x + radius*Math.cos(end_angle*Math.PI);
+	const y2 = y + radius*Math.sin(end_angle*Math.PI);
 
-	var m, angle, x, diff_x, diff_y;
+	let m, angle;
 	if(x2 > x1) {
 		m = (y2-y1)/(x2-x1);
 		angle = Math.atan(m);
@@ -382,26 +380,26 @@ var draw_shell_line = function(ctx, x, y, radius, start_angle, end_angle, factor
 		angle = Math.atan(m)-Math.PI;
 	}
 
-	var c = factor*radius;
-	diff_x = Math.sin(angle) * c;
-	diff_y = Math.cos(angle) * c;
+	const c = factor*radius;
+	const diff_x = Math.sin(angle) * c;
+	const diff_y = Math.cos(angle) * c;
 
-	var bx1 = x1 + diff_x;
-	var by1 = y1 - diff_y;
+	const bx1 = x1 + diff_x;
+	const by1 = y1 - diff_y;
 
-	var bx2 = x2 + diff_x;
-	var by2 = y2 - diff_y;
+	const bx2 = x2 + diff_x;
+	const by2 = y2 - diff_y;
 
 	ctx.moveTo(x1,y1);
 	ctx.bezierCurveTo(bx1, by1, bx2, by2, x2, y2);
 	ctx.stroke();
 }
 
-var draw_shell = function(arg) {
-	var from_angle = arg.angle;
-	var to_angle = arg.angle;
+const draw_shell = function(arg) {
+	let from_angle = arg.angle;
+	let to_angle = arg.angle;
 
-	for(var i = 0; i < arg.lines.length; i++) {
+	for(let i = 0; i < arg.lines.length; i++) {
 		from_angle += arg.lines[i];
 		to_angle -= arg.lines[i];
 		draw_shell_line(arg.ctx, arg.x, arg.y, arg.radius, from_angle, to_angle, arg.factor, arg.thickness);
@@ -418,10 +416,10 @@ Board.drawHandlers = {
 			// drawing function - args object contain info about drawing object, board is main board object
 			// this function is called from canvas2D context
 			draw: function(args, board) {
-				var xr = board.getX(args.x),
+				const xr = board.getX(args.x),
 					yr = board.getY(args.y),
-					sr = board.stoneRadius,
-					radgrad;
+					sr = board.stoneRadius;
+				let radgrad;
 
 				// set stone texture
 				if(args.c == WGo.W) {
@@ -449,10 +447,10 @@ Board.drawHandlers = {
 	PAINTED: {
 		stone: {
 			draw: function(args, board) {
-				var xr = board.getX(args.x),
+				const xr = board.getX(args.x),
 					yr = board.getY(args.y),
-					sr = board.stoneRadius,
-					radgrad;
+					sr = board.stoneRadius;
+				let radgrad;
 
 				if(args.c == WGo.W) {
 					radgrad = this.createRadialGradient(xr-2*sr/5,yr-2*sr/5,2,xr-sr/5,yr-sr/5,4*sr/5);
@@ -492,24 +490,24 @@ Board.drawHandlers = {
 	REALISTIC: {
 		stone: {
 			draw: function(args, board) {
-				var xr = board.getX(args.x),
+				const xr = board.getX(args.x),
 					yr = board.getY(args.y),
 					sr = board.stoneRadius;
 
-				var whiteCount = board.whiteStoneGraphic.length;
-				var blackCount = board.blackStoneGraphic.length;
+				const whiteCount = board.whiteStoneGraphic.length;
+				const blackCount = board.blackStoneGraphic.length;
 
 				if(typeof this.randIndex === 'undefined') {
 					this.randIndex = Math.ceil(Math.random()*1e5);
 				}
 
-				var redraw = function() {
+				const redraw = function() {
 					board.redraw();
 				};
 
 				// Check if image has been loaded properly
 				// see https://stereochro.me/ideas/detecting-broken-images-js
-				var isOkay = function(img) {
+				const isOkay = function(img) {
 					if (typeof img === 'string') { return false; }
 	 				if (!img.complete) { return false; }
 					if (typeof img.naturalWidth != "undefined" && img.naturalWidth == 0) {
@@ -519,11 +517,11 @@ Board.drawHandlers = {
 				};
 
 				if(args.c == WGo.W) {
-					var idx = this.randIndex % whiteCount;
+					const idx = this.randIndex % whiteCount;
 					if(typeof board.whiteStoneGraphic[idx] === 'string')
 					{
 						// The image has not been loaded yet
-						var stoneGraphic = new Image();
+						const stoneGraphic = new Image();
 						// Redraw the whole board after the image has been loaded.
 						// This prevents 'missing stones' and similar graphical errors
 						// especially on slower internet connections.
@@ -541,11 +539,11 @@ Board.drawHandlers = {
 					}
 				}
 				else { // args.c == WGo.B
-					var idx = this.randIndex % blackCount;
+					const idx = this.randIndex % blackCount;
 					if(typeof board.blackStoneGraphic[idx] === 'string')
 					{
-						var stoneGraphic = new Image();
-					  stoneGraphic.onload = redraw;
+						const stoneGraphic = new Image();
+						stoneGraphic.onload = redraw;
 						stoneGraphic.src = board.blackStoneGraphic[idx];
 						board.blackStoneGraphic[idx] = stoneGraphic;
 					}
@@ -565,11 +563,11 @@ Board.drawHandlers = {
 	GLOW: {
 		stone: {
 			draw: function(args, board) {
-				var xr = board.getX(args.x),
+				const xr = board.getX(args.x),
 					yr = board.getY(args.y),
 					sr = board.stoneRadius;
 
-				var radgrad;
+				let radgrad;
 				if(args.c == WGo.W) {
 					radgrad = this.createRadialGradient(xr-2*sr/5,yr-2*sr/5,sr/3,xr-sr/5,yr-sr/5,8*sr/5);
 					radgrad.addColorStop(0, '#fff');
@@ -593,16 +591,14 @@ Board.drawHandlers = {
 	SHELL: {
 		stone: {
 			draw: function(args, board) {
-				var xr,
-					yr,
-					sr = board.stoneRadius;
+				const sr = board.stoneRadius;
 
 				shell_seed = shell_seed || Math.ceil(Math.random()*9999999);
 
-				xr = board.getX(args.x);
-				yr = board.getY(args.y);
+				const xr = board.getX(args.x);
+				const yr = board.getY(args.y);
 
-				var radgrad;
+				let radgrad;
 
 				if(args.c == WGo.W) {
 					radgrad = "#aaa";
@@ -619,9 +615,9 @@ Board.drawHandlers = {
 				// do shell magic here
 				if(args.c == WGo.W) {
 					// do shell magic here
-					var type = shell_seed%(3+args.x*board.size+args.y)%3;
-					var z = board.size*board.size+args.x*board.size+args.y;
-					var angle = (2/z)*(shell_seed%z);
+					const type = shell_seed%(3+args.x*board.size+args.y)%3;
+					const z = board.size*board.size+args.x*board.size+args.y;
+					const angle = (2/z)*(shell_seed%z);
 
 					if(type == 0) {
 						draw_shell({
@@ -696,7 +692,7 @@ Board.drawHandlers = {
 	MONO: {
 		stone: {
 			draw: function(args, board) {
-				var xr = board.getX(args.x),
+				const xr = board.getX(args.x),
 					yr = board.getY(args.y),
 					sr = board.stoneRadius,
 					lw = theme_variable("markupLinesWidth", board) || 1;
@@ -718,7 +714,7 @@ Board.drawHandlers = {
 	CR: {
 		stone: {
 			draw: function(args, board) {
-				var xr = board.getX(args.x),
+				const xr = board.getX(args.x),
 					yr = board.getY(args.y),
 					sr = board.stoneRadius;
 
@@ -735,7 +731,7 @@ Board.drawHandlers = {
 	LB: {
 		stone: {
 			draw: function(args, board) {
-				var xr = board.getX(args.x),
+				const xr = board.getX(args.x),
 					yr = board.getY(args.y),
 					sr = board.stoneRadius,
 					font = args.font || theme_variable("font", board) || "";
@@ -758,7 +754,7 @@ Board.drawHandlers = {
 		grid: {
 			draw: function(args, board) {
 				if(!is_here_stone(board, args.x, args.y) && !args._nodraw) {
-					var xr = board.getX(args.x),
+					const xr = board.getX(args.x),
 						yr = board.getY(args.y),
 						sr = board.stoneRadius;
 					this.clearRect(xr-sr,yr-sr,2*sr,2*sr);
@@ -777,7 +773,7 @@ Board.drawHandlers = {
 	SQ: {
 		stone: {
 			draw: function(args, board) {
-				var xr = board.getX(args.x),
+				const xr = board.getX(args.x),
 					yr = board.getY(args.y),
 					sr = Math.round(board.stoneRadius);
 
@@ -793,7 +789,7 @@ Board.drawHandlers = {
 	TR: {
 		stone: {
 			draw: function(args, board) {
-				var xr = board.getX(args.x),
+				const xr = board.getX(args.x),
 					yr = board.getY(args.y),
 					sr = board.stoneRadius;
 
@@ -812,7 +808,7 @@ Board.drawHandlers = {
 	MA: {
 		stone: {
 			draw: function(args, board) {
-				var xr = board.getX(args.x),
+				const xr = board.getX(args.x),
 					yr = board.getY(args.y),
 					sr = board.stoneRadius;
 
@@ -833,7 +829,7 @@ Board.drawHandlers = {
 	SL: {
 		stone: {
 			draw: function(args, board) {
-				var xr = board.getX(args.x),
+				const xr = board.getX(args.x),
 					yr = board.getY(args.y),
 					sr = board.stoneRadius;
 
@@ -848,7 +844,7 @@ Board.drawHandlers = {
 	SM: {
 		stone: {
 			draw: function(args, board) {
-				var xr = board.getX(args.x),
+				const xr = board.getX(args.x),
 					yr = board.getY(args.y),
 					sr = board.stoneRadius;
 
@@ -895,23 +891,21 @@ Board.drawHandlers = {
 Board.coordinates = {
 	grid: {
 		draw: function(args, board) {
-			var ch, t, xright, xleft, ytop, ybottom;
-
 			this.fillStyle = theme_variable("coordinatesColor", board);
 			this.textBaseline="middle";
 			this.textAlign="center";
 			this.font = board.stoneRadius+"px "+(board.font || "");
 
-			xright = board.getX(-0.75);
-			xleft = board.getX(board.size-0.25);
-			ytop = board.getY(-0.75);
-			ybottom = board.getY(board.size-0.25);
+			const xright = board.getX(-0.75);
+			const xleft = board.getX(board.size-0.25);
+			const ytop = board.getY(-0.75);
+			const ybottom = board.getY(board.size-0.25);
 
-			for(var i = 0; i < board.size; i++) {
-				ch = i+"A".charCodeAt(0);
+			for(let i = 0; i < board.size; i++) {
+				let ch = i+"A".charCodeAt(0);
 				if(ch >= "I".charCodeAt(0)) ch++;
 
-				t = board.getY(i);
+				let t = board.getY(i);
 				this.fillText(board.size-i, xright, t);
 				this.fillText(board.size-i, xleft, t);
 
@@ -960,7 +954,7 @@ Board.CanvasLayer.prototype = {
 		return this.context;
 	},
 
-	draw: function(board) {	},
+	draw: function(_board) {	},
 
 	clear: function() {
 		this.context.clearRect(0,0,this.element.width,this.element.height);
@@ -973,20 +967,20 @@ Board.GridLayer = WGo.extendClass(Board.CanvasLayer, function() {
 
 Board.GridLayer.prototype.draw = function(board) {
 	// draw grid
-	var tmp;
+	let tmp;
 
 	this.context.beginPath();
 	this.context.lineWidth = theme_variable("gridLinesWidth", board);
 	this.context.strokeStyle = theme_variable("gridLinesColor", board);
 
-	var tx = Math.round(board.left),
+	const tx = Math.round(board.left),
 		ty = Math.round(board.top),
 		bw = Math.round(board.fieldWidth*(board.size-1)),
 		bh = Math.round(board.fieldHeight*(board.size-1));
 
 	this.context.strokeRect(tx-board.ls, ty-board.ls, bw, bh);
 
-	for(var i = 1; i < board.size-1; i++) {
+	for(let i = 1; i < board.size-1; i++) {
 		tmp = Math.round(board.getX(i))-board.ls;
 		this.context.moveTo(tmp, ty);
 		this.context.lineTo(tmp, ty+bh);
@@ -1002,7 +996,7 @@ Board.GridLayer.prototype.draw = function(board) {
 	this.context.fillStyle = theme_variable("starColor", board);
 
 	if(board.starPoints[board.size]) {
-		for(var key in board.starPoints[board.size]) {
+		for(const key in board.starPoints[board.size]) {
 			this.context.beginPath();
 			this.context.arc(board.getX(board.starPoints[board.size][key].x)-board.ls, board.getY(board.starPoints[board.size][key].y)-board.ls, theme_variable("starSize", board), 0, 2*Math.PI,true);
 			this.context.fill();
@@ -1019,7 +1013,7 @@ Board.MultipleCanvasLayer = WGo.extendClass(Board.CanvasLayer, function() {
 });
 
 Board.MultipleCanvasLayer.prototype.init = function(n) {
-	var tmp, tmpContext;
+	let tmp, tmpContext;
 
 	this.layers = n;
 
@@ -1029,7 +1023,7 @@ Board.MultipleCanvasLayer.prototype.init = function(n) {
 	// Adjust pixel ratio for HDPI screens (e.g. Retina)
 	this.pixelRatio = window.devicePixelRatio || 1;
 
-	for(var i = 0; i < n; i++) {
+	for(let i = 0; i < n; i++) {
 		tmp = document.createElement('canvas');
 		tmpContext = tmp.getContext('2d');
 
@@ -1043,7 +1037,7 @@ Board.MultipleCanvasLayer.prototype.init = function(n) {
 }
 
 Board.MultipleCanvasLayer.prototype.appendTo = function(element, weight) {
-	for(var i = 0; i < this.layers; i++) {
+	for(let i = 0; i < this.layers; i++) {
 		this.elements[i].style.position = 'absolute';
 		this.elements[i].style.zIndex = weight;
 		element.appendChild(this.elements[i]);
@@ -1051,7 +1045,7 @@ Board.MultipleCanvasLayer.prototype.appendTo = function(element, weight) {
 }
 
 Board.MultipleCanvasLayer.prototype.removeFrom = function(element) {
-	for(var i = 0; i < this.layers; i++) {
+	for(let i = 0; i < this.layers; i++) {
 		element.removeChild(this.elements[i]);
 	}
 }
@@ -1066,14 +1060,14 @@ Board.MultipleCanvasLayer.prototype.getContext = function(args) {
 	//return ((args.x%2) && (args.y%2) || !(args.x%2) && !(args.y%2)) ? this.context_odd : this.context_even;
 }
 
-Board.MultipleCanvasLayer.prototype.clear = function(element, weight) {
-	for(var i = 0; i < this.layers; i++) {
+Board.MultipleCanvasLayer.prototype.clear = function(_element, _weight) {
+	for(let i = 0; i < this.layers; i++) {
 		this.contexts[i].clearRect(0,0,this.elements[i].width,this.elements[i].height);
 	}
 }
 
 Board.MultipleCanvasLayer.prototype.setDimensions = function(width, height) {
-	for(var i = 0; i < this.layers; i++) {
+	for(let i = 0; i < this.layers; i++) {
 		this.elements[i].width = width;
 		this.elements[i].style.width = (width / this.pixelRatio) + 'px';
 		this.elements[i].height = height;
@@ -1081,7 +1075,7 @@ Board.MultipleCanvasLayer.prototype.setDimensions = function(width, height) {
 	}
 }
 
-Board.ShadowLayer = WGo.extendClass(Board.MultipleCanvasLayer, function(board, shadowSize, shadowBlur) {
+Board.ShadowLayer = WGo.extendClass(Board.MultipleCanvasLayer, function(board, shadowSize) {
 	this.init(2);
 	this.shadowSize = shadowSize === undefined ? 1 : shadowSize;
 	this.board = board;
@@ -1094,13 +1088,13 @@ Board.ShadowLayer.prototype.getContext = function(args) {
 Board.ShadowLayer.prototype.setDimensions = function(width, height) {
 	this.super.prototype.setDimensions.call(this, width, height);
 
-	for(var i = 0; i < this.layers; i++) {
+	for(let i = 0; i < this.layers; i++) {
 		this.contexts[i].setTransform(1,0,0,1,Math.round(this.shadowSize*this.board.stoneRadius/7),Math.round(this.shadowSize*this.board.stoneRadius/7));
 	}
 }
 
-var default_field_clear = function(args, board) {
-	var xr = board.getX(args.x),
+const default_field_clear = function(args, board) {
+	const xr = board.getX(args.x),
 		yr = board.getY(args.y),
 		sr = board.stoneRadius;
 	this.clearRect(xr-2*sr-board.ls,yr-2*sr-board.ls, 4*sr, 4*sr);
@@ -1108,55 +1102,55 @@ var default_field_clear = function(args, board) {
 
 // Private methods of WGo.Board
 
-var calcLeftMargin = function() {
+const calcLeftMargin = function() {
 	return (3*this.width)/(4*(this.bx+1-this.tx)+2) - this.fieldWidth*this.tx;
 }
 
-var calcTopMargin = function() {
+const calcTopMargin = function() {
 	return (3*this.height)/(4*(this.by+1-this.ty)+2) - this.fieldHeight*this.ty;
 }
 
-var calcFieldWidth = function() {
+const calcFieldWidth = function() {
 	return (4*this.width)/(4*(this.bx+1-this.tx)+2);
 }
 
-var calcFieldHeight = function() {
+const calcFieldHeight = function() {
 	return (4*this.height)/(4*(this.by+1-this.ty)+2);
 }
 
-var clearField = function(x,y) {
-	var handler;
-	for(var z = 0; z < this.obj_arr[x][y].length; z++) {
-		var obj = this.obj_arr[x][y][z];
+const clearField = function(x,y) {
+	let handler;
+	for(let z = 0; z < this.obj_arr[x][y].length; z++) {
+		const obj = this.obj_arr[x][y][z];
 		if(!obj.type) handler = this.stoneHandler;
 		else if(typeof obj.type == "string") handler = Board.drawHandlers[obj.type];
 		else handler = obj.type;
 
-		for(var layer in handler) {
+		for(const layer in handler) {
 			if(handler[layer].clear) handler[layer].clear.call(this[layer].getContext(obj), obj, this);
 			else default_field_clear.call(this[layer].getContext(obj), obj, this);
 		}
 	}
 }
 
-var drawField = function(x,y) {
-	var handler;
-	for(var z = 0; z < this.obj_arr[x][y].length; z++) {
-		var obj = this.obj_arr[x][y][z];
+const drawField = function(x,y) {
+	let handler;
+	for(let z = 0; z < this.obj_arr[x][y].length; z++) {
+		const obj = this.obj_arr[x][y][z];
 		if(!obj.type) handler = this.stoneHandler;
 		else if(typeof obj.type == "string") handler = Board.drawHandlers[obj.type];
 		else handler = obj.type;
 
-		for(var layer in handler) {
+		for(const layer in handler) {
 			handler[layer].draw.call(this[layer].getContext(obj), obj, this);
 		}
 	}
 }
 
-var getMousePos = function(e) {
+const getMousePos = function(e) {
 	// new hopefully better translation of coordinates
 
-	var x, y;
+	let x, y;
 
 	x = e.layerX * this.pixelRatio;
 	x -= this.left;
@@ -1174,7 +1168,7 @@ var getMousePos = function(e) {
 	};
 }
 
-var updateDim = function() {
+const updateDim = function() {
 	this.element.style.width = (this.width / this.pixelRatio) + "px";
 	this.element.style.height = (this.height / this.pixelRatio) + "px";
 
@@ -1182,7 +1176,7 @@ var updateDim = function() {
 	//if(this.autoLineWidth) this.lineWidth = this.stoneRadius/7; //< 15 ? 1 : 3;
 	this.ls = theme_variable("linesShift", this);
 
-	for(var i = 0; i < this.layers.length; i++) {
+	for(let i = 0; i < this.layers.length; i++) {
 		this.layers[i].setDimensions(this.width, this.height);
 	}
 }
@@ -1200,9 +1194,9 @@ Board.prototype = {
 
 		// placement of objects (in 3D array)
 		this.obj_arr = [];
-		for(var i = 0; i < this.size; i++) {
+		for(let i = 0; i < this.size; i++) {
 			this.obj_arr[i] = [];
-			for(var j = 0; j < this.size; j++) this.obj_arr[i][j] = [];
+			for(let j = 0; j < this.size; j++) this.obj_arr[i][j] = [];
 		}
 
 		// other objects, stored in list
@@ -1338,15 +1332,15 @@ Board.prototype = {
 	 */
 
 	setSize: function(size) {
-		var size = size || 19;
+		size = size || 19;
 
 		if(size != this.size) {
 			this.size = size;
 
 			this.obj_arr = [];
-			for(var i = 0; i < this.size; i++) {
+			for(let i = 0; i < this.size; i++) {
 				this.obj_arr[i] = [];
-				for(var j = 0; j < this.size; j++) this.obj_arr[i][j] = [];
+				for(let j = 0; j < this.size; j++) this.obj_arr[i][j] = [];
 			}
 
 			this.bx = this.size-1-this.section.right;
@@ -1362,24 +1356,24 @@ Board.prototype = {
 	redraw: function() {
 		try {
 			// redraw layers
-			for(var i = 0; i < this.layers.length; i++) {
-				this.layers[i].clear(this);
-				this.layers[i].draw(this);
+			for(const layer of this.layers) {
+				layer.clear(this);
+				layer.draw(this);
 			}
 
 			// redraw field objects
-			for(var i = 0; i < this.size; i++) {
-				for(var j = 0; j < this.size; j++) {
+			for(let i = 0; i < this.size; i++) {
+				for(let j = 0; j < this.size; j++) {
 					drawField.call(this, i, j);
 				}
 			}
 
 			// redraw custom objects
-			for(var i = 0; i < this.obj_list.length; i++) {
-				var obj = this.obj_list[i];
-				var handler = obj.handler;
+			for(let i = 0; i < this.obj_list.length; i++) {
+				const obj = this.obj_list[i];
+				const handler = obj.handler;
 
-				for(var layer in handler) {
+				for(const layer in handler) {
 					handler[layer].draw.call(this[layer].getContext(obj.args), obj.args, this);
 				}
 			}
@@ -1430,7 +1424,7 @@ Board.prototype = {
 	 */
 
 	removeLayer: function(layer) {
-		var i = this.layers.indexOf(layer);
+		const i = this.layers.indexOf(layer);
 		if(i >= 0) {
 			this.layers.splice(i,1);
 			layer.removeFrom(this.element);
@@ -1438,7 +1432,7 @@ Board.prototype = {
 	},
 
 	update: function(changes) {
-		var i;
+		let i;
 		if(changes.remove && changes.remove == "all") this.removeAllObjects();
 		else if(changes.remove) {
 			for(i = 0; i < changes.remove.length; i++) this.removeObject(changes.remove[i]);
@@ -1452,7 +1446,7 @@ Board.prototype = {
 	addObject: function(obj) {
 		// handling multiple objects
 		if(obj.constructor == Array) {
-			for(var i = 0; i < obj.length; i++) this.addObject(obj[i]);
+			for(let i = 0; i < obj.length; i++) this.addObject(obj[i]);
 			return;
 		}
 
@@ -1461,8 +1455,8 @@ Board.prototype = {
 			clearField.call(this, obj.x, obj.y);
 
 			// if object of this type is on the board, replace it
-			var layers = this.obj_arr[obj.x][obj.y];
-			for(var z = 0; z < layers.length; z++) {
+			const layers = this.obj_arr[obj.x][obj.y];
+			for(let z = 0; z < layers.length; z++) {
 				if(layers[z].type == obj.type) {
 					layers[z] = obj;
 					drawField.call(this, obj.x, obj.y);
@@ -1486,13 +1480,13 @@ Board.prototype = {
 	removeObject: function(obj) {
 		// handling multiple objects
 		if(obj.constructor == Array) {
-			for(var n = 0; n < obj.length; n++) this.removeObject(obj[n]);
+			for(let n = 0; n < obj.length; n++) this.removeObject(obj[n]);
 			return;
 		}
 
 		try {
-			var i;
-			for(var j = 0; j < this.obj_arr[obj.x][obj.y].length; j++) {
+			let i;
+			for(let j = 0; j < this.obj_arr[obj.x][obj.y].length; j++) {
 				if(this.obj_arr[obj.x][obj.y][j].type == obj.type) {
 					i = j;
 					break;
@@ -1522,9 +1516,9 @@ Board.prototype = {
 
 	removeAllObjects: function() {
 		this.obj_arr = [];
-		for(var i = 0; i < this.size; i++) {
+		for(let i = 0; i < this.size; i++) {
 			this.obj_arr[i] = [];
-			for(var j = 0; j < this.size; j++) this.obj_arr[i][j] = [];
+			for(let j = 0; j < this.size; j++) this.obj_arr[i][j] = [];
 		}
 		this.redraw();
 	},
@@ -1535,8 +1529,8 @@ Board.prototype = {
 	},
 
 	removeCustomObject: function(handler, args) {
-		for(var i = 0; i < this.obj_list.length; i++) {
-			var obj = this.obj_list[i];
+		for(let i = 0; i < this.obj_list.length; i++) {
+			const obj = this.obj_list[i];
 			if(obj.handler == handler && obj.args == args) {
 				this.obj_list.splice(i, 1);
 				this.redraw();
@@ -1547,12 +1541,12 @@ Board.prototype = {
 	},
 
 	addEventListener: function(type, callback) {
-		var _this = this,
+		const _this = this,
 			evListener = {
 				type: type,
 				callback: callback,
 				handleEvent: function(e) {
-					var coo = getMousePos.call(_this, e);
+					const coo = getMousePos.call(_this, e);
 					callback(coo.x, coo.y, e);
 				}
 			};
@@ -1562,8 +1556,8 @@ Board.prototype = {
 	},
 
 	removeEventListener: function(type, callback) {
-		for(var i = 0; i < this.listeners.length; i++) {
-			var listener = this.listeners[i];
+		for(let i = 0; i < this.listeners.length; i++) {
+			const listener = this.listeners[i];
 			if(listener.type == type && listener.callback == callback) {
 				this.element.removeEventListener(listener.type, listener, true);
 				this.listeners.splice(i, 1);
@@ -1675,10 +1669,10 @@ WGo.Board = Board;
  * @param {number} size of the board
  */
 
-var Position = function(size) {
+const Position = function(size) {
 	this.size = size || 19;
 	this.schema = [];
-	for(var i = 0; i < this.size*this.size; i++) {
+	for(let i = 0; i < this.size*this.size; i++) {
 		this.schema[i] = 0;
 	}
 }
@@ -1717,7 +1711,7 @@ Position.prototype = {
 	 */
 
 	clear: function() {
-		for(var i = 0; i < this.size*this.size; i++) this.schema[i] = 0;
+		for(let i = 0; i < this.size*this.size; i++) this.schema[i] = 0;
 		return this;
 	},
 
@@ -1728,7 +1722,7 @@ Position.prototype = {
 	 */
 
 	clone: function() {
-		var clone = new Position(this.size);
+		const clone = new Position(this.size);
 		clone.schema = this.schema.slice(0);
 		return clone;
 	},
@@ -1741,9 +1735,9 @@ Position.prototype = {
 	 */
 
 	compare: function(position) {
-		var add = [], remove = [];
+		const add = [], remove = [];
 
-		for(var i = 0; i < this.size*this.size; i++) {
+		for(let i = 0; i < this.size*this.size; i++) {
 			if(this.schema[i] && !position.schema[i]) remove.push({
 				x: Math.floor(i/this.size),
 				y: i%this.size
@@ -1782,7 +1776,7 @@ WGo.Position = Position;
  * @param {boolean} allowSuicide (optional, default is false) - allow to play suicides, stones are immediately captured
  */
 
-var Game = function(size, checkRepeat, allowRewrite, allowSuicide) {
+const Game = function(size, checkRepeat, allowRewrite, allowSuicide) {
 	this.size = size || 19;
 	this.repeating = checkRepeat === undefined ? "KO" : checkRepeat; // possible values: KO, ALL or nothing
 	this.allow_rewrite = allowRewrite || false;
@@ -1800,7 +1794,7 @@ var Game = function(size, checkRepeat, allowRewrite, allowSuicide) {
 }
 
 // function for stone capturing
-var do_capture = function(position, captured, x, y, c) {
+const do_capture = function(position, captured, x, y, c) {
 	if(x >= 0 && x < position.size && y >= 0 && y < position.size && position.get(x,y) == c) {
 		position.set(x,y,0);
 		captured.push({x:x, y:y});
@@ -1813,7 +1807,7 @@ var do_capture = function(position, captured, x, y, c) {
 }
 
 // looking at liberties
-var check_liberties = function(position, testing, x, y, c) {
+const check_liberties = function(position, testing, x, y, c) {
 	// out of the board there aren't liberties
 	if(x < 0 || x >= position.size || y < 0 || y >= position.size) return true;
 	// however empty field means liberty
@@ -1832,12 +1826,12 @@ var check_liberties = function(position, testing, x, y, c) {
 }
 
 // analysing function - modifies original position, if there are some capturing, and returns array of captured stones
-var check_capturing = function(position, x, y, c) {
-	var captured = [];
+const check_capturing = function(position, x, y, c) {
+	const captured = [];
 	// is there a stone possible to capture?
 	if(x >= 0 && x < position.size && y >= 0 && y < position.size && position.get(x,y) == c) {
 		// create testing map
-		var testing = new Position(position.size);
+		const testing = new Position(position.size);
 		// if it has zero liberties capture it
 		if(check_liberties(position, testing, x, y, c)) {
 			// capture stones from game
@@ -1848,17 +1842,17 @@ var check_capturing = function(position, x, y, c) {
 }
 
 // analysing history
-var checkHistory = function(position, x, y) {
-	var flag, stop;
+const checkHistory = function(position, x, y) {
+	let flag, stop;
 
 	if(this.repeating == "KO" && this.stack.length-2 >= 0) stop = this.stack.length-2;
 	else if(this.repeating == "ALL") stop = 0;
 	else return true;
 
-	for(var i = this.stack.length-2; i >= stop; i--) {
+	for(let i = this.stack.length-2; i >= stop; i--) {
 		if(this.stack[i].get(x,y) == position.get(x,y)) {
 			flag = true;
-			for(var j = 0; j < this.size*this.size; j++) {
+			for(let j = 0; j < this.size*this.size; j++) {
 				if(this.stack[i].schema[j] != position.schema[j]) {
 					flag = false;
 					break;
@@ -1909,16 +1903,16 @@ Game.prototype = {
 		// clone position
 		if(!c) c = this.turn;
 
-		var new_pos = this.position.clone();
+		const new_pos = this.position.clone();
 		new_pos.set(x,y,c);
 
 		// check capturing
-		var cap_color = c;
-		var captured = check_capturing(new_pos, x-1, y, -c).concat(check_capturing(new_pos, x+1, y, -c), check_capturing(new_pos, x, y-1, -c), check_capturing(new_pos, x, y+1, -c));
+		let cap_color = c;
+		const captured = check_capturing(new_pos, x-1, y, -c).concat(check_capturing(new_pos, x+1, y, -c), check_capturing(new_pos, x, y-1, -c), check_capturing(new_pos, x, y+1, -c));
 
 		// check suicide
 		if(!captured.length) {
-			var testing = new Position(this.size);
+			const testing = new Position(this.size);
 			if(check_liberties(new_pos, testing, x, y, c)) {
 				if(this.allow_suicide) {
 					cap_color = -c;
@@ -2071,7 +2065,7 @@ Game.prototype = {
 
 	pushPosition: function(pos) {
 		if(!pos) {
-			var pos = this.position.clone();
+			pos = this.position.clone();
 			pos.capCount = {
 				black: this.position.capCount.black,
 				white: this.position.capCount.white
@@ -2088,7 +2082,7 @@ Game.prototype = {
 	 */
 
 	popPosition: function() {
-		var old = null;
+		let old = null;
 		if(this.stack.length > 0) {
 			old = this.stack.pop();
 
@@ -2130,17 +2124,16 @@ Game.prototype = {
 	 */
 
 	validatePosition: function() {
-		var c, p,
-		    white = 0,
-			black = 0,
-		    captured = [],
-		    new_pos = this.position.clone();
+		let white = 0,
+			black = 0;
+		let captured = []
+		const new_pos = this.position.clone();
 
-		for(var x = 0; x < this.size; x++) {
-			for(var y = 0; y < this.size; y++) {
-				c = this.position.get(x,y);
+		for(let x = 0; x < this.size; x++) {
+			for(let y = 0; y < this.size; y++) {
+				const c = this.position.get(x,y);
 				if(c) {
-					p = captured.length;
+					const p = captured.length;
 					captured = captured.concat(check_capturing(new_pos, x-1, y, -c),
 											   check_capturing(new_pos, x+1, y, -c),
 											   check_capturing(new_pos, x, y-1, -c),

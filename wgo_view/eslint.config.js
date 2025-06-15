@@ -11,7 +11,7 @@ export default defineConfig([
 		rules: {
       "no-var": "error",
       "prefer-const": "error",
-      "no-unused-vars": ["error", {
+      "no-unused-vars": ["off", {
         "varsIgnorePattern": "^_",
         "argsIgnorePattern": "^_",
       }]

@@ -1,8 +1,9 @@
 
+/* global WGo */
 (function(WGo) {
 
 // board mousemove callback for edit move - adds highlighting
-var edit_board_mouse_move = function(x,y) {
+const edit_board_mouse_move = function(x,y) {
 	if(this.player.frozen || (this._lastX == x && this._lastY == y)) return;
 	
 	this._lastX = x;
@@ -27,7 +28,7 @@ var edit_board_mouse_move = function(x,y) {
 }
 
 // board mouseout callback for edit move	
-var edit_board_mouse_out = function() {
+const edit_board_mouse_out = function() {
 	if(this._last_mark) {
 		this.board.removeObject(this._last_mark);
 		delete this._last_mark;
@@ -37,10 +38,10 @@ var edit_board_mouse_out = function() {
 }
 
 // get differences of two positions as a change object (TODO create a better solution, without need of this function)
-var pos_diff = function(old_p, new_p) {
-	var size = old_p.size, add = [], remove = [];
+const pos_diff = function(old_p, new_p) {
+	const size = old_p.size, add = [], remove = [];
 	
-	for(var i = 0; i < size*size; i++) {
+	for(let i = 0; i < size*size; i++) {
 		if(old_p.schema[i] && !new_p.schema[i]) remove.push({x:Math.floor(i/size),y:i%size});
 		else if(old_p.schema[i] != new_p.schema[i]) add.push({x:Math.floor(i/size),y:i%size,c:new_p.schema[i]});
 	}
@@ -131,7 +132,7 @@ if(WGo.BasicPlayer && WGo.BasicPlayer.component.Control) {
 				return this._editable.editMode;
 			},
 			init: function(player) {
-				var _this = this;
+				const _this = this;
 				player.addEventListener("frozen", function(e) {
 					_this._disabled = _this.disabled;
 					if(!_this.disabled) _this.disable();

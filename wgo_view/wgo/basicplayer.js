@@ -1,14 +1,15 @@
 
+/* global WGo */
 (function(WGo){
 
 "use strict";
 
 // player counter - for creating unique ids
-var pl_count = 0;
+let pl_count = 0;
 
 // generate DOM of region
-var playerBlock = function(name, parent, visible) {
-	var e = {};
+const playerBlock = function(name, parent, visible) {
+	const e = {};
 	e.element = document.createElement("div");
 	e.element.className = "wgo-player-"+name;
 	e.wrapper = document.createElement("div");
@@ -20,7 +21,7 @@ var playerBlock = function(name, parent, visible) {
 }
 
 // generate all DOM of player
-var BPgenerateDom = function() {
+const BPgenerateDom = function() {
 	// wrapper object for common DOM
 	this.dom = {};
 	
@@ -57,12 +58,12 @@ var BPgenerateDom = function() {
 	this.regions.bottom = playerBlock("bottom", this.dom.center);
 }
 
-var getCurrentLayout = function() {
-	var cl = this.config.layout;
+const getCurrentLayout = function() {
+	const cl = this.config.layout;
 	if(cl.constructor != Array) return cl;
 	
-	var bh = this.height || this.maxHeight;
-	for(var i = 0; i < cl.length; i++) {
+	const bh = this.height || this.maxHeight;
+	for(let i = 0; i < cl.length; i++) {
 		
 		if(!cl[i].conditions || (
 			(!cl[i].conditions.minWidth || cl[i].conditions.minWidth <= this.width) &&
@@ -76,8 +77,8 @@ var getCurrentLayout = function() {
 	}
 }
 
-var appendComponents = function(area) {
-	var components;
+const appendComponents = function(area) {
+	let components;
 	
 	if(this.currentLayout.layout) components = this.currentLayout.layout[area];
 	else components = this.currentLayout[area];
@@ -87,7 +88,7 @@ var appendComponents = function(area) {
 		
 		if(components.constructor != Array) components = [components];
 		
-		for(var i in components) {
+		for(const i in components) {
 			if(!this.components[components[i]]) this.components[components[i]] = new BasicPlayer.component[components[i]](this);
 			
 			this.components[components[i]].appendTo(this.regions[area].wrapper);
@@ -102,9 +103,9 @@ var appendComponents = function(area) {
 
 }
 
-var manageComponents = function() {
+const manageComponents = function() {
 	// add detach flags to every widget
-	for(var key in this.components) {
+	for(const key in this.components) {
 		this.components[key]._detachFromPlayer = true;
 	}
 	
@@ -114,7 +115,7 @@ var manageComponents = function() {
 	appendComponents.call(this, "bottom");
 	
 	// detach all invisible components
-	for(var key in this.components) {
+	for(const key in this.components) {
 		if(this.components[key]._detachFromPlayer && this.components[key].element.parentNode) this.components[key].element.parentNode.removeChild(this.components[key].element);
 	}
 }
@@ -147,13 +148,13 @@ var manageComponents = function() {
  * You also must specify main DOMElement of player. 
  */
 
-var BasicPlayer = WGo.extendClass(WGo.Player, function(elem, config) {
+const BasicPlayer = WGo.extendClass(WGo.Player, function(elem, config) {
 	this.config = config;
 	
 	// add default configuration of BasicPlayer
-	for(var key in BasicPlayer.default) if(this.config[key] === undefined && BasicPlayer.default[key] !== undefined) this.config[key] = BasicPlayer.default[key];
+	for(const key in BasicPlayer.default) if(this.config[key] === undefined && BasicPlayer.default[key] !== undefined) this.config[key] = BasicPlayer.default[key];
 	// add default configuration of Player class
-	for(var key in WGo.Player.default) if(this.config[key] === undefined && WGo.Player.default[key] !== undefined) this.config[key] = WGo.Player.default[key];
+	for(const key in WGo.Player.default) if(this.config[key] === undefined && WGo.Player.default[key] !== undefined) this.config[key] = WGo.Player.default[key];
 	
 	this.element = elem
 	this.element.innerHTML = "";
@@ -195,19 +196,19 @@ BasicPlayer.prototype.appendTo = function(elem) {
  */
 	
 BasicPlayer.prototype.updateDimensions = function() {
-	var css = window.getComputedStyle(this.element);
+	const css = window.getComputedStyle(this.element);
 	
-	var els = [];
+	const els = [];
 	while(this.element.firstChild) {
 		els.push(this.element.firstChild);
 		this.element.removeChild(this.element.firstChild);
 	}
 	
-	var tmp_w = parseInt(css.width);
-	var tmp_h = parseInt(css.height);
-	var tmp_mh = parseInt(css.maxHeight) || 0;
+	const tmp_w = parseInt(css.width);
+	const tmp_h = parseInt(css.height);
+	const tmp_mh = parseInt(css.maxHeight) || 0;
 
-	for(var i = 0; i < els.length; i++) {
+	for(let i = 0; i < els.length; i++) {
 		this.element.appendChild(els[i]);
 	}
 
@@ -227,8 +228,8 @@ BasicPlayer.prototype.updateDimensions = function() {
 	}
 	
 	//var bw = this.width - this.regions.left.element.clientWidth - this.regions.right.element.clientWidth;
-	var bw = this.dom.board.clientWidth;
-	var bh = this.height || this.maxHeight;
+	const bw = this.dom.board.clientWidth;
+	let bh = this.height || this.maxHeight;
 
 	if(bh) {
 		bh -= this.regions.top.element.offsetHeight + this.regions.bottom.element.offsetHeight;
@@ -241,7 +242,7 @@ BasicPlayer.prototype.updateDimensions = function() {
 		if(bw != this.board.width) this.board.setWidth(bw);
 	}
 	
-	var diff = bh - bw;
+	const diff = bh - bw;
 	
 	if(diff > 0) {
 		this.dom.board.style.height = bh+"px";
@@ -255,7 +256,7 @@ BasicPlayer.prototype.updateDimensions = function() {
 	this.regions.left.element.style.height = this.dom.center.offsetHeight+"px";
 	this.regions.right.element.style.height = this.dom.center.offsetHeight+"px";
 
-	for(var i in this.components) {
+	for(const i in this.components) {
 		if(this.components[i].updateDimensions) this.components[i].updateDimensions();
 	}
 }
@@ -275,11 +276,11 @@ BasicPlayer.prototype.showMessage = function(text, closeCallback, permanent) {
 	this.info_overlay.className = "wgo-info-overlay";
 	this.element.appendChild(this.info_overlay);
 	
-	var info_message = document.createElement("div");
+	const info_message = document.createElement("div");
 	info_message.className = "wgo-info-message";
 	info_message.innerHTML = text;
 	
-	var close_info = document.createElement("div");
+	const close_info = document.createElement("div");
 	close_info.className = "wgo-info-close";
 	if(!permanent) close_info.innerHTML = WGo.t("BP:closemsg");
 	
@@ -317,7 +318,7 @@ BasicPlayer.prototype.hideMessage = function() {
 BasicPlayer.prototype.error = function(err) {
 	if(!WGo.ERROR_REPORT) throw err;
 	
-	var url = "#";
+	const url = "#";
 	
 	switch(err.name) {
 		case "InvalidMoveError": 
@@ -474,7 +475,7 @@ BasicPlayer.attributes = {
 	},
 	
 	"data-wgo-move": function(value) {
-		var m = parseInt(value);
+		const m = parseInt(value);
 		if(!isNaN(m)) this.move = m;
 		else this.move = eval("({"+value+"})");
 	},
@@ -496,26 +497,24 @@ BasicPlayer.attributes = {
 	}
 }
 
-var player_from_tag = function(elem) {
-	var att, config, pl;
-	
-	config = {};
+const player_from_tag = function(elem) {
+	const config = {};
 
-	for(var a = 0; a < elem.attributes.length; a++) {
-		att = elem.attributes[a];
+	for(let a = 0; a < elem.attributes.length; a++) {
+		const att = elem.attributes[a];
 		if(BasicPlayer.attributes[att.name]) BasicPlayer.attributes[att.name].call(config, att.value, att.name);
 	}
 
-	pl = new BasicPlayer(elem, config);
+	const pl = new BasicPlayer(elem, config);
 	elem._wgo_player = pl;
 }
 
 WGo.BasicPlayer = BasicPlayer;
 
 window.addEventListener("load", function() {
-	var pl_elems = document.querySelectorAll("[data-wgo],[data-wgo-diagram]");
+	const pl_elems = document.querySelectorAll("[data-wgo],[data-wgo-diagram]");
 
-	for(var i = 0; i < pl_elems.length; i++) {
+	for(let i = 0; i < pl_elems.length; i++) {
 		player_from_tag(pl_elems[i]);
 	}
 });

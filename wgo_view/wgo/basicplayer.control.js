@@ -1,29 +1,30 @@
+/* global WGo */
 (function(WGo, undefined) {
 
 "use strict";
 
-var compare_widgets = function(a,b) {
+const compare_widgets = function(a,b) {
 	if(a.weight < b.weight) return -1;
 	else if(a.weight > b.weight) return 1;
 	else return 0;
 }
 
-var prepare_dom = function(player) {
+const prepare_dom = function(player) {
 
 	this.iconBar = document.createElement("div");
 	this.iconBar.className = "wgo-control-wrapper";
 	this.element.appendChild(this.iconBar);
 
-	var widget;
+	let widget;
 	
-	for(var w in Control.widgets) {
+	for(const w in Control.widgets) {
 		widget = new Control.widgets[w].constructor(player, Control.widgets[w].args);
 		widget.appendTo(this.iconBar);
 		this.widgets.push(widget);
 	}
 }
 
-var Control = WGo.extendClass(WGo.BasicPlayer.component.Component, function(player) {
+const Control = WGo.extendClass(WGo.BasicPlayer.component.Component, function(player) {
 	this.super(player);
 	
 	this.widgets = [];
@@ -38,24 +39,24 @@ Control.prototype.updateDimensions = function() {
 	else this.element.className = "wgo-player-control";
 }
 
-var control = WGo.BasicPlayer.control = {};
+const control = WGo.BasicPlayer.control = {};
 
-var butupd_first = function(e) {
+const butupd_first = function(e) {
 	if(!e.node.parent && !this.disabled) this.disable();
 	else if(e.node.parent && this.disabled) this.enable();
 }
 
-var butupd_last = function(e) {
+const butupd_last = function(e) {
 	if(!e.node.children.length && !this.disabled) this.disable();
 	else if(e.node.children.length && this.disabled) this.enable();
 }
 
-var but_frozen = function(e) {
+const but_frozen = function(e) {
 	this._disabled = this.disabled;
 	if(!this.disabled) this.disable();
 }
 
-var but_unfrozen = function(e) {
+const but_unfrozen = function(e) {
 	if(!this._disabled) this.enable();
 	delete this._disabled;
 }
@@ -129,8 +130,8 @@ control.Group = WGo.extendClass(control.Widget, function(player, args) {
 	this.element = document.createElement("div");
 	this.element.className = "wgo-ctrlgroup wgo-ctrlgroup-"+args.name;
 	
-	var widget;
-	for(var w in args.widgets) {
+	let widget;
+	for(const w in args.widgets) {
 		widget = new args.widgets[w].constructor(player, args.widgets[w].args);
 		widget.appendTo(this.element);
 	}
@@ -155,7 +156,8 @@ control.Clickable = WGo.extendClass(control.Widget, function(player, args) {
 });
 
 control.Clickable.prototype.init = function(player, args) {
-	var fn, _this = this;
+	let fn;
+	const _this = this;
 	
 	if(args.togglable) {
 		fn = function() {
@@ -213,7 +215,7 @@ control.Clickable.prototype.unselect = function() {
  */
 
 control.Button = WGo.extendClass(control.Clickable, function(player, args) {
-	var elem = this.element = document.createElement("button");
+	const elem = this.element = document.createElement("button");
 	elem.className = "wgo-button wgo-button-"+args.name;
 	elem.title = WGo.t(args.name);
 	
@@ -235,7 +237,7 @@ control.Button.prototype.enable = function() {
  */
 
 control.MenuItem = WGo.extendClass(control.Clickable, function(player, args) {
-	var elem = this.element = document.createElement("div");
+	const elem = this.element = document.createElement("div");
 	elem.className = "wgo-menu-item wgo-menu-item-"+args.name;
 	elem.title = WGo.t(args.name);
 	elem.innerHTML = elem.title;
@@ -251,7 +253,7 @@ control.MoveNumber = WGo.extendClass(control.Widget, function(player) {
 	this.element = document.createElement("form");
 	this.element.className = "wgo-player-mn-wrapper";
 	
-	var move = this.move = document.createElement("input");
+	const move = this.move = document.createElement("input");
 	move.type = "text";
 	move.value = "0";
 	move.maxlength = 3;
@@ -292,7 +294,7 @@ control.MoveNumber.prototype.getValue = function() {
 };
 
 // display menu
-var player_menu = function(player) {
+const player_menu = function(player) {
 
 	if(player._menu_tmp) {
 		delete player._menu_tmp;
@@ -306,8 +308,8 @@ var player_menu = function(player) {
 		
 		this.element.parentElement.appendChild(player.menu);
 		
-		var widget;
-		for(var i in Control.menu) {
+		let widget;
+		for(const i in Control.menu) {
 			widget = new Control.menu[i].constructor(player, Control.menu[i].args, true);
 			widget.appendTo(player.menu);
 		}
@@ -326,8 +328,8 @@ var player_menu = function(player) {
 	else {
 		player.menu.style.display = "block";
 		
-		var top = this.element.offsetTop;
-		var left = this.element.offsetLeft;
+		const top = this.element.offsetTop;
+		const left = this.element.offsetLeft;
 		
 		// kinda dirty syntax, but working well
 		if(this.element.parentElement.parentElement.parentElement.parentElement == player.regions.bottom.wrapper) {
@@ -434,7 +436,7 @@ Control.widgets = [ {
 					player.addEventListener("unfrozen", but_unfrozen.bind(this));
 				},
 				click: function(player) { 
-					var p = WGo.clone(player.kifuReader.path);
+					const p = WGo.clone(player.kifuReader.path);
 					p.m -= 10; 
 					player.goTo(p);
 				},
@@ -483,7 +485,7 @@ Control.widgets = [ {
 					player.addEventListener("unfrozen", but_unfrozen.bind(this));
 				},
 				click: function(player) { 
-					var p = WGo.clone(player.kifuReader.path);
+					const p = WGo.clone(player.kifuReader.path);
 					p.m += 10; 
 					player.goTo(p);
 				},
@@ -506,14 +508,14 @@ Control.widgets = [ {
 	}
 }];
 
-var bp_layouts = WGo.BasicPlayer.layouts;
+const bp_layouts = WGo.BasicPlayer.layouts;
 bp_layouts["right_top"].top.push("Control");
 bp_layouts["right"].right.push("Control");
 bp_layouts["one_column"].top.push("Control");
 bp_layouts["no_comment"].bottom.push("Control");
 bp_layouts["minimal"].bottom.push("Control");
 
-var player_terms = {
+const player_terms = {
 	"about": "About",
 	"first": "First",
 	"multiprev": "10 moves back",
@@ -525,7 +527,7 @@ var player_terms = {
 	"menu": "Menu",
 };
 
-for(var key in player_terms) WGo.i18n.en[key] = player_terms[key];
+for(const key in player_terms) WGo.i18n.en[key] = player_terms[key];
 
 WGo.BasicPlayer.component.Control = Control;
 

@@ -1,13 +1,14 @@
+/* global WGo */
 (function(WGo, undefined) {
 
 "use strict";
 
-var permalink = {
+const permalink = {
 	active: true,
 	query: {},
 };
 
-var handle_hash = function(player) {
+const handle_hash = function(player) {
 	try {
 		permalink.query = JSON.parse('{"'+decodeURIComponent(window.location.hash).substring(1).replace('=', '":')+'}');
 	}
@@ -21,8 +22,8 @@ window.addEventListener("hashchange", function() {
 	if(window.location.hash != "" && permalink.active) {
 		handle_hash();
 
-		for(var key in permalink.query) {
-			var p_el = document.getElementById(key);
+		for(const key in permalink.query) {
+			const p_el = document.getElementById(key);
 			if(p_el && p_el._wgo_player) p_el._wgo_player.goTo(move_from_hash);
 		}
 	}
@@ -38,8 +39,8 @@ window.addEventListener("DOMContentLoaded", function() {
 // scroll into view of the board
 window.addEventListener("load", function() {
 	if(window.location.hash != "" && permalink.active) {
-		for(var key in permalink.query) {
-			var p_el = document.getElementById(key);
+		for(const key in permalink.query) {
+			const p_el = document.getElementById(key);
 			if(p_el && p_el._wgo_player) {
 				p_el.scrollIntoView();
 				break;
@@ -48,7 +49,7 @@ window.addEventListener("load", function() {
 	}
 });
 
-var move_from_hash = function() {
+const move_from_hash = function() {
 	if(permalink.query[this.element.id]) {
 		return permalink.query[this.element.id].goto;
 	}
@@ -63,7 +64,7 @@ if(WGo.BasicPlayer && WGo.BasicPlayer.component.Control) {
 		args: {
 			name: "permalink",
 			click: function(player) {
-				var link = location.href.split("#")[0]+'#'+player.element.id+'={"goto":'+JSON.stringify(player.kifuReader.path)+'}';
+				const link = location.href.split("#")[0]+'#'+player.element.id+'={"goto":'+JSON.stringify(player.kifuReader.path)+'}';
 				player.showMessage('<h1>'+WGo.t('permalink')+'</h1><p><input class="wgo-permalink" type="text" value=\''+link+'\' onclick="this.select(); event.stopPropagation()"/></p>');
 			},
 		}

@@ -1,6 +1,7 @@
+/* global WGo */
 (function (WGo) {
 	// board mousemove callback for cgos move - adds highlighting
-	var cgos_board_mouse_move = function (x, y) {
+	const cgos_board_mouse_move = function (x, y) {
 		if (this._lastX == x && this._lastY == y) return;
 
 		this._lastX = x;
@@ -16,13 +17,13 @@
 			!this.infoList
 		)
 			return;
-		var game = this.player.kifuReader.game;
+		const game = this.player.kifuReader.game;
 		if (x != -1 && y != -1) {
-			for (var i = 0; i < this.infoList.length; i++) {
-				var o = this.infoList[i];
+			for (let i = 0; i < this.infoList.length; i++) {
+				const o = this.infoList[i];
 				if (o.move[0] != x || o.move[1] != y) continue;
 				this._last_mark = o.pv.flatMap(function (m, i) {
-					var turn = i % 2 == 0 ? -game.turn : game.turn;
+					const turn = i % 2 == 0 ? -game.turn : game.turn;
 					return [
 						{
 							type: "MONO",
@@ -47,7 +48,7 @@
 	};
 
 	// board mouseout callback for cgos move
-	var cgos_board_mouse_out = function () {
+	const cgos_board_mouse_out = function () {
 		if (this._last_mark) {
 			this.board.removeObject(this._last_mark);
 			delete this._last_mark;
@@ -56,44 +57,46 @@
 		}
 	};
 
-	var theme_variable = function (key, board) {
+	const theme_variable = function (key, board) {
 		return typeof board.theme[key] == "function"
 			? board.theme[key](board)
 			: board.theme[key];
 	};
 
-	var cgosDrawer = {
+	const cgosDrawer = {
 		stone: {
 			draw: function (args, board) {
-				var xr = board.getX(args.x),
+				const xr = board.getX(args.x),
 					yr = board.getY(args.y),
 					sr = board.stoneRadius * 0.8,
 					font = args.font || theme_variable("font", board) || "";
 
 				this.fillStyle = "#333333";
 
-				var text = args.label;
-				if (args.winrate !== null)
-					text = (args.winrate * 100).toFixed(1);
+				{
+					let text = args.label;
+					if (args.winrate !== null)
+						text = (args.winrate * 100).toFixed(1);
 
-				if (text != null) {
-					if (text.length == 1)
-						this.font = Math.round(sr * 1.5) + "px " + font;
-					else if (text.length == 2)
-						this.font = Math.round(sr * 1.2) + "px " + font;
-					else this.font = Math.round(sr) + "px " + font;
+					if (text != null) {
+						if (text.length == 1)
+							this.font = Math.round(sr * 1.5) + "px " + font;
+						else if (text.length == 2)
+							this.font = Math.round(sr * 1.2) + "px " + font;
+						else this.font = Math.round(sr) + "px " + font;
 
-					this.beginPath();
-					this.textBaseline = "middle";
-					this.textAlign = "center";
-					this.strokeStyle = "#ffffff";
-					this.strokeText(text, xr, yr - sr * 0.5, 2 * sr);
-					this.strokeStyle = null;
-					this.fillText(text, xr, yr - sr * 0.5, 2 * sr);
+						this.beginPath();
+						this.textBaseline = "middle";
+						this.textAlign = "center";
+						this.strokeStyle = "#ffffff";
+						this.strokeText(text, xr, yr - sr * 0.5, 2 * sr);
+						this.strokeStyle = null;
+						this.fillText(text, xr, yr - sr * 0.5, 2 * sr);
+					}
 				}
 
 				if (args.score != null) {
-					var text = args.score.toFixed(1);
+					const text = args.score.toFixed(1);
 					if (text.length == 1)
 						this.font = Math.round(sr * 1.5) + "px " + font;
 					else if (text.length == 2)
@@ -112,33 +115,32 @@
 		}
 	};
 
-	let OwnershipLayer = WGo.extendClass(WGo.Board.CanvasLayer, function () {
+	const OwnershipLayer = WGo.extendClass(WGo.Board.CanvasLayer, function () {
 		this.super.call(this);
 	});
 
 	OwnershipLayer.prototype.draw = function (board) {
 		if (!board._cgosMode) return;
 		if (board._cgosOwnership) {
-			var CHARS =
+			const CHARS =
 				"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-			var COLORS = [WGo.B, WGo.W];
-			for (var i = 0; i < 2; i++) {
-				var c = COLORS[i];
+			const COLORS = [WGo.B, WGo.W];
+			for (let i = 0; i < 2; i++) {
+				const c = COLORS[i];
 				if (c === WGo.B) this.context.fillStyle = "rgba(0, 0, 0, 0.5)";
 				else this.context.fillStyle = "rgba(255, 255, 255, 0.5)";
 
-				for (var j = 0; j < board._cgosOwnership.length; j++) {
-					var m = CHARS.indexOf(board._cgosOwnership[j]);
+				for (let j = 0; j < board._cgosOwnership.length; j++) {
+					let m = CHARS.indexOf(board._cgosOwnership[j]);
 					if (m < 0) break;
 					m = (m / 62) * 2 - 1.0;
 					if (this._cgosColor == WGo.W) m = -m;
 					if (board._cgosColor == WGo.W) m *= -1;
-					var x = j % board.size;
-					var y = (j / board.size) | 0;
-					var xo = board.getX(x);
-					var yo = board.getY(y);
-					var sr = board.stoneRadius * 0.8;
-					var sr = board.stoneRadius * Math.abs(m) * 0.8;
+					const x = j % board.size;
+					const y = (j / board.size) | 0;
+					const xo = board.getX(x);
+					const yo = board.getY(y);
+					const sr = board.stoneRadius * Math.abs(m) * 0.8;
 					if (c == WGo.B) {
 						if (m < 0) continue;
 					} else {
@@ -151,9 +153,9 @@
 	};
 
 	// basic updating function - handles board changes
-	var update_board = function (e) {
+	const update_board = function (e) {
 		// init array for new objects
-		var add = [];
+		const add = [];
 
 		// remove old markers from the board
 		if (this._cgos && this._cgos.temp_marks) {
@@ -171,18 +173,18 @@
 
 		// genmove_analyze style comment
 		if (e.node.CC && e.node.CC.length > 0) {
-			var tokens = JSON.parse(e.node.CC);
+			const tokens = JSON.parse(e.node.CC);
 			this._cgos.board._cgosColor = e.node.move.c;
 			this._cgos.infoList = [];
 			this._cgos.board._cgosOwnership = tokens.ownership;
 
 			if (tokens.moves) {
-				for (var j = 0; j < tokens.moves.length; j++) {
-					var info = tokens.moves[j];
-					var move = null;
-					var winrate = null;
-					var score = null;
-					var pv = [];
+				for (let j = 0; j < tokens.moves.length; j++) {
+					const info = tokens.moves[j];
+					let move = null;
+					let winrate = null;
+					let score = null;
+					const pv = [];
 					if (info.move) {
 						move = parseCoord(this._cgos.board.size, info.move);
 					}
@@ -193,19 +195,22 @@
 						score = info.score;
 					}
 					if (info.pv) {
-						var moves = info.pv.split(" ");
+						const moves = info.pv.split(" ");
 						if (info.move && moves[0] != info.move) {
 							moves.unshift(info.move);
 						}
-						for (var k = 0; k < moves.length; k++) {
-							var m = parseCoord(this._cgos.board.size, moves[k]);
+						for (let k = 0; k < moves.length; k++) {
+							const m = parseCoord(
+								this._cgos.board.size,
+								moves[k]
+							);
 							if (m == null) break;
 							pv.push(m);
 						}
 					}
 
 					if (!move) continue;
-					var o = {
+					const o = {
 						move: move,
 						label: "[" + (this._cgos.infoList.length + 1) + "]",
 						winrate: winrate,
@@ -237,35 +242,33 @@
 
 	function parseCoord(size, str) {
 		str = str.toLowerCase();
-		var LEGAL_COORDINATES = "abcdefghjklmnopqrstuvwxyz";
-		var x = LEGAL_COORDINATES.indexOf(str[0]);
+		const LEGAL_COORDINATES = "abcdefghjklmnopqrstuvwxyz";
+		const x = LEGAL_COORDINATES.indexOf(str[0]);
 		if (x < 0) return null;
-		var y = parseInt(str.substr(1));
+		const y = parseInt(str.substr(1));
 		if (Number.isNaN(y)) return null;
 		return [x, size - y];
 	}
 
-	var winrateGraph = {
+	const winrateGraph = {
 		// draw on grid layer
 		grid: {
 			draw: function (args, board) {
-				var ch, t, xright, xleft, ytop, ybottom;
-
 				this.fillStyle = "rgba(0,0,0,0.7)";
 				this.textBaseline = "middle";
 				this.textAlign = "center";
 				this.font = board.stoneRadius + "px " + (board.font || "");
 
-				xright = board.getX(-0.75);
-				xleft = board.getX(board.size - 0.25);
-				ytop = board.getY(-0.75);
-				ybottom = board.getY(board.size - 0.25);
+				const xright = board.getX(-0.75);
+				const xleft = board.getX(board.size - 0.25);
+				const ytop = board.getY(-0.75);
+				const ybottom = board.getY(board.size - 0.25);
 
-				for (var i = 0; i < board.size; i++) {
-					ch = i + "A".charCodeAt(0);
+				for (let i = 0; i < board.size; i++) {
+					let ch = i + "A".charCodeAt(0);
 					if (ch >= "I".charCodeAt(0)) ch++;
 
-					t = board.getY(i);
+					let t = board.getY(i);
 					this.fillText(board.size - i, xright, t);
 					this.fillText(board.size - i, xleft, t);
 
@@ -341,7 +344,7 @@
 					return player._cgos.cgosMode;
 				},
 				init: function (player) {
-					var _this = this;
+					const _this = this;
 					player.addEventListener("frozen", function (e) {
 						_this._disabled = _this.disabled;
 						if (!_this.disabled) _this.disable();
@@ -359,14 +362,14 @@
 
 	WGo.i18n.en["cgos"] = "CGOS mode";
 
-	var AnalyzeBoard = WGo.extendClass(
+	const AnalyzeBoard = WGo.extendClass(
 		WGo.BasicPlayer.component.Component,
 		function (player) {
 			this.super(player);
 
 			player._cgos =
 				this._cgos || new WGo.Player.Cgos(player, player.board);
-			var disabled =
+			const disabled =
 				player.currentLayout.className.indexOf("wgo-small") >= 0 ||
 				player.currentLayout.className.indexOf("wgo-xsmall") >= 0;
 			player._cgos.set(!disabled);
@@ -375,7 +378,7 @@
 		}
 	);
 
-	var bp_layouts = WGo.BasicPlayer.layouts;
+	const bp_layouts = WGo.BasicPlayer.layouts;
 	if (!bp_layouts["right_top"].bottom) bp_layouts["right_top"].bottom = [];
 	bp_layouts["right_top"].bottom.push("AnalyzeBoard");
 	bp_layouts["right"].right.push("AnalyzeBoard");
@@ -388,20 +391,20 @@
 (function () {
 	"use strict";
 
-	var prepare_dom = function (player) {
+	const prepare_dom = function (player) {
 		prepare_dom_box.call(this, "winrate", player);
 		this.element.appendChild(this.winrate.box);
 	};
 
-	var WIDTH = 400;
-	var HEIGHT = 100;
+	const WIDTH = 400;
+	const HEIGHT = 100;
 
-	var prepare_dom_box = function (type, player) {
+	function prepare_dom_box(type, player) {
 		this[type] = {};
-		var self = this;
-		var t = this[type];
+		const self = this;
+		const t = this[type];
 
-		var SVG = "http://www.w3.org/2000/svg";
+		const SVG = "http://www.w3.org/2000/svg";
 		t.box = document.createElement("div");
 		t.box.className = "wgo-box-wrapper wgo-player-wrapper wgo-" + type;
 
@@ -409,27 +412,29 @@
 		t.graph.setAttribute("viewBox", "-5 -5 410 110");
 		t.graph.setAttribute("style", "background-color:#f0f0f0;");
 		t.box.appendChild(t.graph);
-		var pt = t.graph.createSVGPoint();
+		const pt = t.graph.createSVGPoint();
 		t.graph.onclick = function (e) {
 			pt.x = e.clientX;
 			pt.y = e.clientY;
-			var cursor = pt.matrixTransform(t.graph.getScreenCTM().inverse());
-			var turn = (cursor.x / self.xScale) | 0;
+			const cursor = pt.matrixTransform(t.graph.getScreenCTM().inverse());
+			const turn = (cursor.x / self.xScale) | 0;
 			player.goTo(turn);
 		};
 
-		var line = document.createElementNS(SVG, "line");
-		line.setAttribute("x1", 0);
-		line.setAttribute("y1", 50);
-		line.setAttribute("x2", WIDTH);
-		line.setAttribute("y2", 50);
-		line.setAttribute("stroke", "#666666");
-		line.setAttribute("stroke-width", 2);
-		t.graph.appendChild(line);
+		{
+			const line = document.createElementNS(SVG, "line");
+			line.setAttribute("x1", 0);
+			line.setAttribute("y1", 50);
+			line.setAttribute("x2", WIDTH);
+			line.setAttribute("y2", 50);
+			line.setAttribute("stroke", "#666666");
+			line.setAttribute("stroke-width", 2);
+			t.graph.appendChild(line);
+		}
 
-		for (var i = -30; i <= 30; i += 5) {
-			var r = (-i / 40 + 0.5) * 100;
-			var label = createLabel(
+		for (let i = -30; i <= 30; i += 5) {
+			const r = (-i / 40 + 0.5) * 100;
+			const label = createLabel(
 				(i == 0 ? "" : i > 0 ? "+" : "-") + Math.abs(i),
 				WIDTH + 10,
 				r,
@@ -440,7 +445,7 @@
 			label.setAttribute("text-anchor", "end");
 			t.graph.appendChild(label);
 			if (i == 0) continue;
-			var line = document.createElementNS(SVG, "line");
+			const line = document.createElementNS(SVG, "line");
 			line.setAttribute("x1", 0);
 			line.setAttribute("y1", r);
 			line.setAttribute("x2", WIDTH);
@@ -450,7 +455,7 @@
 			t.graph.appendChild(line);
 		}
 
-		var blackScore = document.createElementNS(SVG, "polyline");
+		const blackScore = document.createElementNS(SVG, "polyline");
 		blackScore.setAttribute("points", "0,0 0,0");
 		blackScore.setAttribute("stroke", "#ff6666");
 		blackScore.setAttribute("stroke-width", 1);
@@ -458,7 +463,7 @@
 		t.blackScore = blackScore;
 		t.graph.appendChild(blackScore);
 
-		var whiteScore = document.createElementNS(SVG, "polyline");
+		const whiteScore = document.createElementNS(SVG, "polyline");
 		whiteScore.setAttribute("points", "0,0 0,0");
 		whiteScore.setAttribute("stroke", "#66ff66");
 		whiteScore.setAttribute("stroke-width", 1);
@@ -466,7 +471,7 @@
 		t.whiteScore = whiteScore;
 		t.graph.appendChild(whiteScore);
 
-		var blackWinrate = document.createElementNS(SVG, "polyline");
+		const blackWinrate = document.createElementNS(SVG, "polyline");
 		blackWinrate.setAttribute("points", "0,0 0,0");
 		blackWinrate.setAttribute("stroke", "#ff0000");
 		blackWinrate.setAttribute("stroke-width", 3);
@@ -474,7 +479,7 @@
 		t.blackWinrate = blackWinrate;
 		t.graph.appendChild(blackWinrate);
 
-		var whiteWinrate = document.createElementNS(SVG, "polyline");
+		const whiteWinrate = document.createElementNS(SVG, "polyline");
 		whiteWinrate.setAttribute("points", "0,0 0,0");
 		whiteWinrate.setAttribute("stroke", "#006600");
 		whiteWinrate.setAttribute("stroke-width", 3);
@@ -482,7 +487,7 @@
 		t.whiteWinrate = whiteWinrate;
 		t.graph.appendChild(whiteWinrate);
 
-		var cursor = document.createElementNS(SVG, "rect");
+		const cursor = document.createElementNS(SVG, "rect");
 		cursor.setAttribute("x", 0);
 		cursor.setAttribute("y", 0);
 		cursor.setAttribute("width", 1);
@@ -493,7 +498,7 @@
 		t.graph.appendChild(cursor);
 
 		function createLabel(str, x, y, fontSize, color, id) {
-			var text = document.createElementNS(SVG, "text");
+			const text = document.createElementNS(SVG, "text");
 			text.setAttribute("x", x);
 			text.setAttribute("y", y);
 			text.setAttribute("font-size", fontSize ? fontSize : 10);
@@ -512,69 +517,75 @@
 		}
 
 		// legends
-		var box = document.createElementNS(SVG, "rect");
-		box.setAttribute("x", -10);
-		box.setAttribute("y", -10);
-		box.setAttribute("width", 150);
-		box.setAttribute("height", 35);
-		box.setAttribute("fill-opacity", "0.5");
-		box.setAttribute("fill", "#ffffff");
-		t.graph.appendChild(box);
+		{
+			const box = document.createElementNS(SVG, "rect");
+			box.setAttribute("x", -10);
+			box.setAttribute("y", -10);
+			box.setAttribute("width", 150);
+			box.setAttribute("height", 35);
+			box.setAttribute("fill-opacity", "0.5");
+			box.setAttribute("fill", "#ffffff");
+			t.graph.appendChild(box);
+		}
 
-		var box = document.createElementNS(SVG, "rect");
-		box.setAttribute("x", -10);
-		box.setAttribute("y", 75);
-		box.setAttribute("width", 150);
-		box.setAttribute("height", 110);
-		box.setAttribute("fill-opacity", "0.5");
-		box.setAttribute("fill", "#ffffff");
-		t.graph.appendChild(box);
+		{
+			const box = document.createElementNS(SVG, "rect");
+			box.setAttribute("x", -10);
+			box.setAttribute("y", 75);
+			box.setAttribute("width", 150);
+			box.setAttribute("height", 110);
+			box.setAttribute("fill-opacity", "0.5");
+			box.setAttribute("fill", "#ffffff");
+			t.graph.appendChild(box);
+		}
 
 		t.blackName = createLabel("B:", 0, 7, 15, "#cc0000", "legend-player-b");
 		t.graph.appendChild(t.blackName);
 
-		t.graph.appendChild(createLabel("Score", 0, 20, 10, "#cc0000"));
-		var blackScore = document.createElementNS(SVG, "polygon");
-		blackScore.setAttribute("points", "30,20 60,20, 60,15 30,15");
-		blackScore.setAttribute("stroke", "#ff6666");
-		blackScore.setAttribute("stroke-width", 1);
-		blackScore.setAttribute("fill", "none");
-		t.graph.appendChild(blackScore);
+		{
+			t.graph.appendChild(createLabel("Score", 0, 20, 10, "#cc0000"));
+			const blackScore = document.createElementNS(SVG, "polygon");
+			blackScore.setAttribute("points", "30,20 60,20, 60,15 30,15");
+			blackScore.setAttribute("stroke", "#ff6666");
+			blackScore.setAttribute("stroke-width", 1);
+			blackScore.setAttribute("fill", "none");
+			t.graph.appendChild(blackScore);
 
-		t.graph.appendChild(createLabel("Winrate", 70, 20, 10, "#cc0000"));
-		var blackWinrate = document.createElementNS(SVG, "polyline");
-		blackWinrate.setAttribute("points", "110,18 130,18");
-		blackWinrate.setAttribute("stroke", "#ff0000");
-		blackWinrate.setAttribute("stroke-width", 3);
-		blackWinrate.setAttribute("fill", "none");
-		t.graph.appendChild(blackWinrate);
+			t.graph.appendChild(createLabel("Winrate", 70, 20, 10, "#cc0000"));
+			const blackWinrate = document.createElementNS(SVG, "polyline");
+			blackWinrate.setAttribute("points", "110,18 130,18");
+			blackWinrate.setAttribute("stroke", "#ff0000");
+			blackWinrate.setAttribute("stroke-width", 3);
+			blackWinrate.setAttribute("fill", "none");
+			t.graph.appendChild(blackWinrate);
 
-		t.whiteName = createLabel(
-			"W:",
-			0,
-			100,
-			15,
-			"#00cc00",
-			"legend-player-w"
-		);
-		t.graph.appendChild(t.whiteName);
+			t.whiteName = createLabel(
+				"W:",
+				0,
+				100,
+				15,
+				"#00cc00",
+				"legend-player-w"
+			);
+			t.graph.appendChild(t.whiteName);
 
-		t.graph.appendChild(createLabel("Score", 0, 85, 10, "#00cc00"));
-		var whiteScore = document.createElementNS(SVG, "polygon");
-		whiteScore.setAttribute("points", "30,85 60,85 60,80 30,80");
-		whiteScore.setAttribute("stroke", "#66ff66");
-		whiteScore.setAttribute("stroke-width", 1);
-		whiteScore.setAttribute("fill", "none");
-		t.graph.appendChild(whiteScore);
+			t.graph.appendChild(createLabel("Score", 0, 85, 10, "#00cc00"));
+			const whiteScore = document.createElementNS(SVG, "polygon");
+			whiteScore.setAttribute("points", "30,85 60,85 60,80 30,80");
+			whiteScore.setAttribute("stroke", "#66ff66");
+			whiteScore.setAttribute("stroke-width", 1);
+			whiteScore.setAttribute("fill", "none");
+			t.graph.appendChild(whiteScore);
 
-		t.graph.appendChild(createLabel("Winrate", 70, 85, 10, "#00cc00"));
-		var whiteWinrate = document.createElementNS(SVG, "polyline");
-		whiteWinrate.setAttribute("points", "110,83 130,83");
-		whiteWinrate.setAttribute("stroke", "#006600");
-		whiteWinrate.setAttribute("stroke-width", 3);
-		whiteWinrate.setAttribute("fill", "none");
-		t.graph.appendChild(whiteWinrate);
-	};
+			t.graph.appendChild(createLabel("Winrate", 70, 85, 10, "#00cc00"));
+			const whiteWinrate = document.createElementNS(SVG, "polyline");
+			whiteWinrate.setAttribute("points", "110,83 130,83");
+			whiteWinrate.setAttribute("stroke", "#006600");
+			whiteWinrate.setAttribute("stroke-width", 3);
+			whiteWinrate.setAttribute("fill", "none");
+			t.graph.appendChild(whiteWinrate);
+		}
+	}
 
 	function winrate(analysis) {
 		if (analysis.winrate != undefined) return analysis.winrate * 100;
@@ -588,7 +599,7 @@
 	}
 
 	function score(analysis) {
-		var score;
+		let score;
 		if (analysis.score != undefined) {
 			score = analysis.score;
 		} else if (
@@ -600,19 +611,19 @@
 		} else {
 			return null;
 		}
-		var r = score / 40 + 0.5;
+		let r = score / 40 + 0.5;
 		if (r < 0) r = 0;
 		if (r > 1) r = 1;
 		return r * 100;
 	}
 
-	var kifu_loaded = function (e) {
+	const kifu_loaded = function (e) {
 		this.black = [];
 		this.white = [];
 		this.blackScore = [];
 		this.whiteScore = [];
 
-		for (var i = 0; i < e.kifu.nodeCount; i++) {
+		for (let i = 0; i < e.kifu.nodeCount; i++) {
 			this.black.push("");
 			this.blackScore.push("");
 			this.blackScore.push("");
@@ -630,19 +641,19 @@
 		this.winrate.whiteName.textContent = "W:  " + e.kifu.info.white.name;
 	};
 
-	var update = function (e) {
+	const update = function (e) {
 		if (!e.node || !e.path || !e.path.m) return;
-		var node = e.node;
-		var turn = e.path.m;
+		let node = e.node;
+		let turn = e.path.m;
 		this.winrate.cursor.setAttribute("x", (turn - 1) * this.xScale);
 		this.winrate.cursor.setAttribute("width", 3 * this.xScale);
 		while (node) {
-			var winrateList, scoreList;
 			if (!node.move || !node.CC) {
 				node = node.parent;
 				turn--;
 				continue;
 			}
+			let winrateList, scoreList;
 			if (node.move.c == WGo.B) {
 				winrateList = this.black;
 				scoreList = this.blackScore;
@@ -651,13 +662,13 @@
 				scoreList = this.whiteScore;
 			}
 
-			var info = JSON.parse(node.CC);
-			var rate = winrate(info);
+			const info = JSON.parse(node.CC);
+			let rate = winrate(info);
 			if (rate != null) {
 				if (node.move.c == WGo.B) rate = 100 - rate;
 				winrateList[turn] = turn * this.xScale + "," + rate;
 			}
-			var sc = score(info);
+			let sc = score(info);
 			if (sc != null) {
 				if (node.move.c == WGo.B) sc = 100 - sc;
 				scoreList[turn * 4] = turn * this.xScale + "," + 50;
@@ -682,7 +693,7 @@
 		);
 	};
 
-	var AnalyzeBox = WGo.extendClass(
+	const AnalyzeBox = WGo.extendClass(
 		WGo.BasicPlayer.component.Component,
 		function (player) {
 			this.super(player);
@@ -695,7 +706,7 @@
 		}
 	);
 
-	var bp_layouts = WGo.BasicPlayer.layouts;
+	const bp_layouts = WGo.BasicPlayer.layouts;
 	if (!bp_layouts["right_top"].bottom) bp_layouts["right_top"].bottom = [];
 	bp_layouts["right_top"].bottom.push("AnalyzeBox");
 	//bp_layouts["right"].right.push("AnalyzeBox");

@@ -1,17 +1,18 @@
-(function() {
+/* global WGo */
+(function(WGo) {
 
 "use strict";
 
-var prepare_dom = function() {
+const prepare_dom = function() {
 	prepare_dom_box.call(this,"white");
 	prepare_dom_box.call(this,"black");
 	this.element.appendChild(this.white.box);
 	this.element.appendChild(this.black.box);
 }
 
-var prepare_dom_box = function(type) {
+const prepare_dom_box = function(type) {
 	this[type] = {};
-	var t = this[type];
+	const t = this[type];
 	t.box = document.createElement("div");
 	t.box.className = "wgo-box-wrapper wgo-player-wrapper wgo-"+type;
 
@@ -20,8 +21,7 @@ var prepare_dom_box = function(type) {
 	t.name.innerHTML = type;
 	t.box.appendChild(t.name);
 	
-	var info_wrapper;
-	info_wrapper = document.createElement("div");
+	const info_wrapper = document.createElement("div");
 	info_wrapper.className = "wgo-player-info";
 	t.box.appendChild(info_wrapper);
 	
@@ -43,8 +43,8 @@ var prepare_dom_box = function(type) {
 	info_wrapper.appendChild(t.info.score.wrapper);
 }
 
-var prepare_dom_info = function(type) {
-	var res = {};
+const prepare_dom_info = function(type) {
+	const res = {};
 	res.wrapper = document.createElement("div");
 	res.wrapper.className = "wgo-player-info-box-wrapper";
 	
@@ -64,8 +64,8 @@ var prepare_dom_info = function(type) {
 	return res;
 }
 
-var kifu_loaded = function(e) {
-	var info = e.kifu.info || {};
+const kifu_loaded = function(e) {
+	const info = e.kifu.info || {};
 	
 	if(info.black) {
 		this.black.name.innerHTML = WGo.filterHTML(info.black.name) || WGo.t("black");
@@ -105,11 +105,11 @@ var kifu_loaded = function(e) {
 	this.updateDimensions();
 }
 
-var modify_font_size = function(elem) {
-	var css, max, size;
+const modify_font_size = function(elem) {
+	let css, max, size;
 	
 	if(elem.style.fontSize) {
-		var size = parseInt(elem.style.fontSize);
+		size = parseInt(elem.style.fontSize);
 		elem.style.fontSize = "";
 		css = window.getComputedStyle(elem);
 		max = parseInt(css.fontSize);
@@ -140,14 +140,14 @@ var modify_font_size = function(elem) {
 	}
 }
 
-var update = function(e) {
+const update = function(e) {
 	if(e.node.BL) this.setPlayerTime("black", e.node.BL);
 	if(e.node.WL) this.setPlayerTime("white", e.node.WL);
 	if(e.position.capCount.black !== undefined) this.black.info.caps.val.innerHTML = e.position.capCount.black;
 	if(e.position.capCount.white !== undefined) this.white.info.caps.val.innerHTML = e.position.capCount.white;
 	if (e.node.CC) {
-		var info = JSON.parse(e.node.CC);
-		var winrate = null;
+		const info = JSON.parse(e.node.CC);
+		let winrate = null;
 		if (info.winrate != undefined) {
 			winrate = info.winrate;
 		} else if (info.moves != undefined
@@ -161,7 +161,7 @@ var update = function(e) {
 			if(e.node.move.c === WGo.W)
 				this.white.info.win.val.innerHTML = (winrate * 100).toFixed(2);
 		}
-		var score = null;
+		let score = null;
 		if (info.score != undefined) {
 			score = info.score;
 		} else if (info.moves != undefined
@@ -182,7 +182,7 @@ var update = function(e) {
  * Implements box with basic informations about go players.
  */
 
-var InfoBox = WGo.extendClass(WGo.BasicPlayer.component.Component, function(player) {
+const InfoBox = WGo.extendClass(WGo.BasicPlayer.component.Component, function(player) {
 	this.super(player);
 	this.element.className = "wgo-infobox";
 	
@@ -194,8 +194,8 @@ var InfoBox = WGo.extendClass(WGo.BasicPlayer.component.Component, function(play
 });
 
 InfoBox.prototype.setPlayerTime = function(color, time) {
-	var min = Math.floor(time/60);
-	var sec = Math.round(time)%60;
+	const min = Math.floor(time/60);
+	const sec = Math.round(time)%60;
 	this[color].info.time.val.innerHTML = min+":"+((sec < 10) ? "0"+sec : sec);
 };
 
@@ -204,7 +204,7 @@ InfoBox.prototype.updateDimensions = function() {
 	modify_font_size(this.white.name);
 };
 
-var bp_layouts = WGo.BasicPlayer.layouts;
+const bp_layouts = WGo.BasicPlayer.layouts;
 bp_layouts["right_top"].right.push("InfoBox");
 bp_layouts["right"].right.push("InfoBox");
 bp_layouts["one_column"].top.push("InfoBox");

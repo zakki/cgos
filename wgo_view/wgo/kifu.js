@@ -20,34 +20,35 @@
  *
  */
  
-(function (WGo, undefined) {
+/* global WGo */
+(function(WGo, undefined) {
 
 "use strict";
 
-var recursive_clone = function(node) {
-	var n = new KNode(JSON.parse(JSON.stringify(node.getProperties())));
-	for(var ch in node.children) {
+const recursive_clone = function(node) {
+	const n = new KNode(JSON.parse(JSON.stringify(node.getProperties())));
+	for(const ch in node.children) {
 		n.appendChild(recursive_clone(node.children[ch]));
 	}
 	return n;
 }
 
-var find_property = function(prop, node) {
-	var res;
+const find_property = function(prop, node) {
+	let res;
 	if(node[prop] !== undefined) return node[prop];
-	for(var ch in node.children) {
+	for(const ch in node.children) {
 		res = find_property(prop, node.children[ch])
 		if(res) return res;
 	}
 	return false;
 }
 
-var recursive_save = function(gameTree, node) {
+const recursive_save = function(gameTree, node) {
 	gameTree.push(JSON.parse(JSON.stringify(node.getProperties())));
 	if(node.children.length > 1) {
-		var nt = [];
-		for(var i = 0; i < node.children.length; i++) {
-			var t = [];
+		const nt = [];
+		for(let i = 0; i < node.children.length; i++) {
+			const t = [];
 			recursive_save(t, node.children[i]);
 			nt.push(t);
 		}
@@ -58,13 +59,13 @@ var recursive_save = function(gameTree, node) {
 	}
 }
 
-var recursive_save2 = function(gameTree, node) {
-	var anode = node;
-	var tnode;
+const recursive_save2 = function(gameTree, node) {
+	let anode = node;
+	let tnode;
 	
-	for(var i = 1; i < gameTree.length; i++) {
+	for(let i = 1; i < gameTree.length; i++) {
 		if(gameTree[i].constructor == Array) {
-			for(var j = 0; j < gameTree[i].length; j++) {
+			for(let j = 0; j < gameTree[i].length; j++) {
 				tnode = new KNode(gameTree[i][j][0]);
 				anode.appendChild(tnode);
 				recursive_save2(gameTree[i][j], tnode);
@@ -78,30 +79,30 @@ var recursive_save2 = function(gameTree, node) {
 	}
 }
 
-var sgf_escape = function(text) {
+const sgf_escape = function(text) {
 	if(typeof text == "string") return text.replace(/\\/g, "\\\\").replace(/]/g, "\\]");
 	else return text;
 }
 
-var a_char = 'a'.charCodeAt(0);
+const a_char = 'a'.charCodeAt(0);
 
-var sgf_coordinates = function(x, y) {
+const sgf_coordinates = function(x, y) {
 	return String.fromCharCode(a_char+x)+String.fromCharCode(a_char+y);
 }
 
-var sgf_write_group = function(prop, values, output) {
+const sgf_write_group = function(prop, values, output) {
 	if(!values.length) return;
 	
 	output.sgf += prop;
-	for(var i in values) {
+	for(const i in values) {
 		output.sgf += "["+values[i]+"]";
 	}
 }
 
-var sgf_write_node = function(node, output) {
+const sgf_write_node = function(node, output) {
 	// move
 	if(node.move) {
-		var move = "";
+		let move = "";
 		if(!node.move.pass) move = sgf_coordinates(node.move.x, node.move.y);
 		
 		if(node.move.c == WGo.B) output.sgf += "B["+move+"]";
@@ -110,11 +111,11 @@ var sgf_write_node = function(node, output) {
 	
 	// setup
 	if(node.setup) {
-		var AB = [];
-		var AW = [];
-		var AE = [];
+		const AB = [];
+		const AW = [];
+		const AE = [];
 		
-		for(var i in node.setup) {
+		for(const i in node.setup) {
 			if(node.setup[i].c == WGo.B) AB.push(sgf_coordinates(node.setup[i].x, node.setup[i].y));
 			else if(node.setup[i].c == WGo.W) AW.push(sgf_coordinates(node.setup[i].x, node.setup[i].y));
 			else AE.push(sgf_coordinates(node.setup[i].x, node.setup[i].y));
@@ -127,23 +128,23 @@ var sgf_write_node = function(node, output) {
 	
 	// markup
 	if(node.markup) {
-		var markup = {};
+		const markup = {};
 		
-		for(var i in node.markup) {
+		for(const i in node.markup) {
 			markup[node.markup[i].type] = markup[node.markup[i].type] || [];
 			if(node.markup[i].type == "LB") markup["LB"].push(sgf_coordinates(node.markup[i].x, node.markup[i].y)+":"+sgf_escape(node.markup[i].text));
 			else markup[node.markup[i].type].push(sgf_coordinates(node.markup[i].x, node.markup[i].y));
 		}
 		
-		for(var key in markup) {
+		for(const key in markup) {
 			sgf_write_group(key, markup[key], output);
 		}
 	}
 	
 	// other
-	var props = node.getProperties();
+	const props = node.getProperties();
 	
-	for(var key in props) {
+	for(const key in props) {
 		if(typeof props[key] == "object") continue;
 		
 		if(key == "turn") output.sgf += "PL["+(props[key] == WGo.B ? "B" : "W")+"]";
@@ -156,13 +157,13 @@ var sgf_write_node = function(node, output) {
 		sgf_write_node(node.children[0], output);
 	}
 	else if(node.children.length > 1) {
-		for(var key in node.children) {
+		for(const key in node.children) {
 			sgf_write_variantion(node.children[key], output);
 		}
 	}
 }
 
-var sgf_write_variantion = function(node, output) {
+const sgf_write_variantion = function(node, output) {
 	output.sgf += "(\n;";
 	sgf_write_node(node, output);
 	output.sgf += "\n)";
@@ -172,7 +173,7 @@ var sgf_write_variantion = function(node, output) {
  * Kifu class - for storing go game record and easy manipulation with it
  */
 
-var Kifu = function() {
+const Kifu = function() {
 	this.size = 19;
 	this.info = {};
 	this.root = new KNode();
@@ -183,7 +184,7 @@ var Kifu = function() {
 Kifu.prototype ={
 	constructor: Kifu,
 	clone: function() {
-		var clone = new Kifu();
+		const clone = new Kifu();
 		clone.size = this.size;
 		clone.info = JSON.parse(JSON.stringify(this.info));
 		clone.root = recursive_clone(this.root);
@@ -209,8 +210,8 @@ Kifu.fromSgf = function(sgf) {
  */
 
 Kifu.fromJGO = function(arg) {
-	var jgo = typeof arg == "string" ? JSON.parse(arg) : arg;
-	var kifu = new Kifu();
+	const jgo = typeof arg == "string" ? JSON.parse(arg) : arg;
+	const kifu = new Kifu();
 	kifu.info = JSON.parse(JSON.stringify(jgo.info));
 	kifu.size = jgo.size;
 	kifu.nodeCount = jgo.nodeCount;
@@ -227,12 +228,12 @@ Kifu.fromJGO = function(arg) {
  */
 
 Kifu.prototype.toSgf = function() {
-	var output = {sgf: "(\n;"};
+	const output = {sgf: "(\n;"};
 	
-	var root_props = {};
+	const root_props = {};
 	
 	// other info
-	for(var key in this.info) {
+	for(const key in this.info) {
 		if(key == "black") {
 			if(this.info.black.name) root_props.PB = sgf_escape(this.info.black.name);
 			if(this.info.black.rank) root_props.BR = sgf_escape(this.info.black.rank);
@@ -256,7 +257,7 @@ Kifu.prototype.toSgf = function() {
 	if(!root_props.CA) root_props.CA = "UTF-8";
 	
 	// write root
-	for(var key in root_props) {
+	for(const key in root_props) {
 		if(root_props[key]) output.sgf += key+"["+root_props[key]+"]";
 	}
 	
@@ -272,7 +273,7 @@ Kifu.prototype.toSgf = function() {
  */
 
 Kifu.prototype.toJGO = function(stringify) {
-	var jgo = {};
+	const jgo = {};
 	jgo.size = this.size;
 	jgo.info = JSON.parse(JSON.stringify(this.info));
 	jgo.nodeCount = this.nodeCount;
@@ -283,8 +284,8 @@ Kifu.prototype.toJGO = function(stringify) {
 	else return jgo;
 }
 
-var player_formatter = function(value) {
-	var str;
+const player_formatter = function(value) {
+	let str;
 	if(value.name) {
 		str = WGo.filterHTML(value.name);
 		if(value.rank) str += " ("+WGo.filterHTML(value.rank)+")";
@@ -307,7 +308,7 @@ Kifu.infoFormatters = {
 	TM: function(time) {
 		if(time == 0) return WGo.t("none");
 		
-		var res, t = Math.floor(time/60);
+		let res, t = Math.floor(time/60);
 		
 		if(t == 1) res = "1 "+WGo.t("minute");
 		else if(t > 1) res = t+" "+WGo.t("minutes");
@@ -331,8 +332,8 @@ Kifu.infoList = ["black", "white", "AN", "CP", "DT", "EV", "GN", "GC", "HA", "ON
 
 WGo.Kifu = Kifu;
 
-var no_add = function(arr, obj, key) {
-	for(var i = 0; i < arr.length; i++) {
+const no_add = function(arr, obj, key) {
+	for(let i = 0; i < arr.length; i++) {
 		if(arr[i].x == obj.x && arr[i].y == obj.y) {
 			arr[i][key] = obj[key];
 			return;
@@ -341,9 +342,9 @@ var no_add = function(arr, obj, key) {
 	arr.push(obj);
 }
 
-var no_remove = function(arr, obj) {
+const no_remove = function(arr, obj) {
 	if(!arr) return;
-	for(var i = 0; i < arr.length; i++) {
+	for(let i = 0; i < arr.length; i++) {
 		if(arr[i].x == obj.x && arr[i].y == obj.y) {
 			arr.splice(i,1);
 			return;
@@ -358,11 +359,11 @@ var no_remove = function(arr, obj) {
  * @param {KNode} parent (null for root node)
  */
 
-var KNode = function(properties, parent) {
+const KNode = function(properties, parent) {
 	this.parent = parent || null;
 	this.children = [];
 	// save all properties
-	if(properties) for(var key in properties) this[key] = properties[key];
+	if(properties) for(const key in properties) this[key] = properties[key];
 }
 
 KNode.prototype = {
@@ -373,7 +374,7 @@ KNode.prototype = {
 	 */
 	
 	getChild: function(ch) {
-		var i = ch || 0;
+		const i = ch || 0;
 		if(this.children[i]) return this.children[i];
 		else return null;
 	},
@@ -430,9 +431,9 @@ KNode.prototype = {
 	 */
 	
 	remove: function() {
-		var p = this.parent;
-		if(!p) throw new Exception("Root node cannot be removed");
-		for(var i in p.children) {
+		const p = this.parent;
+		if(!p) throw new Error("Root node cannot be removed");
+		for(const i in p.children) {
 			if(p.children[i] == this) {
 				p.children.splice(i,1);
 				break;
@@ -448,7 +449,7 @@ KNode.prototype = {
 	 */
 	
 	insertAfter: function(node) {
-		for(var child in this.children) {
+		for(const child in this.children) {
 			this.children[child].parent = node;
 		}
 		node.children = node.children.concat(this.children);
@@ -472,9 +473,9 @@ KNode.prototype = {
 	 */
 	
 	getProperties: function() {
-		var props = {};
-		for(var key in this) {
-			if(this.hasOwnProperty(key) && key != "children" && key != "parent" && key[0] != "_") props[key] = this[key];
+		const props = {};
+		for(const key in this) {
+			if(Object.hasOwn(this, key) && key != "children" && key != "parent" && key[0] != "_") props[key] = this[key];
 		}
 		return props;
 	}
@@ -482,10 +483,10 @@ KNode.prototype = {
 
 WGo.KNode = KNode;
 
-var pos_diff = function(old_p, new_p) {
-	var size = old_p.size, add = [], remove = [];
+const pos_diff = function(old_p, new_p) {
+	const size = old_p.size, add = [], remove = [];
 	
-	for(var i = 0; i < size*size; i++) {
+	for(let i = 0; i < size*size; i++) {
 		if(old_p.schema[i] && !new_p.schema[i]) remove.push({x:Math.floor(i/size),y:i%size});
 		else if(old_p.schema[i] != new_p.schema[i]) add.push({x:Math.floor(i/size),y:i%size,c:new_p.schema[i]});
 	}
@@ -503,7 +504,7 @@ var pos_diff = function(old_p, new_p) {
  * If parameter allowIllegalMoves is set, illegal moves will be played instead of throwing an exception
  */
 
-var KifuReader = function(kifu, rememberPath, allowIllegalMoves) {
+const KifuReader = function(kifu, rememberPath, allowIllegalMoves) {
 	this.kifu = kifu;
 	this.node = this.kifu.root;
 	this.allow_illegal = allowIllegalMoves || false;
@@ -517,11 +518,11 @@ var KifuReader = function(kifu, rememberPath, allowIllegalMoves) {
 	else this.rememberPath = false;
 }
 
-var set_subtract = function(a, b) {
-	var n = [], q;
-	for(var i in a) {
-		q = true;
-		for(var j in b) {
+const set_subtract = function(a, b) {
+	const n = [];
+	for(const i in a) {
+		let q = true;
+		for(const j in b) {
 			if(a[i].x == b[j].x && a[i].y == b[j].y) {
 				q = false;
 				break;
@@ -532,13 +533,13 @@ var set_subtract = function(a, b) {
 	return n;
 }
 
-var concat_changes = function(ch_orig, ch_new) {
+const concat_changes = function(ch_orig, ch_new) {
 	ch_orig.add = set_subtract(ch_orig.add, ch_new.remove).concat(ch_new.add);
 	ch_orig.remove = set_subtract(ch_orig.remove, ch_new.add).concat(ch_new.remove);
 }
 
 // change game object according to node, return changes
-var exec_node = function(game, node, first) {
+const exec_node = function(game, node, first) {
 	if(node.parent) node.parent._last_selected = node.parent.children.indexOf(node);
 	
 	// handle moves nodes
@@ -548,10 +549,10 @@ var exec_node = function(game, node, first) {
 			return {add:[], remove:[]};
 		}
 		else {
-			var res = game.play(node.move.x, node.move.y, node.move.c);
+			const res = game.play(node.move.x, node.move.y, node.move.c);
 			if(typeof res == "number") throw new InvalidMoveError(res, node);
 			// we must check whether to add move (it can be suicide)
-			for(var i in res) {
+			for(const i in res) {
 				if(res[i].x == node.move.x && res[i].y == node.move.y) {
 					return {
 						add: [],
@@ -569,10 +570,10 @@ var exec_node = function(game, node, first) {
 	else {
 		if(!first) game.pushPosition();
 		
-		var add = [], remove = [];
+		const add = [], remove = [];
 		
 		if(node.setup != undefined) {
-			for(var i in node.setup) {
+			for(const i in node.setup) {
 				if(node.setup[i].c) {
 					game.setStone(node.setup[i].x, node.setup[i].y, node.setup[i].c);
 					add.push(node.setup[i]);
@@ -593,14 +594,14 @@ var exec_node = function(game, node, first) {
 	}
 }
 
-var exec_next = function(i) {
+const exec_next = function(i) {
 	if(i === undefined && this.rememberPath) i = this.node._last_selected;
 	i = i || 0;
-	var node = this.node.children[i];
+	const node = this.node.children[i];
 	
 	if(!node) return false;
 	
-	var ch = exec_node(this.game, node);
+	const ch = exec_node(this.game, node);
 	
 	this.path.m++;
 	if(this.node.children.length > 1) this.path[this.path.m] = i;
@@ -609,7 +610,7 @@ var exec_next = function(i) {
 	return ch;
 }
 
-var exec_previous = function() {
+const exec_previous = function() {
 	if(!this.node.parent) return false;
 	
 	this.node = this.node.parent;
@@ -623,7 +624,7 @@ var exec_previous = function() {
 	return true;
 }
 
-var exec_first = function() {
+const exec_first = function() {
 	//if(!this.node.parent) return;
 	
 	this.game.firstPosition();
@@ -652,12 +653,12 @@ KifuReader.prototype = {
 	 */
 	
 	last: function() {
-		var ch;
 		this.change = {
 			add: [],
 			remove: []
 		}
-		while(ch = exec_next.call(this)) concat_changes(this.change, ch);
+		let ch;
+		while((ch = exec_next.call(this))) concat_changes(this.change, ch);
 		return this;
 	},
 	
@@ -666,7 +667,7 @@ KifuReader.prototype = {
 	 */
 	
 	previous: function() {	
-		var old_pos = this.game.getPosition();
+		const old_pos = this.game.getPosition();
 		exec_previous.call(this);
 		this.change = pos_diff(old_pos, this.game.getPosition());
 		return this;
@@ -677,7 +678,7 @@ KifuReader.prototype = {
 	 */
 	
 	first: function() {
-		var old_pos = this.game.getPosition();
+		const old_pos = this.game.getPosition();
 		exec_first.call(this);		
 		this.change = pos_diff(old_pos, this.game.getPosition());
 		return this;
@@ -690,13 +691,11 @@ KifuReader.prototype = {
 	goTo: function(path) {
 		if(path === undefined) return this;
 		
-		var old_pos = this.game.getPosition();
+		const old_pos = this.game.getPosition();
 
 		exec_first.call(this);
-		
-		var r;
-		
-		for(var i = 0; i < path.m; i++) {
+
+		for(let i = 0; i < path.m; i++) {
 			if(!exec_next.call(this, path[i+1])) {
 				break;
 			}
@@ -711,8 +710,10 @@ KifuReader.prototype = {
 	 */
 	
 	previousFork: function() {
-		var old_pos = this.game.getPosition();
-		while(exec_previous.call(this) && this.node.children.length == 1){};
+		const old_pos = this.game.getPosition();
+		while(exec_previous.call(this) && this.node.children.length == 1){
+			// do nothing
+		}
 		this.change = pos_diff(old_pos, this.game.getPosition());
 		return this;
 	},
@@ -746,15 +747,15 @@ KifuReader.prototype = {
 WGo.KifuReader = KifuReader;
 
 // Class handling invalid moves in kifu
-var InvalidMoveError = function(code, node) {
+const InvalidMoveError = function(code, node) {
 	this.name = "InvalidMoveError";
-    this.message = "Invalid move in kifu detected. ";
+	this.message = "Invalid move in kifu detected. ";
 	
 	if(node.move && node.move.c !== undefined && node.move.x !== undefined && node.move.y !== undefined) {
-		var letter = node.move.x;
+		let letter = node.move.x;
 		if(node.move.x > 7) letter++;
 		letter = String.fromCharCode(letter+65);
-		this.message += "Trying to play "+(node.move.c == WGo.WHITE ? "white" : "black")+" move on "+String.fromCharCode(node.move.x+65)+""+(19-node.move.y);
+		this.message += "Trying to play "+(node.move.c == WGo.WHITE ? "white" : "black")+" move on "+letter+""+(19-node.move.y);
 	}
 	else this.message += "Move object doesn't contain arbitrary attributes.";
 	

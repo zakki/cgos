@@ -1,3 +1,4 @@
+/* global WGo */
 (function(WGo, undefined) {
 
 "use strict";
@@ -6,7 +7,7 @@
  * Base class for BasicPlayer's component. Each component should implement this interface.
  */
 
-var Component = function() {
+const Component = function() {
 	this.element = document.createElement("div");
 }
 
@@ -26,7 +27,7 @@ Component.prototype = {
 	 */
 	 
 	getWidth: function() {
-		var css = window.getComputedStyle(this.element);
+		const css = window.getComputedStyle(this.element);
 		return parseInt(css.width);
 	},
 	
@@ -35,7 +36,7 @@ Component.prototype = {
 	 */
 	
 	getHeight: function() {
-		var css = window.getComputedStyle(this.element);
+		const css = window.getComputedStyle(this.element);
 		return parseInt(css.height);
 	},
 	
