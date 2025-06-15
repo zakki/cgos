@@ -662,11 +662,19 @@ Player.default = {
  */
 
 const player_terms = {
-	"about-text": "<h1>WGo.js Player 2.0</h1>"
+	/*
+	"about-text": "<h1>WGo.js Player 2.3</h1>"
 				+ "<p>WGo.js Player is extension of WGo.js, HTML5 library for purposes of game of go. It allows to replay go game records and it has many features like score counting. It is also designed to be easily extendable.</p>"
 				+ "<p>WGo.js is open source licensed under <a href='http://en.wikipedia.org/wiki/MIT_License' target='_blank'>MIT license</a>. You can use and modify any code from this project.</p>"
 				+ "<p>You can find more information at <a href='http://wgo.waltheri.net/player' target='_blank'>wgo.waltheri.net/player</a></p>"
 				+ "<p>Copyright &copy; 2013 Jan Prokop</p>",
+	*/
+	"about-text": "<h1>WGo.js Player 2.0 (CGOS Extension)</h1>"
+				+ "<p>This version is based on <a href='http://wgo.waltheri.net/player' target='_blank'>WGo.js Player</a>, an HTML5 library for the game of Go. It allows you to replay Go game records and includes many features such as score counting. This version adds extensions for <a href='http://www.yss-aya.com/cgos/' target='_blank'>CGOS (Computer Go Server)</a>.</p>"
+				+ "<p>WGo.js is open source software licensed under the <a href='http://en.wikipedia.org/wiki/MIT_License' target='_blank'>MIT license</a>. You can freely use and modify any code from this project.</p>"
+				+ "<p>More information and source code for this CGOS extension is available at <a href='https://github.com/zakki/cgos' target='_blank'>https://github.com/zakki/cgos</a>.</p>"
+				+ "<p>Copyright &copy; 2013 Jan Prokop."
+				+ "<p>2023-2025 zakki.</p>",
 	"black": "Black",
 	"white": "White",
 	"DT": "Date",
