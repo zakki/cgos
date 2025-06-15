@@ -548,6 +548,48 @@ button.wgo-button.wgo-selected:hover {
 	font-weight: normal;
 }
 
+.wgo-ctrlgroup-cgos .wgo-button {
+	width: 50px;
+	height: 18px;
+	margin: 0 2px;
+	border-width: 1px;
+	background-color: rgba(180,180,190,0.6);
+}
+
+.wgo-ctrlgroup-cgos button.wgo-button.wgo-selected {
+	background-color: rgba(255,255,255,0.6);
+	border: 2px solid rgba(0,0,0,0.5);
+}
+
+.wgo-ctrlgroup-cgos .wgo-button::before {
+	font-family: Calibri, Tahoma, Arial;
+	/*font-size: 20px;*/
+}
+.wgo-button-cgos-stats::before {
+	content: 'Stat';
+	font-size: 12px;
+}
+.wgo-button-cgos-ownership::before {
+	content: 'Owner';
+	font-size: 12px;
+}
+.wgo-button-cgos-bwinrate::before {
+	content: '\25CFWin';
+	font-size: 12px;
+}
+.wgo-button-cgos-bscore::before {
+	content: '\25CFScore';
+	font-size: 12px;
+}
+.wgo-button-cgos-wwinrate::before {
+	content: '\25CBWin';
+	font-size: 12px;
+}
+.wgo-button-cgos-wscore::before {
+	content: '\25CBScore';
+	font-size: 12px;
+}
+
 /* move number widget */
 
 input[type="text"].wgo-player-mn-value  {

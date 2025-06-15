@@ -2,7 +2,7 @@ import { WGo } from "./wgo";
 
 import { BasicPlayer } from "./basicplayer";
 import { Component } from "./basicplayer.component";
-import { Control, MenuItem } from "./basicplayer.control";
+import { Control, MenuItem, Button, Group } from "./basicplayer.control";
 
 // Utility
 
@@ -177,6 +177,13 @@ export const CgosAnalysisContext = function (player, board) {
 	this.board = board;
 	this.cgosMode = false;
 
+	this.showStats = true;
+	this.showOwnership = true;
+	this.showBlackWinrate = true;
+	this.showBlackScore = true;
+	this.showWhiteWinrate = true;
+	this.showWhiteScore = true;
+
 	this.ownershipLayer = new OwnershipLayer();
 	this.board.addLayer(this.ownershipLayer, 400);
 };
@@ -203,20 +210,21 @@ CgosAnalysisContext.prototype.set = function (set) {
 };
 
 if (Control) {
+	/*
 	Control.menu.push({
 		constructor: MenuItem,
 		args: {
 			name: "cgos",
 			togglable: true,
 			click: function (player) {
-				player._cgos =
-					player._cgos ||
-					new CgosAnalysisContext(player, player.board);
 				player._cgos.set(!player._cgos.cgosMode);
 				return player._cgos.cgosMode;
 			},
 			init: function (player) {
 				const _this = this;
+				player._cgos =
+					player._cgos ||
+					new CgosAnalysisContext(player, player.board);
 				player.addEventListener("frozen", function (e) {
 					_this._disabled = _this.disabled;
 					if (!_this.disabled) _this.disable();
@@ -230,9 +238,59 @@ if (Control) {
 			}
 		}
 	});
+	*/
+
+	const toggleHandler = function (prop) {
+		return function (player) {
+			player._cgos[prop] = !player._cgos[prop];
+			player.update(true);
+			return player._cgos[prop];
+		};
+	};
+
+	const initHandler = function (prop) {
+		return function (player) {
+			player._cgos =
+				player._cgos || new CgosAnalysisContext(player, player.board);
+			if (player._cgos[prop]) this.select();
+		};
+	};
+
+	const menuItems = [
+		["cgos-stats", "showStats"],
+		["cgos-ownership", "showOwnership"],
+		["cgos-bwinrate", "showBlackWinrate"],
+		["cgos-bscore", "showBlackScore"],
+		["cgos-wwinrate", "showWhiteWinrate"],
+		["cgos-wscore", "showWhiteScore"]
+	];
+
+	const widgets = [];
+	for (const [name, prop] of menuItems) {
+		widgets.push({
+			constructor: Button,
+			args: {
+				name: name,
+				togglable: true,
+				click: toggleHandler(prop),
+				init: initHandler(prop)
+			}
+		});
+	}
+
+	Control.widgets.push({
+		constructor: Group,
+		args: { name: "cgos", widgets: widgets }
+	});
 }
 
 WGo.i18n.en["cgos"] = "CGOS mode";
+WGo.i18n.en["cgos-stats"] = "Move stats overlay";
+WGo.i18n.en["cgos-ownership"] = "Ownership overlay";
+WGo.i18n.en["cgos-bwinrate"] = "Black winrate graph";
+WGo.i18n.en["cgos-bscore"] = "Black score graph";
+WGo.i18n.en["cgos-wwinrate"] = "White winrate graph";
+WGo.i18n.en["cgos-wscore"] = "White score graph";
 
 // CGOS variation overlay component.
 // Displays CGOS analysis information on the board.
@@ -261,9 +319,11 @@ const update_board = function (e) {
 		const tokens = JSON.parse(e.node.CC);
 		this._cgos.board._cgosColor = e.node.move.c;
 		this._cgos.infoList = [];
-		this._cgos.board._cgosOwnership = tokens.ownership;
+		this._cgos.board._cgosOwnership = this._cgos.showOwnership
+			? tokens.ownership
+			: null;
 
-		if (tokens.moves) {
+		if (this._cgos.showStats && tokens.moves) {
 			for (let j = 0; j < tokens.moves.length; j++) {
 				const info = tokens.moves[j];
 				let move = null;
@@ -325,7 +385,8 @@ const update_board = function (e) {
 const VariationOverlay = WGo.extendClass(Component, function (player) {
 	this.super(player);
 
-	player._cgos = this._cgos = new CgosAnalysisContext(player, player.board);
+	player._cgos = this._cgos =
+		player._cgos || new CgosAnalysisContext(player, player.board);
 	const disabled =
 		player.currentLayout.className.indexOf("wgo-small") >= 0 ||
 		player.currentLayout.className.indexOf("wgo-xsmall") >= 0;
@@ -640,10 +701,23 @@ const update = function (e) {
 	this.winrate.blackScore.setAttribute("points", this.blackScore.join(" "));
 	this.winrate.whiteWinrate.setAttribute("points", this.white.join(" "));
 	this.winrate.whiteScore.setAttribute("points", this.whiteScore.join(" "));
+
+	if (this.player && this.player._cgos) {
+		const f = this.player._cgos;
+		this.winrate.blackWinrate.style.display = f.showBlackWinrate
+			? ""
+			: "none";
+		this.winrate.blackScore.style.display = f.showBlackScore ? "" : "none";
+		this.winrate.whiteWinrate.style.display = f.showWhiteWinrate
+			? ""
+			: "none";
+		this.winrate.whiteScore.style.display = f.showWhiteScore ? "" : "none";
+	}
 };
 
 const EvaluationGraphBox = WGo.extendClass(Component, function (player) {
 	this.super(player);
+	this.player = player;
 	this.element.className = "wgo-analyzebox";
 
 	prepare_dom.call(this, player);
