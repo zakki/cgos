@@ -4,6 +4,18 @@ import { BasicPlayer } from "./basicplayer";
 import { Component } from "./basicplayer.component";
 import { Control, MenuItem } from "./basicplayer.control";
 
+// Utility
+
+function parseCoord(size, str) {
+	str = str.toLowerCase();
+	const LEGAL_COORDINATES = "abcdefghjklmnopqrstuvwxyz";
+	const x = LEGAL_COORDINATES.indexOf(str[0]);
+	if (x < 0) return null;
+	const y = parseInt(str.substr(1));
+	if (Number.isNaN(y)) return null;
+	return [x, size - y];
+}
+
 // board mousemove callback for cgos move - adds highlighting
 const cgos_board_mouse_move = function (x, y) {
 	if (this._lastX == x && this._lastY == y) return;
@@ -67,7 +79,7 @@ const theme_variable = function (key, board) {
 		: board.theme[key];
 };
 
-const cgosDrawer = {
+const moveStatDrawer = {
 	stone: {
 		draw: function (args, board) {
 			const xr = board.getX(args.x),
@@ -156,6 +168,75 @@ OwnershipLayer.prototype.draw = function (board) {
 	}
 };
 
+/**
+ * Toggle cgos mode.
+ */
+
+export const CgosAnalysisContext = function (player, board) {
+	this.player = player;
+	this.board = board;
+	this.cgosMode = false;
+
+	this.ownershipLayer = new OwnershipLayer();
+	this.board.addLayer(this.ownershipLayer, 400);
+};
+
+CgosAnalysisContext.prototype.set = function (set) {
+	if (!this.cgosMode && set) {
+		// register cgos listeners
+		this._ev_move = this._ev_move || cgos_board_mouse_move.bind(this);
+		this._ev_out = this._ev_out || cgos_board_mouse_out.bind(this);
+
+		this.board.addEventListener("mousemove", this._ev_move);
+		this.board.addEventListener("mouseout", this._ev_out);
+
+		this.cgosMode = true;
+	} else if (this.cgosMode && !set) {
+		this.player.update(true);
+
+		// remove cgos listeners
+		this.board.removeEventListener("mousemove", this._ev_move);
+		this.board.removeEventListener("mouseout", this._ev_out);
+
+		this.cgosMode = false;
+	}
+};
+
+if (Control) {
+	Control.menu.push({
+		constructor: MenuItem,
+		args: {
+			name: "cgos",
+			togglable: true,
+			click: function (player) {
+				player._cgos =
+					player._cgos ||
+					new CgosAnalysisContext(player, player.board);
+				player._cgos.set(!player._cgos.cgosMode);
+				return player._cgos.cgosMode;
+			},
+			init: function (player) {
+				const _this = this;
+				player.addEventListener("frozen", function (e) {
+					_this._disabled = _this.disabled;
+					if (!_this.disabled) _this.disable();
+				});
+				player.addEventListener("unfrozen", function (e) {
+					if (!_this._disabled) _this.enable();
+					delete _this._disabled;
+				});
+				if (player._cgos.cgosMode) this.select();
+				//player.addEventListener("update", update_board.bind(this));
+			}
+		}
+	});
+}
+
+WGo.i18n.en["cgos"] = "CGOS mode";
+
+// CGOS variation overlay component.
+// Displays CGOS analysis information on the board.
+
 // basic updating function - handles board changes
 const update_board = function (e) {
 	// init array for new objects
@@ -221,7 +302,7 @@ const update_board = function (e) {
 				this._cgos.infoList.push(o);
 
 				add.push({
-					type: cgosDrawer,
+					type: moveStatDrawer,
 					winrate: o.winrate,
 					score: o.score,
 					x: o.move[0],
@@ -241,144 +322,29 @@ const update_board = function (e) {
 	this._cgos.board.redraw();
 };
 
-function parseCoord(size, str) {
-	str = str.toLowerCase();
-	const LEGAL_COORDINATES = "abcdefghjklmnopqrstuvwxyz";
-	const x = LEGAL_COORDINATES.indexOf(str[0]);
-	if (x < 0) return null;
-	const y = parseInt(str.substr(1));
-	if (Number.isNaN(y)) return null;
-	return [x, size - y];
-}
-
-const winrateGraph = {
-	// draw on grid layer
-	grid: {
-		draw: function (args, board) {
-			this.fillStyle = "rgba(0,0,0,0.7)";
-			this.textBaseline = "middle";
-			this.textAlign = "center";
-			this.font = board.stoneRadius + "px " + (board.font || "");
-
-			const xright = board.getX(-0.75);
-			const xleft = board.getX(board.size - 0.25);
-			const ytop = board.getY(-0.75);
-			const ybottom = board.getY(board.size - 0.25);
-
-			for (let i = 0; i < board.size; i++) {
-				let ch = i + "A".charCodeAt(0);
-				if (ch >= "I".charCodeAt(0)) ch++;
-
-				let t = board.getY(i);
-				this.fillText(board.size - i, xright, t);
-				this.fillText(board.size - i, xleft, t);
-
-				t = board.getX(i);
-				this.fillText(String.fromCharCode(ch), t, ytop);
-				this.fillText(String.fromCharCode(ch), t, ybottom);
-			}
-
-			this.fillStyle = "black";
-		}
-	}
-};
-
-/**
- * Toggle cgos mode.
- */
-
-export const Cgos = function (player, board) {
-	this.player = player;
-	this.board = board;
-	this.cgosMode = false;
-
-	this.ownershipLayer = new OwnershipLayer();
-	this.board.addLayer(this.ownershipLayer, 400);
-};
-
-Cgos.prototype.setGraph = function (b) {
-	if (!this.coordinates && b) {
-		this.board.setSection(-0.5, -0.5, -0.5, -10.5);
-		this.board.addCustomObject(winrateGraph);
-	} else if (this.coordinates && !b) {
-		this.board.setSection(0, 0, 0, 0);
-		this.board.removeCustomObject(winrateGraph);
-	}
-	this.graph = b;
-};
-
-Cgos.prototype.set = function (set) {
-	if (!this.cgosMode && set) {
-		// register cgos listeners
-		this._ev_move = this._ev_move || cgos_board_mouse_move.bind(this);
-		this._ev_out = this._ev_out || cgos_board_mouse_out.bind(this);
-
-		this.board.addEventListener("mousemove", this._ev_move);
-		this.board.addEventListener("mouseout", this._ev_out);
-
-		this.cgosMode = true;
-	} else if (this.cgosMode && !set) {
-		this.player.update(true);
-
-		// remove cgos listeners
-		this.board.removeEventListener("mousemove", this._ev_move);
-		this.board.removeEventListener("mouseout", this._ev_out);
-
-		this.cgosMode = false;
-	}
-	// this.setGraph(this.cgosMode)
-};
-
-if (Control) {
-	Control.menu.push({
-		constructor: MenuItem,
-		args: {
-			name: "cgos",
-			togglable: true,
-			click: function (player) {
-				player._cgos = player._cgos || new Cgos(player, player.board);
-				player._cgos.set(!player._cgos.cgosMode);
-				return player._cgos.cgosMode;
-			},
-			init: function (player) {
-				const _this = this;
-				player.addEventListener("frozen", function (e) {
-					_this._disabled = _this.disabled;
-					if (!_this.disabled) _this.disable();
-				});
-				player.addEventListener("unfrozen", function (e) {
-					if (!_this._disabled) _this.enable();
-					delete _this._disabled;
-				});
-				if (player._cgos.cgosMode) this.select();
-				//player.addEventListener("update", update_board.bind(this));
-			}
-		}
-	});
-}
-
-WGo.i18n.en["cgos"] = "CGOS mode";
-
-const AnalyzeBoard = WGo.extendClass(Component, function (player) {
+const VariationOverlay = WGo.extendClass(Component, function (player) {
 	this.super(player);
 
-	player._cgos = this._cgos || new Cgos(player, player.board);
+	player._cgos = this._cgos = new CgosAnalysisContext(player, player.board);
 	const disabled =
 		player.currentLayout.className.indexOf("wgo-small") >= 0 ||
 		player.currentLayout.className.indexOf("wgo-xsmall") >= 0;
 	player._cgos.set(!disabled);
 
-	player.addEventListener("update", update_board.bind(player));
+	player.addEventListener("update", update_board.bind(this));
 });
 
 const bp_layouts = BasicPlayer.layouts;
 if (!bp_layouts["right_top"].bottom) bp_layouts["right_top"].bottom = [];
-bp_layouts["right_top"].bottom.push("AnalyzeBoard");
-bp_layouts["right"].right.push("AnalyzeBoard");
-bp_layouts["one_column"].top.push("AnalyzeBoard");
-bp_layouts["no_comment"].top.push("AnalyzeBoard");
+bp_layouts["right_top"].bottom.push("VariationOverlay");
+bp_layouts["right"].right.push("VariationOverlay");
+bp_layouts["one_column"].top.push("VariationOverlay");
+bp_layouts["no_comment"].top.push("VariationOverlay");
 
-BasicPlayer.component.AnalyzeBoard = AnalyzeBoard;
+BasicPlayer.component.VariationOverlay = VariationOverlay;
+
+// EvaluationGraphBox
+//
 
 const prepare_dom = function (player) {
 	prepare_dom_box.call(this, "winrate", player);
@@ -676,7 +642,7 @@ const update = function (e) {
 	this.winrate.whiteScore.setAttribute("points", this.whiteScore.join(" "));
 };
 
-const AnalyzeBox = WGo.extendClass(Component, function (player) {
+const EvaluationGraphBox = WGo.extendClass(Component, function (player) {
 	this.super(player);
 	this.element.className = "wgo-analyzebox";
 
@@ -687,9 +653,9 @@ const AnalyzeBox = WGo.extendClass(Component, function (player) {
 });
 
 if (!bp_layouts["right_top"].bottom) bp_layouts["right_top"].bottom = [];
-bp_layouts["right_top"].bottom.push("AnalyzeBox");
-//bp_layouts["right"].right.push("AnalyzeBox");
-bp_layouts["one_column"].bottom.push("AnalyzeBox");
-bp_layouts["no_comment"].bottom.push("AnalyzeBox");
+bp_layouts["right_top"].bottom.push("EvaluationGraphBox");
+//bp_layouts["right"].right.push("EvaluationGraphBox");
+bp_layouts["one_column"].bottom.push("EvaluationGraphBox");
+bp_layouts["no_comment"].bottom.push("EvaluationGraphBox");
 
-BasicPlayer.component.AnalyzeBox = AnalyzeBox;
+BasicPlayer.component.EvaluationGraphBox = EvaluationGraphBox;
