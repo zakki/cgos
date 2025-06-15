@@ -537,15 +537,39 @@ button.wgo-button.wgo-selected:hover {
 }
 
 .wgo-button-menu::before  {
-	content: '\e81b';
-	font-size: 25px;
-	font-weight: normal;
-	padding-top: 5px;
+        content: '\e81b';
+        font-size: 25px;
+        font-weight: normal;
+        padding-top: 5px;
 }
 .wgo-button-about::before  {
-	content: '\e80f';
-	font-size: 30px;
-	font-weight: normal;
+        content: '\e80f';
+        font-size: 30px;
+        font-weight: normal;
+}
+.wgo-button-cgos-stats::before {
+        content: '\e801';
+        font-size: 25px;
+}
+.wgo-button-cgos-ownership::before {
+        content: '\e815';
+        font-size: 25px;
+}
+.wgo-button-cgos-bwinrate::before {
+        content: '\e813';
+        font-size: 25px;
+}
+.wgo-button-cgos-bscore::before {
+        content: '\e814';
+        font-size: 25px;
+}
+.wgo-button-cgos-wwinrate::before {
+        content: '\e800';
+        font-size: 25px;
+}
+.wgo-button-cgos-wscore::before {
+        content: '\e80f';
+        font-size: 25px;
 }
 
 /* move number widget */
