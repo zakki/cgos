@@ -10,6 +10,7 @@ import './basicplayer.infobox';
 import './basicplayer.commentbox';
 import './basicplayer.control';
 import './player.editable';
+import './player.maker';
 import './player.cgos';
 import './scoremode';
 import './player.permalink';
