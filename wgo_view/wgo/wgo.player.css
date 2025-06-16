@@ -548,6 +548,18 @@ button.wgo-button.wgo-selected:hover {
 	font-weight: normal;
 }
 
+/* cgos mode */
+.wgo-player-cgos-control {
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	-webkit-box-sizing: border-box;
+}
+
+.wgo-cgos-control-wrapper {
+	width: 100%;
+	text-align: center;
+}
+
 .wgo-ctrlgroup-cgos .wgo-button {
 	width: 50px;
 	height: 18px;

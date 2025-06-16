@@ -209,7 +209,44 @@ CgosAnalysisContext.prototype.set = function (set) {
 	}
 };
 
-if (Control) {
+const prepare_cgos_contol_dom = function (player) {
+	this.iconBar = document.createElement("div");
+	this.iconBar.className = "wgo-cgos-control-wrapper";
+	this.element.appendChild(this.iconBar);
+
+	let widget;
+
+	for (const w in CgosControl.widgets) {
+		widget = new CgosControl.widgets[w].constructor(
+			player,
+			CgosControl.widgets[w].args
+		);
+		widget.appendTo(this.iconBar);
+		this.widgets.push(widget);
+	}
+};
+
+export const CgosControl = WGo.extendClass(Component, function (player) {
+	this.super(player);
+
+	this.widgets = [];
+	this.element.className = "wgo-player-cgos-control";
+
+	prepare_cgos_contol_dom.call(this, player);
+});
+BasicPlayer.component.CgosControl = CgosControl;
+
+CgosControl.prototype.updateDimensions = function () {
+	if (this.element.clientWidth < 340)
+		this.element.className = "wgo-player-control wgo-340";
+	else if (this.element.clientWidth < 440)
+		this.element.className = "wgo-player-control wgo-440";
+	else this.element.className = "wgo-player-control";
+};
+
+CgosControl.widgets = [];
+
+{
 	/*
 	Control.menu.push({
 		constructor: MenuItem,
@@ -278,10 +315,17 @@ if (Control) {
 		});
 	}
 
-	Control.widgets.push({
+	CgosControl.widgets.push({
 		constructor: Group,
 		args: { name: "cgos", widgets: widgets }
 	});
+
+	const bp_layouts = BasicPlayer.layouts;
+	bp_layouts["right_top"].bottom.push("CgosControl");
+	bp_layouts["right"].right.push("CgosControl");
+	bp_layouts["one_column"].bottom.push("CgosControl");
+	// bp_layouts["no_comment"].bottom.push("CgosControl");
+	// bp_layouts["minimal"].bottom.push("CgosControl");
 }
 
 WGo.i18n.en["cgos"] = "CGOS mode";
@@ -396,7 +440,6 @@ const VariationOverlay = WGo.extendClass(Component, function (player) {
 });
 
 const bp_layouts = BasicPlayer.layouts;
-if (!bp_layouts["right_top"].bottom) bp_layouts["right_top"].bottom = [];
 bp_layouts["right_top"].bottom.push("VariationOverlay");
 bp_layouts["right"].right.push("VariationOverlay");
 bp_layouts["one_column"].top.push("VariationOverlay");
@@ -726,7 +769,6 @@ const EvaluationGraphBox = WGo.extendClass(Component, function (player) {
 	player.addEventListener("update", update.bind(this));
 });
 
-if (!bp_layouts["right_top"].bottom) bp_layouts["right_top"].bottom = [];
 bp_layouts["right_top"].bottom.push("EvaluationGraphBox");
 //bp_layouts["right"].right.push("EvaluationGraphBox");
 bp_layouts["one_column"].bottom.push("EvaluationGraphBox");

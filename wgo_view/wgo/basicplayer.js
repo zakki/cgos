@@ -350,6 +350,7 @@ BasicPlayer.layouts = {
 	"right_top": {
 		top: [],
 		right: [],
+		bottom: [],
 	},
 	"right": {
 		right: [],
