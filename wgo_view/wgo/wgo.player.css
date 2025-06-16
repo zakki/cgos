@@ -577,6 +577,11 @@ button.wgo-button.wgo-selected:hover {
 	font-family: Calibri, Tahoma, Arial;
 	/*font-size: 20px;*/
 }
+
+.wgo-button-cgos-switchmarker::before {
+	content: 'Num';
+	font-size: 12px;
+}
 .wgo-button-cgos-stats::before {
 	content: 'Stat';
 	font-size: 12px;

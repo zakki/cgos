@@ -3,6 +3,7 @@ import { WGo } from "./wgo";
 import { BasicPlayer } from "./basicplayer";
 import { Component } from "./basicplayer.component";
 import { Control, MenuItem, Button, Group } from "./basicplayer.control";
+import { Marker } from "./player.maker";
 
 // Utility
 
@@ -303,6 +304,41 @@ CgosControl.widgets = [];
 	];
 
 	const widgets = [];
+
+	widgets.push({
+		constructor: Button,
+		args: {
+			name: "cgos-switchmarker",
+			togglable: true,
+			init: function (player) {},
+			click: function (player) {
+				this._marker = this._marker || new Marker(player, player.board);
+				if (!this._isFirst) {
+					player.config.markLastMove = false;
+					// this._marker.clearDefaultSytle();
+					this._isFirst = true;
+				}
+				if (
+					this._marker.config.markerStyle == "LB" &&
+					this._marker.config.markerNum == 0
+				) {
+					this._marker.switchMaker({
+						markerNum: -1
+					});
+					return false;
+				} else {
+					this._marker.switchMaker({
+						lastMarkerStyle: "CR",
+						lastMoveColor: null,
+						markerStyle: "LB",
+						markerNum: 0
+					});
+					return true;
+				}
+			}
+		}
+	});
+
 	for (const [name, prop] of menuItems) {
 		widgets.push({
 			constructor: Button,

@@ -43,6 +43,7 @@ WGo.Board.drawHandlers["TRS"] = {
 const defConfig = {
 	markerStyle: "TRS", //display style
 	markerNum: 1, // Set to specify how many items should be displayed at once. from back to front
+	lastMarkerStyle: null, //display style
 	lastMoveColor: "red"
 };
 
@@ -111,7 +112,9 @@ Marker.prototype = {
 						y: y,
 						text: num,
 						c: this.config.lastMoveColor,
-						type: this.config.markerStyle
+						type:
+							this.config.lastMarkerStyle ||
+							this.config.markerStyle
 					});
 				} else {
 					this.lbs.push({
@@ -132,6 +135,7 @@ Marker.prototype = {
 	}
 };
 
+/*
 Player.Marker = Marker;
 if (Control) {
 	Control.menu.push({
@@ -171,5 +175,6 @@ if (Control) {
 		}
 	});
 }
+*/
 
 WGo.i18n.en["switchmarker"] = "Switch Marker";
