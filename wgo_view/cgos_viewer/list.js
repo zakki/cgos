@@ -24,7 +24,7 @@
 (function (cgos) {
 	"use strict";
 
-	let players = new Map();
+	const players = new Map();
 	cgos.players = players;
 
 	const POLL_INTERVAL = 10_000;
@@ -34,21 +34,21 @@
 	let analysisCheckbox;
 
 	function createPlayer(elmList, gameId, sgfPath, title, mode) {
-		let elmGame = document.createElement("div");
+		const elmGame = document.createElement("div");
 		elmGame.id = gameId;
 		elmGame.classList.add("game");
 		elmList.prepend(elmGame);
 
-		let elmHeader = document.createElement("div");
+		const elmHeader = document.createElement("div");
 		elmHeader.classList.add("header");
-		let elmTitle = document.createElement("a");
+		const elmTitle = document.createElement("a");
 		elmTitle.innerText = title;
 		elmTitle.title = title;
 		elmTitle.href = "viewer.html?" + sgfPath;
 		elmHeader.append(elmTitle);
 		elmHeader.insertAdjacentHTML("beforeend", '<span class="spacer"/>');
 
-		let elmButtons = document.createElement("div");
+		const elmButtons = document.createElement("div");
 		elmButtons.classList.add("buttons");
 
 		elmButtons.insertAdjacentHTML(
@@ -62,11 +62,11 @@
 		let sgfPath2 = sgfPath;
 		if (FORCE_UPDATE_SGF) sgfPath2 += "?_=" + Date.now();
 
-		let elmPlayer = document.createElement("div");
+		const elmPlayer = document.createElement("div");
 		elmPlayer.className = "player";
 		// elmPlayer.src = "viewer_iframe.html?" + sgfPath2;
 		elmGame.append(elmPlayer);
-		let player = new cgos.WGoPlayer(elmPlayer, sgfPath2);
+		const player = new cgos.WGoPlayer(elmPlayer, sgfPath2);
 		player.player._cgos.set(analysisCheckbox.checked);
 
 		const obj = {
@@ -89,9 +89,9 @@
 		//console.log(elmNum, numGames);
 		const elmList = document.getElementById("games");
 		if (elmList == null) throw Error("no games element");
-		let gameKeys = new Set(Array.from(players.keys()));
-		for (let line of lines) {
-			let tokens = line.split(" ");
+		const gameKeys = new Set(Array.from(players.keys()));
+		for (const line of lines) {
+			const tokens = line.split(" ");
 			let gid, sgfPath, white, black, result;
 			let hasError = false;
 			let message = "";
@@ -140,7 +140,7 @@
 			const title =
 				message + gid + " " + white + " - " + black + " " + result;
 			const gameId = "game-" + gid;
-			let obj = players.get(gameId);
+			const obj = players.get(gameId);
 			// let elmGame = document.getElementById(gameId);
 			if (obj) {
 				obj.mode = tokens[0];
@@ -166,7 +166,7 @@
 		}
 
 		// Remove games
-		let keys = Array.from(players.keys());
+		const keys = Array.from(players.keys());
 		keys.sort((a, b) => Number(b.split("-")[1]) - Number(a.split("-")[1]));
 		if (numGames > 0) {
 			let numVisible = 0;
@@ -188,7 +188,7 @@
 	}
 
 	function pollWebData() {
-		let xhr = new XMLHttpRequest();
+		const xhr = new XMLHttpRequest();
 
 		if (!xhr) {
 			console.error("Fail to create XMLHttpRequest");
@@ -196,7 +196,7 @@
 		}
 		xhr.onreadystatechange = () => {
 			if (xhr.readyState === XMLHttpRequest.DONE) {
-				let lines = xhr.responseText.split("\n");
+				const lines = xhr.responseText.split("\n");
 
 				const elmWdata = document.getElementById("wdata");
 				if (elmWdata) {
@@ -245,7 +245,7 @@
 			});
 		}
 
-		let resetButton = document.querySelector("#reset");
+		const resetButton = document.querySelector("#reset");
 		if (resetButton) {
 			resetButton.addEventListener("click", (e) => {
 				players.clear();

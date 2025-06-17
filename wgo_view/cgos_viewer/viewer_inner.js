@@ -92,10 +92,10 @@
 				return;
 			}
 
-			let startPos = this.lastSgfPos;
+			const startPos = this.lastSgfPos;
 
 			// console.log("fetch", sgfSize, startPos);
-			let init = {
+			const init = {
 				cache: "no-store"
 			};
 			if (startPos > 0) {
@@ -128,9 +128,9 @@
 				.then(
 					(buf) => {
 						if (buf == null) return;
-						let size = startPos + buf.byteLength;
+						const size = startPos + buf.byteLength;
 						if (size >= this.sgfBuffer.byteLength) {
-							let newBuffer = new Uint8Array(size * 2);
+							const newBuffer = new Uint8Array(size * 2);
 							// console.log("resize", sgfBuffer.byteLength, size);
 							newBuffer.set(this.sgfBuffer);
 							this.sgfBuffer = newBuffer;
@@ -139,7 +139,7 @@
 						this.sgfBuffer.set(new Uint8Array(buf), startPos);
 						this.sgfSize = size;
 
-						let sgf = this.decode();
+						const sgf = this.decode();
 						// console.log(sgf);
 						if (!sgf.trim().endsWith(")")) {
 							console.log("ignore bad sgf", sgf);

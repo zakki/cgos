@@ -47,10 +47,10 @@
 			return;
 		}
 
-		let startPos = lastSgfPos;
+		const startPos = lastSgfPos;
 
 		// console.log("fetch", sgfSize, startPos);
-		let init = {
+		const init = {
 			cache: "no-store"
 		};
 		if (startPos > 0) {
@@ -83,9 +83,9 @@
 			.then(
 				(buf) => {
 					if (buf == null) return;
-					let size = startPos + buf.byteLength;
+					const size = startPos + buf.byteLength;
 					if (size >= sgfBuffer.byteLength) {
-						let newBuffer = new Uint8Array(size * 2);
+						const newBuffer = new Uint8Array(size * 2);
 						// console.log("resize", sgfBuffer.byteLength, size);
 						newBuffer.set(sgfBuffer);
 						sgfBuffer = newBuffer;
@@ -136,13 +136,13 @@
 	}
 
 	window.addEventListener("load", (event) => {
-		let path = location.search.substring(1);
+		const path = location.search.substring(1);
 		if (!path.match(VALID_SGF_PATH)) {
 			console.error("bad sgf", path);
 			return;
 		}
 		if (path.length > 0) {
-			let elmPlayer = document.querySelector("#cgoswgo");
+			const elmPlayer = document.querySelector("#cgoswgo");
 			player = new WGo.BasicPlayer(elmPlayer, {
 				move: END_MOVES,
 				markLastMove: true,
@@ -166,7 +166,7 @@
 			});
 		}
 
-		let sgflink = document.querySelector("#sgflink");
+		const sgflink = document.querySelector("#sgflink");
 		if (sgflink) sgflink.href = path;
 
 		updateCheckbox = document.querySelector("#update");
