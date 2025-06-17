@@ -53,17 +53,14 @@
 		let init = {
 			cache: "no-store"
 		};
-		if (startPos == 0) {
-			player.loadSgfFromFile(path, END_MOVES);
-			player.updateDimensions();
-		} else {
+		if (startPos > 0) {
 			//startPos = ((startPos / CHUNK_SIZE) | 0) * CHUNK_SIZE;
 			init["headers"] = {
 				range: "bytes=" + startPos + "-" + (startPos + 10_000_000)
 			};
 		}
-		path = path.replace(".sgf", `.bin`);
-		fetch(path, init)
+		const binpath = path.replace(".sgf", `.bin`);
+		fetch(binpath, init)
 			.then((r) => {
 				if (r.ok) {
 					return r.arrayBuffer();
@@ -83,52 +80,59 @@
 					return Promise.reject("error");
 				}
 			})
-			.then((buf) => {
-				if (buf == null) return;
-				let size = startPos + buf.byteLength;
-				if (size >= sgfBuffer.byteLength) {
-					let newBuffer = new Uint8Array(size * 2);
-					// console.log("resize", sgfBuffer.byteLength, size);
-					newBuffer.set(sgfBuffer);
-					sgfBuffer = newBuffer;
-				}
-
-				sgfBuffer.set(new Uint8Array(buf), startPos);
-				sgfSize = size;
-
-				let sgf = "";
-				const decoder = new TextDecoder();
-				const view = new DataView(sgfBuffer.buffer);
-				for (let i = 0; i < sgfSize; ) {
-					let size = view.getInt32(i, true);
-					let buf;
-					if (size < 0) {
-						size = -size;
-						buf = pako.inflate(
-							new Uint8Array(sgfBuffer.buffer, i + 4, size)
-						);
-					} else {
-						buf = new Uint8Array(sgfBuffer.buffer, i + 4, size);
-					}
-					const chunk = decoder.decode(buf);
-					// console.log(i, chunk);
-					if (chunk.indexOf("CZ[]") > 0) {
-						lastSgfPos = i;
+			.then(
+				(buf) => {
+					if (buf == null) return;
+					let size = startPos + buf.byteLength;
+					if (size >= sgfBuffer.byteLength) {
+						let newBuffer = new Uint8Array(size * 2);
+						// console.log("resize", sgfBuffer.byteLength, size);
+						newBuffer.set(sgfBuffer);
+						sgfBuffer = newBuffer;
 					}
 
-					sgf += chunk;
+					sgfBuffer.set(new Uint8Array(buf), startPos);
+					sgfSize = size;
 
-					i += 4 + size;
+					let sgf = "";
+					const decoder = new TextDecoder();
+					const view = new DataView(sgfBuffer.buffer);
+					for (let i = 0; i < sgfSize; ) {
+						let size = view.getInt32(i, true);
+						let buf;
+						if (size < 0) {
+							size = -size;
+							buf = pako.inflate(
+								new Uint8Array(sgfBuffer.buffer, i + 4, size)
+							);
+						} else {
+							buf = new Uint8Array(sgfBuffer.buffer, i + 4, size);
+						}
+						const chunk = decoder.decode(buf);
+						// console.log(i, chunk);
+						if (chunk.indexOf("CZ[]") > 0) {
+							lastSgfPos = i;
+						}
+
+						sgf += chunk;
+
+						i += 4 + size;
+					}
+					// console.log(sgf);
+					if (!sgf.trim().endsWith(")")) {
+						console.log("ignore bad sgf", sgf);
+						//pollSgf();
+						return;
+					}
+					player.loadSgf(sgf, END_MOVES);
+					player.updateDimensions();
+				},
+				(err) => {
+					console.error("fetch error", err);
+					player.loadSgfFromFile(path, END_MOVES);
+					player.updateDimensions();
 				}
-				// console.log(sgf);
-				if (!sgf.trim().endsWith(")")) {
-					console.log("ignroe bad sgf", sgf);
-					//pollSgf();
-					return;
-				}
-				player.loadSgf(sgf, END_MOVES);
-				player.updateDimensions();
-			});
+			);
 	}
 
 	window.addEventListener("load", (event) => {
@@ -140,7 +144,6 @@
 		if (path.length > 0) {
 			let elmPlayer = document.querySelector("#cgoswgo");
 			player = new WGo.BasicPlayer(elmPlayer, {
-				sgfFile: path,
 				move: END_MOVES,
 				markLastMove: true,
 				kifuLoaded: function (e) {

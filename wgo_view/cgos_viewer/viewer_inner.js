@@ -51,7 +51,6 @@
 			}
 
 			this.player = new WGo.BasicPlayer(elmPlayer, {
-				sgfFile: path,
 				move: END_MOVES,
 				markLastMove: true,
 				kifuLoaded: (e) => {
@@ -85,9 +84,10 @@
 		}
 
 		pollSgf() {
+			let path = this.path;
 			if (!this.useRangeFetch) {
-				if (FORCE_UPDATE_SGF) this.path += "?_=" + Date.now();
-				this.player.loadSgfFromFile(this.path, END_MOVES);
+				if (FORCE_UPDATE_SGF) path += "?_=" + Date.now();
+				this.player.loadSgfFromFile(path, END_MOVES);
 				this.player.updateDimensions();
 				return;
 			}
@@ -98,17 +98,14 @@
 			let init = {
 				cache: "no-store"
 			};
-			if (startPos == 0) {
-				this.player.loadSgfFromFile(this.path, END_MOVES);
-				this.player.updateDimensions();
-			} else {
+			if (startPos > 0) {
 				//startPos = ((startPos / CHUNK_SIZE) | 0) * CHUNK_SIZE;
 				init["headers"] = {
 					range: "bytes=" + startPos + "-" + (startPos + 10_000_000)
 				};
 			}
-			let path = this.path.replace(".sgf", `.bin`);
-			fetch(path, init)
+			const binpath = this.path.replace(".sgf", `.bin`);
+			fetch(binpath, init)
 				.then((r) => {
 					if (r.ok) {
 						return r.arrayBuffer();
@@ -128,29 +125,36 @@
 						return Promise.reject("error");
 					}
 				})
-				.then((buf) => {
-					if (buf == null) return;
-					let size = startPos + buf.byteLength;
-					if (size >= this.sgfBuffer.byteLength) {
-						let newBuffer = new Uint8Array(size * 2);
-						// console.log("resize", sgfBuffer.byteLength, size);
-						newBuffer.set(this.sgfBuffer);
-						this.sgfBuffer = newBuffer;
-					}
+				.then(
+					(buf) => {
+						if (buf == null) return;
+						let size = startPos + buf.byteLength;
+						if (size >= this.sgfBuffer.byteLength) {
+							let newBuffer = new Uint8Array(size * 2);
+							// console.log("resize", sgfBuffer.byteLength, size);
+							newBuffer.set(this.sgfBuffer);
+							this.sgfBuffer = newBuffer;
+						}
 
-					this.sgfBuffer.set(new Uint8Array(buf), startPos);
-					this.sgfSize = size;
+						this.sgfBuffer.set(new Uint8Array(buf), startPos);
+						this.sgfSize = size;
 
-					let sgf = this.decode();
-					// console.log(sgf);
-					if (!sgf.trim().endsWith(")")) {
-						console.log("ignroe bad sgf", sgf);
-						//pollSgf();
-						return;
+						let sgf = this.decode();
+						// console.log(sgf);
+						if (!sgf.trim().endsWith(")")) {
+							console.log("ignore bad sgf", sgf);
+							//pollSgf();
+							return;
+						}
+						this.player.loadSgf(sgf, END_MOVES);
+						this.player.updateDimensions();
+					},
+					(err) => {
+						console.error("fetch error", err);
+						this.player.loadSgfFromFile(this.path, END_MOVES);
+						this.player.updateDimensions();
 					}
-					this.player.loadSgf(sgf, END_MOVES);
-					this.player.updateDimensions();
-				});
+				);
 		}
 
 		decode() {
