@@ -29,9 +29,7 @@
 	const VALID_SGF_PATH = "^[/a-zA-Z0-9.]*(\\?_=[0-9]*)?$";
 
 	class WGoPlayer {
-		updateCheckbox = {
-			checked: true
-		};
+		updateCheckbox;
 		player;
 
 		sgfBuffer = new Uint8Array(1_000_000);
@@ -41,7 +39,7 @@
 
 		pollHandlerId = null;
 
-		constructor(elmPlayer, path) {
+		constructor(elmPlayer, path, updateCheckbox) {
 			this.path = path;
 			this.elmPlayer = elmPlayer;
 
@@ -71,15 +69,19 @@
 				}
 			});
 
-			// let sgflink = document.querySelector("#sgflink");
-			// if (sgflink)
-			//     sgflink.href = path;
+			const sgflink = document.querySelector("#sgflink");
+			if (sgflink) sgflink.href = path;
 
-			// updateCheckbox = document.querySelector("#update");
-			// updateCheckbox.addEventListener("click", (e) => {
-			//     updatePollHandler();
-			// });
-
+			if (updateCheckbox) {
+				this.updateCheckbox = updateCheckbox;
+				this.updateCheckbox.addEventListener("click", (e) => {
+					this.updatePollHandler();
+				});
+			} else {
+				this.updateCheckbox = {
+					checked: true
+				};
+			}
 			this.updatePollHandler();
 		}
 
