@@ -1,0 +1,48 @@
+name: Build and release wgo_view
+on:
+  push:
+  release:
+    types: [published]
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        working-directory: wgo_view
+        run: npm ci
+      - name: Build wgo_view
+        working-directory: wgo_view
+        run: npm run build
+      - name: Archive Build Artifacts
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: wgo_view_build_${{ github.sha }}
+          path: |
+            wgo_view/dist
+            wgo_view/wgo
+            wgo_view/cgos_viewer
+            wgo_view/*.html
+            wgo_view/messages.js
+      - name: Package wgo_view
+        if: ${{ github.event_name == 'release' }}
+        run: |
+          ZIP_NAME=wgo_view_${{ github.event.release.tag_name }}.zip
+          cd wgo_view
+          zip -r ../${ZIP_NAME} dist wgo cgos_viewer *.html messages.js
+      - name: Upload Release Asset
+        if: ${{ github.event_name == 'release' }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./wgo_view_${{ github.event.release.tag_name }}.zip
+          asset_name: wgo_view_${{ github.event.release.tag_name }}.zip
+          asset_content_type: application/zip
