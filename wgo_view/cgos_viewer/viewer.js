@@ -29,8 +29,31 @@
 		const path = location.search.substring(1);
 		const elmPlayer = document.querySelector("#cgoswgo");
 		const updateCheckbox = document.querySelector("#update");
+		const touchCheckbox = document.querySelector("#touchmode");
 		if (!elmPlayer) return;
 		// Instantiate the WGoPlayer class (defined in viewer_inner.js)
-		new cgos.WGoPlayer(elmPlayer, path, updateCheckbox);
+		// Persist touch mode setting across reloads
+		const storageKey = "cgos_touch_mode";
+		let initialTouchMode = false;
+		if (touchCheckbox) {
+			try {
+				initialTouchMode = localStorage.getItem(storageKey) === "true";
+			} catch (e) {}
+			touchCheckbox.checked = initialTouchMode;
+		}
+		const player = new cgos.WGoPlayer(elmPlayer, path, updateCheckbox, {
+			touchMode: initialTouchMode,
+			touchSwipe: true
+		});
+		// Bind touch mode toggle
+		if (touchCheckbox) {
+			touchCheckbox.addEventListener("click", (e) => {
+				const enabled = e.target.checked;
+				try {
+					localStorage.setItem(storageKey, enabled);
+				} catch (err) {}
+				player.setTouchMode(enabled);
+			});
+		}
 	});
 })(cgos);

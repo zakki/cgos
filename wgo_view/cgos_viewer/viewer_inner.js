@@ -21,15 +21,26 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-/* global WGo, pako, Hammer */
+/* global WGo, pako */
 (function (cgos) {
 	const POLL_INTERVAL = 10_000;
 	const END_MOVES = 100000;
 	const FORCE_UPDATE_SGF = true;
 	const USE_FETCH = true;
 	const VALID_SGF_PATH = "^[/a-zA-Z0-9.]*(\\?_=[0-9]*)?$";
+	// Number of moves to advance when swiping full width
+	const MAX_SWIPE_MOVES = 20;
 
 	class WGoPlayer {
+		// Touch mode event handlers and settings
+		_events = {};
+		touchMode = false;
+		touchSwipe = true;
+		_touchStartX = 0;
+		_touchStartY = 0;
+		_touchStartTime = 0;
+		_touchStartHandler = null;
+		_touchEndHandler = null;
 		updateCheckbox;
 		player;
 
@@ -40,9 +51,13 @@
 
 		pollHandlerId = null;
 
-		constructor(elmPlayer, path, updateCheckbox) {
+		constructor(elmPlayer, path, updateCheckbox, options = {}) {
 			this.path = path;
 			this.elmPlayer = elmPlayer;
+			// Initialize touch options
+			const { touchMode = false, touchSwipe = true } = options;
+			this.touchMode = touchMode;
+			this.touchSwipe = touchSwipe;
 
 			if (!path.match(VALID_SGF_PATH)) {
 				console.error("bad sgf", path);
@@ -84,6 +99,8 @@
 				};
 			}
 			this.updatePollHandler();
+			// Initialize touch mode
+			this.setTouchMode(this.touchMode);
 		}
 
 		pollSgf() {
@@ -204,6 +221,124 @@
 		stop() {
 			this.updateCheckbox.checked = false;
 			this.updatePollHandler();
+		}
+
+		/**
+		 * Enable or disable touch mode.
+		 */
+		setTouchMode(enabled) {
+			this.touchMode = enabled;
+			// Toggle CSS class on root element
+			if (enabled) {
+				document.documentElement.classList.add("touch-mode");
+			} else {
+				document.documentElement.classList.remove("touch-mode");
+			}
+			// Bind or unbind touch events
+			if (enabled) {
+				this.bindTouchEvents();
+			} else {
+				this.unbindTouchEvents();
+			}
+			// Immediately update player dimensions after CSS change
+			if (this.player && this.player.updateDimensions) {
+				this.player.updateDimensions();
+			}
+		}
+
+		/**
+		 * Bind touch event handlers.
+		 */
+		bindTouchEvents() {
+			if (this.touchSwipe) {
+				// On swipe start, record position and reset accumulator
+				this._touchStartHandler = (e) => {
+					const t = e.touches[0];
+					this._touchStartX = t.clientX;
+					this._touchStartY = t.clientY;
+					this._lastSwipeDx = 0;
+				};
+				// On swipe move, trigger moves based on horizontal distance
+				this._touchMoveHandler = (e) => {
+					const t = e.touches[0];
+					const dx = t.clientX - this._touchStartX;
+					const dy = t.clientY - this._touchStartY;
+					const verticalThreshold = 30;
+					if (Math.abs(dy) > verticalThreshold) return;
+					const width =
+						this.elmPlayer.clientWidth || window.innerWidth;
+					const unit = width / MAX_SWIPE_MOVES;
+					// Swipe left: forward moves
+					while (dx - this._lastSwipeDx <= -unit) {
+						this.player.next();
+						this._lastSwipeDx -= unit;
+						this._emit("swipeLeft", 1);
+					}
+					// Swipe right: backward moves
+					while (dx - this._lastSwipeDx >= unit) {
+						this.player.previous();
+						this._lastSwipeDx += unit;
+						this._emit("swipeRight", 1);
+					}
+				};
+				this.elmPlayer.addEventListener(
+					"touchstart",
+					this._touchStartHandler
+				);
+				this.elmPlayer.addEventListener(
+					"touchmove",
+					this._touchMoveHandler
+				);
+			}
+		}
+
+		/**
+		 * Unbind touch event handlers.
+		 */
+		unbindTouchEvents() {
+			if (this._touchStartHandler) {
+				this.elmPlayer.removeEventListener(
+					"touchstart",
+					this._touchStartHandler
+				);
+				this._touchStartHandler = null;
+			}
+			if (this._touchMoveHandler) {
+				this.elmPlayer.removeEventListener(
+					"touchmove",
+					this._touchMoveHandler
+				);
+				this._touchMoveHandler = null;
+			}
+		}
+
+		/**
+		 * Register event handler.
+		 */
+		on(event, callback) {
+			if (!this._events[event]) this._events[event] = [];
+			this._events[event].push(callback);
+		}
+
+		/**
+		 * Unregister event handler.
+		 */
+		off(event, callback) {
+			if (!this._events[event]) return;
+			if (callback) {
+				const idx = this._events[event].indexOf(callback);
+				if (idx > -1) this._events[event].splice(idx, 1);
+			} else {
+				delete this._events[event];
+			}
+		}
+
+		/**
+		 * Emit internal event.
+		 */
+		_emit(event, ...args) {
+			const handlers = this._events[event];
+			if (handlers) handlers.forEach((fn) => fn.apply(this, args));
 		}
 	}
 

@@ -1,6 +1,8 @@
 <!doctype html>
 <html>
 	<head>
+		<!-- Responsive viewport for touch devices -->
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>sgf viewer</title>
 		<script type="text/javascript" src="/wgo/wgo.min.js"></script>
 		<script type="text/javascript" src="/wgo/wgo.player.min.js"></script>
@@ -16,6 +18,11 @@
 
 		<input type="checkbox" id="update" name="horns" checked />
 		<label for="update">Automatic reload</label>
+
+		<!-- Touch Mode Toggle -->
+		<input type="checkbox" id="touchmode" name="touchmode" />
+		<label for="touchmode">Touch Mode</label>
+
 		<a id="sgflink">Download SGF</a>.
 	</body>
 </html>

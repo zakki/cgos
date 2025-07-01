@@ -371,7 +371,7 @@ CgosControl.widgets = [];
 	const bp_layouts = BasicPlayer.layouts;
 	bp_layouts["right_top"].bottom.push("CgosControl");
 	bp_layouts["right"].right.push("CgosControl");
-	bp_layouts["one_column"].bottom.push("CgosControl");
+	bp_layouts["one_column"].bottom.splice(0, 0, "CgosControl");
 	// bp_layouts["no_comment"].bottom.push("CgosControl");
 	// bp_layouts["minimal"].bottom.push("CgosControl");
 }
@@ -819,7 +819,7 @@ const EvaluationGraphBox = WGo.extendClass(Component, function (player) {
 
 bp_layouts["right_top"].bottom.push("EvaluationGraphBox");
 //bp_layouts["right"].right.push("EvaluationGraphBox");
-bp_layouts["one_column"].bottom.push("EvaluationGraphBox");
+bp_layouts["one_column"].bottom.splice(1, 0, "EvaluationGraphBox");
 bp_layouts["no_comment"].bottom.push("EvaluationGraphBox");
 
 BasicPlayer.component.EvaluationGraphBox = EvaluationGraphBox;
