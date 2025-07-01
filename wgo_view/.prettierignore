@@ -4,3 +4,4 @@ wgo/*
 
 !wgo/player.cgos.js
 !wgo/player.maker.js
+!wgo/wgo.player.css
