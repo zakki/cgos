@@ -5,7 +5,7 @@
   "scripts": {
     "build": "rollup -c",
     "format": "prettier --write wgo/ cgos_viewer/",
-    "lint": "eslint 'wgo/'"
+    "lint": "eslint wgo/ cgos_viewer/"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",

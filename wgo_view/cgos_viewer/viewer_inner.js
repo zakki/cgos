@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+/* global WGo, pako, Hammer */
 (function (cgos) {
 	const POLL_INTERVAL = 10_000;
 	const END_MOVES = 100000;
