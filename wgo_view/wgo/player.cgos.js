@@ -198,6 +198,12 @@ CgosAnalysisContext.prototype.set = function (set) {
 		this.board.addEventListener("mousemove", this._ev_move);
 		this.board.addEventListener("mouseout", this._ev_out);
 
+		this.board.addEventListener("touchmove", this._ev_move);
+		this.board.addEventListener("touchend", this._ev_out);
+		this.board.addEventListener("touchcancel", this._ev_out);
+		// Clear variation marks on any move playback
+		this.player.addEventListener("update", this._ev_out);
+
 		this.cgosMode = true;
 	} else if (this.cgosMode && !set) {
 		this.player.update(true);
@@ -205,6 +211,12 @@ CgosAnalysisContext.prototype.set = function (set) {
 		// remove cgos listeners
 		this.board.removeEventListener("mousemove", this._ev_move);
 		this.board.removeEventListener("mouseout", this._ev_out);
+
+		this.board.removeEventListener("touchmove", this._ev_move);
+		this.board.removeEventListener("touchend", this._ev_out);
+		this.board.removeEventListener("touchcancel", this._ev_out);
+		// Remove update listener for variation clear
+		this.player.removeEventListener("update", this._ev_out);
 
 		this.cgosMode = false;
 	}
