@@ -66,7 +66,9 @@
 		elmPlayer.className = "player";
 		// elmPlayer.src = "viewer_iframe.html?" + sgfPath2;
 		elmGame.append(elmPlayer);
-		const player = new cgos.WGoPlayer(elmPlayer, sgfPath2);
+		const player = new cgos.WGoPlayer(elmPlayer, sgfPath2, null, {
+			layout: cgos.LAYOUT_LIST
+		});
 		player.player._cgos.set(analysisCheckbox.checked);
 
 		const obj = {

@@ -31,6 +31,28 @@
 	// Number of moves to advance when swiping full width
 	const MAX_SWIPE_MOVES = 20;
 
+	const LAYOUT_VIEWER = [
+		{
+			conditions: {
+				minWidth: 650
+			},
+			layout: WGo.BasicPlayer.layouts["right_top"],
+			className: "wgo-twocols wgo-large"
+		},
+		{
+			layout: WGo.BasicPlayer.layouts["one_column"],
+			className: "wgo-medium"
+		}
+	];
+	cgos.LAYOUT_VIEWER = LAYOUT_VIEWER;
+	const LAYOUT_LIST = [
+		{
+			layout: WGo.BasicPlayer.layouts["no_comment"],
+			className: "wgo-xsmall"
+		}
+	];
+	cgos.LAYOUT_LIST = LAYOUT_LIST;
+
 	class WGoPlayer {
 		// Touch mode event handlers and settings
 		_events = {};
@@ -55,7 +77,11 @@
 			this.path = path;
 			this.elmPlayer = elmPlayer;
 			// Initialize touch options
-			const { touchMode = false, touchSwipe = true } = options;
+			const {
+				touchMode = false,
+				touchSwipe = true,
+				layout = LAYOUT_VIEWER
+			} = options;
 			this.touchMode = touchMode;
 			this.touchSwipe = touchSwipe;
 
@@ -82,7 +108,8 @@
 						this.player.previous();
 						this.player.next();
 					});
-				}
+				},
+				layout: layout
 			});
 
 			const sgflink = document.querySelector("#sgflink");

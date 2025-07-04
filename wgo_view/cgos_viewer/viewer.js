@@ -38,7 +38,9 @@
 		if (touchCheckbox) {
 			try {
 				initialTouchMode = localStorage.getItem(storageKey) === "true";
-			} catch (e) {}
+			} catch (e) {
+				// do nothing
+			}
 			touchCheckbox.checked = initialTouchMode;
 		}
 		const player = new cgos.WGoPlayer(elmPlayer, path, updateCheckbox, {
@@ -51,7 +53,9 @@
 				const enabled = e.target.checked;
 				try {
 					localStorage.setItem(storageKey, enabled);
-				} catch (err) {}
+				} catch (err) {
+					// do nothing
+				}
 				player.setTouchMode(enabled);
 			});
 		}
