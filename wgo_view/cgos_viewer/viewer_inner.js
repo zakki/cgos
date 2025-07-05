@@ -155,7 +155,7 @@
 			let path = this.path;
 			if (!this.useRangeFetch) {
 				if (FORCE_UPDATE_SGF) path += "?_=" + Date.now();
-				this.player.loadSgfFromFile(path, END_MOVES);
+				this.player.loadSgfFromFile(path);
 				this.player.updateDimensions();
 				return;
 			}
@@ -214,12 +214,12 @@
 							//pollSgf();
 							return;
 						}
-						this.player.loadSgf(sgf, END_MOVES);
+						this.player.loadSgf(sgf);
 						this.player.updateDimensions();
 					},
 					(err) => {
 						console.error("fetch error", err);
-						this.player.loadSgfFromFile(this.path, END_MOVES);
+						this.player.loadSgfFromFile(this.path);
 						this.player.updateDimensions();
 					}
 				);
