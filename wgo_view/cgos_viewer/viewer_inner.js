@@ -80,7 +80,8 @@
 			const {
 				touchMode = false,
 				touchSwipe = true,
-				layout = LAYOUT_VIEWER
+				layout = LAYOUT_VIEWER,
+				stoneStyle = "SHELL"
 			} = options;
 			this.touchMode = touchMode;
 			this.touchSwipe = touchSwipe;
@@ -111,6 +112,7 @@
 				},
 				layout: layout
 			});
+			this.setStoneStyle(stoneStyle);
 
 			const sgflink = document.querySelector("#sgflink");
 			if (sgflink) sgflink.href = path;
@@ -128,6 +130,25 @@
 			this.updatePollHandler();
 			// Initialize touch mode
 			this.setTouchMode(this.touchMode);
+		}
+
+		setStoneStyle(style) {
+			if (!this.player || !this.player.board) {
+				return;
+			}
+			const board = this.player.board;
+			if (style === "REALISTIC") {
+				board.stoneHandler = WGo.Board.drawHandlers.REALISTIC;
+			} else if (style === "GLOW") {
+				board.stoneHandler = WGo.Board.drawHandlers.GLOW;
+			} else if (style === "SHELL") {
+				board.stoneHandler = WGo.Board.drawHandlers.SHELL;
+			} else if (style === "PAINTED") {
+				board.stoneHandler = WGo.Board.drawHandlers.PAINTED;
+			} else {
+				board.stoneHandler = WGo.Board.drawHandlers.MONO;
+			}
+			board.redraw();
 		}
 
 		pollSgf() {

@@ -85,6 +85,14 @@
 		players.set(gameId, obj);
 	}
 
+	function applyStoneStyle(style) {
+		for (const obj of players.values()) {
+			if (obj.player) {
+				obj.player.setStoneStyle(style);
+			}
+		}
+	}
+
 	function addWgo(lines) {
 		const elmNum = document.querySelector("#num-games");
 		const numGames = Number.parseInt(elmNum.value);
@@ -167,6 +175,9 @@
 			gameKeys.delete(gameId);
 		}
 
+		const stoneStyle = document.querySelector("#stone-style").value;
+		applyStoneStyle(stoneStyle);
+
 		// Remove games
 		const keys = Array.from(players.keys());
 		keys.sort((a, b) => Number(b.split("-")[1]) - Number(a.split("-")[1]));
@@ -244,6 +255,30 @@
                     });
                     */
 				}
+			});
+		}
+
+		const stoneStyleSelect = document.querySelector("#stone-style");
+		const stoneStyleStorageKey = "cgos_stone_style";
+		let initialStoneStyle = "SHELL";
+		if (stoneStyleSelect) {
+			try {
+				initialStoneStyle =
+					localStorage.getItem(stoneStyleStorageKey) || "SHELL";
+			} catch (e) {
+				// do nothing
+			}
+			stoneStyleSelect.value = initialStoneStyle;
+			applyStoneStyle(initialStoneStyle);
+
+			stoneStyleSelect.addEventListener("change", (e) => {
+				const style = e.target.value;
+				try {
+					localStorage.setItem(stoneStyleStorageKey, style);
+				} catch (err) {
+					// do nothing
+				}
+				applyStoneStyle(style);
 			});
 		}
 
