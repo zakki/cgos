@@ -387,6 +387,61 @@ WGo.i18n.en["cgos-wscore"] = "White score graph";
 // CGOS variation overlay component.
 // Displays CGOS analysis information on the board.
 
+function parseAndCacheCC(node, board) {
+	if (!node.CC || node.CC.length == 0) return null;
+	if (!node._cgosCC) {
+		const tokens = JSON.parse(node.CC);
+		const cgosCC = {};
+
+		cgosCC.winrate = winrate(tokens);
+		cgosCC.score = score(tokens);
+		cgosCC.ownership = tokens.ownership;
+		cgosCC.moveInfoList = [];
+		if (tokens.moves && tokens.moves.length > 0) {
+			for (let i = 0; i < tokens.moves.length; i++) {
+				const info = tokens.moves[i];
+				let move = null;
+				let winrate = null;
+				let score = null;
+				const pv = [];
+				if (info.move) {
+					move = parseCoord(board.size, info.move);
+				}
+				if (move != null) {
+					if (info.winrate) {
+						winrate = info.winrate;
+					}
+					if (info.score) {
+						score = info.score;
+					}
+					if (info.pv) {
+						const moves = info.pv.split(" ");
+						if (info.move && moves[0] != info.move) {
+							moves.unshift(info.move);
+						}
+						for (let k = 0; k < moves.length; k++) {
+							const m = parseCoord(board.size, moves[k]);
+							if (m == null) break;
+							pv.push(m);
+						}
+					}
+
+					const o = {
+						move: move,
+						label: "[" + (cgosCC.moveInfoList.length + 1) + "]",
+						winrate: winrate,
+						score: score,
+						pv: pv
+					};
+					cgosCC.moveInfoList.push(o);
+				}
+			}
+		}
+		node._cgosCC = cgosCC;
+	}
+	return node._cgosCC;
+}
+
 // basic updating function - handles board changes
 const update_board = function (e) {
 	// init array for new objects
@@ -408,51 +463,14 @@ const update_board = function (e) {
 
 	// genmove_analyze style comment
 	if (e.node.CC && e.node.CC.length > 0) {
-		const tokens = JSON.parse(e.node.CC);
-		this._cgos.board._cgosColor = e.node.move.c;
-		this._cgos.infoList = [];
+		const cc = parseAndCacheCC(e.node, this._cgos.board);
 		this._cgos.board._cgosOwnership = this._cgos.showOwnership
-			? tokens.ownership
+			? cc.ownership
 			: null;
 
-		if (this._cgos.showStats && tokens.moves) {
-			for (let j = 0; j < tokens.moves.length; j++) {
-				const info = tokens.moves[j];
-				let move = null;
-				let winrate = null;
-				let score = null;
-				const pv = [];
-				if (info.move) {
-					move = parseCoord(this._cgos.board.size, info.move);
-				}
-				if (info.winrate) {
-					winrate = info.winrate;
-				}
-				if (info.score) {
-					score = info.score;
-				}
-				if (info.pv) {
-					const moves = info.pv.split(" ");
-					if (info.move && moves[0] != info.move) {
-						moves.unshift(info.move);
-					}
-					for (let k = 0; k < moves.length; k++) {
-						const m = parseCoord(this._cgos.board.size, moves[k]);
-						if (m == null) break;
-						pv.push(m);
-					}
-				}
-
-				if (!move) continue;
-				const o = {
-					move: move,
-					label: "[" + (this._cgos.infoList.length + 1) + "]",
-					winrate: winrate,
-					score: score,
-					pv: pv
-				};
-				this._cgos.infoList.push(o);
-
+		if (this._cgos.showStats && cc.moveInfoList) {
+			this._cgos.infoList = cc.moveInfoList;
+			for (const o of cc.moveInfoList) {
 				add.push({
 					type: moveStatDrawer,
 					winrate: o.winrate,
@@ -769,13 +787,13 @@ const update = function (e) {
 			scoreList = this.whiteScore;
 		}
 
-		const info = JSON.parse(node.CC);
-		let rate = winrate(info);
+		const info = parseAndCacheCC(node, this.player.board);
+		let rate = info.winrate;
 		if (rate != null) {
 			if (node.move.c == WGo.B) rate = 100 - rate;
 			winrateList[turn] = turn * this.xScale + "," + rate;
 		}
-		let sc = score(info);
+		let sc = info.score;
 		if (sc != null) {
 			if (node.move.c == WGo.B) sc = 100 - sc;
 			scoreList[turn * 4] = turn * this.xScale + "," + 50;
