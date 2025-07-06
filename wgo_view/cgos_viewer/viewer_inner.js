@@ -329,11 +329,11 @@
 						this._emit("swipeRight", 1);
 					}
 				};
-				this.elmPlayer.addEventListener(
+				this.player.board.element.addEventListener(
 					"touchstart",
 					this._touchStartHandler
 				);
-				this.elmPlayer.addEventListener(
+				this.player.board.element.addEventListener(
 					"touchmove",
 					this._touchMoveHandler
 				);
@@ -345,14 +345,14 @@
 		 */
 		unbindTouchEvents() {
 			if (this._touchStartHandler) {
-				this.elmPlayer.removeEventListener(
+				this.player.board.element.removeEventListener(
 					"touchstart",
 					this._touchStartHandler
 				);
 				this._touchStartHandler = null;
 			}
 			if (this._touchMoveHandler) {
-				this.elmPlayer.removeEventListener(
+				this.player.board.element.removeEventListener(
 					"touchmove",
 					this._touchMoveHandler
 				);
