@@ -290,7 +290,7 @@ CgosControl.widgets = [];
 	});
 	*/
 
-	const toggleHandler = function (prop) {
+	const createToggleHandler = function (prop) {
 		return function (player) {
 			player._cgos[prop] = !player._cgos[prop];
 			player.update(true);
@@ -298,12 +298,38 @@ CgosControl.widgets = [];
 		};
 	};
 
-	const initHandler = function (prop) {
+	const createInitHandler = function (prop) {
 		return function (player) {
 			player._cgos =
 				player._cgos || new CgosAnalysisContext(player, player.board);
 			if (player._cgos[prop]) this.select();
 		};
+	};
+
+	const switchMarker = function (player) {
+		this._marker = this._marker || new Marker(player, player.board);
+		if (!this._isFirst) {
+			player.config.markLastMove = false;
+			// this._marker.clearDefaultSytle();
+			this._isFirst = true;
+		}
+		if (
+			this._marker.config.markerStyle == "LB" &&
+			this._marker.config.markerNum == 0
+		) {
+			this._marker.switchMaker({
+				markerNum: -1
+			});
+			return false;
+		} else {
+			this._marker.switchMaker({
+				lastMarkerStyle: "CR",
+				lastMoveColor: null,
+				markerStyle: "LB",
+				markerNum: 0
+			});
+			return true;
+		}
 	};
 
 	const menuItems = [
@@ -315,6 +341,7 @@ CgosControl.widgets = [];
 		["cgos-wscore", "showWhiteScore"]
 	];
 
+	/*
 	const widgets = [];
 
 	widgets.push({
@@ -323,31 +350,7 @@ CgosControl.widgets = [];
 			name: "cgos-switchmarker",
 			togglable: true,
 			init: function (player) {},
-			click: function (player) {
-				this._marker = this._marker || new Marker(player, player.board);
-				if (!this._isFirst) {
-					player.config.markLastMove = false;
-					// this._marker.clearDefaultSytle();
-					this._isFirst = true;
-				}
-				if (
-					this._marker.config.markerStyle == "LB" &&
-					this._marker.config.markerNum == 0
-				) {
-					this._marker.switchMaker({
-						markerNum: -1
-					});
-					return false;
-				} else {
-					this._marker.switchMaker({
-						lastMarkerStyle: "CR",
-						lastMoveColor: null,
-						markerStyle: "LB",
-						markerNum: 0
-					});
-					return true;
-				}
-			}
+			click: toggleMarker,
 		}
 	});
 
@@ -357,8 +360,8 @@ CgosControl.widgets = [];
 			args: {
 				name: name,
 				togglable: true,
-				click: toggleHandler(prop),
-				init: initHandler(prop)
+				click: createToggleHandler(prop),
+				init: createInitHandler(prop)
 			}
 		});
 	}
@@ -374,9 +377,32 @@ CgosControl.widgets = [];
 	bp_layouts["one_column"].bottom.splice(0, 0, "CgosControl");
 	// bp_layouts["no_comment"].bottom.push("CgosControl");
 	// bp_layouts["minimal"].bottom.push("CgosControl");
+	*/
+
+	Control.menu.push({
+		constructor: MenuItem,
+		args: {
+			name: "cgos-switchmarker",
+			init: function (player) {},
+			click: switchMarker
+		}
+	});
+
+	for (const [name, prop] of menuItems) {
+		Control.menu.push({
+			constructor: MenuItem,
+			args: {
+				name: name,
+				togglable: true,
+				click: createToggleHandler(prop),
+				init: createInitHandler(prop)
+			}
+		});
+	}
 }
 
 WGo.i18n.en["cgos"] = "CGOS mode";
+WGo.i18n.en["cgos-switchmarker"] = "Switch marker";
 WGo.i18n.en["cgos-stats"] = "Move stats overlay";
 WGo.i18n.en["cgos-ownership"] = "Ownership overlay";
 WGo.i18n.en["cgos-bwinrate"] = "Black winrate graph";
