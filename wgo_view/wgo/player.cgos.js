@@ -467,6 +467,8 @@ const update_board = function (e) {
 		this._cgos.board._cgosOwnership = this._cgos.showOwnership
 			? cc.ownership
 			: null;
+		this._cgos.board._cgosColor = e.node.move.c;
+		this._cgos.infoList = [];
 
 		if (this._cgos.showStats && cc.moveInfoList) {
 			this._cgos.infoList = cc.moveInfoList;
