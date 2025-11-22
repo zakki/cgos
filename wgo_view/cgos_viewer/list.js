@@ -26,6 +26,53 @@
 
 	const players = new Map();
 	cgos.players = players;
+	const tvControllers = new Map();
+
+	const rawSearch = window.location.search.substring(1);
+	const urlParams = new URLSearchParams(rawSearch);
+	const tvGameFilter = new Set();
+	const tvGamesParam = urlParams.get("tvGames");
+	if (tvGamesParam) {
+		for (const token of tvGamesParam.split(/[,;]/)) {
+			const trimmed = token.trim();
+			if (trimmed) tvGameFilter.add(trimmed);
+		}
+	}
+
+	const tvStorageKey = "cgos_tv_mode";
+	const tvCycleStorageKey = "cgos_tv_cycle";
+	let storedTvPref = false;
+	let storedCycleSpec = "";
+	try {
+		storedTvPref = localStorage.getItem(tvStorageKey) === "true";
+		storedCycleSpec = localStorage.getItem(tvCycleStorageKey) || "";
+	} catch (e) {
+		// ignore storage errors
+	}
+	const tvParam = urlParams.get("tv");
+	if (tvParam != null) {
+		storedTvPref = tvParam !== "0" && tvParam.toLowerCase() !== "false";
+	}
+	const tvCycleParam = urlParams.get("tvCycle");
+	if (tvCycleParam) {
+		storedCycleSpec = tvCycleParam;
+		try {
+			localStorage.setItem(tvCycleStorageKey, tvCycleParam);
+		} catch (e) {
+			// ignore
+		}
+	}
+	const parseCycleConfig =
+		typeof cgos.parseTvCycleConfig === "function"
+			? cgos.parseTvCycleConfig
+			: () => ({
+					neutralMs: undefined,
+					ownershipMs: undefined,
+					readingPerCandidateMs: undefined,
+					readingMaxCandidates: undefined
+				});
+	const tvCycleConfig = parseCycleConfig(storedCycleSpec);
+	let tvModeEnabled = false;
 
 	const POLL_INTERVAL = 10_000;
 	const FORCE_UPDATE_SGF = false;
@@ -33,6 +80,12 @@
 	let currentAnalysisMode = false;
 	let currentTouchMode = false;
 	let currentStoneStyle = "SHELL";
+	let tvCheckbox = null;
+	let analysisCheckbox = null;
+	let touchCheckbox = null;
+	let stoneStyleSelect = null;
+	let prevAnalysisChecked = false;
+	let prevUpdateChecked = true;
 
 	function createPlayer(elmList, gameId, sgfPath, title, mode) {
 		const elmGame = document.createElement("div");
@@ -86,6 +139,9 @@
 			player.stop();
 		};
 		players.set(gameId, obj);
+		if (tvModeEnabled) {
+			startTvForGame(gameId, obj, tvControllers.size * 750);
+		}
 	}
 
 	function applyStoneStyle(style) {
@@ -102,6 +158,130 @@
 				obj.player.setTouchMode(touchMode);
 			}
 		}
+	}
+
+	function applyAnalysisMode(enabled) {
+		currentAnalysisMode = enabled;
+		if (analysisCheckbox) analysisCheckbox.checked = enabled;
+		for (const obj of players.values()) {
+			if (obj.player && obj.player.player && obj.player.player._cgos) {
+				obj.player.player._cgos.set(enabled);
+				obj.player.player.update();
+			}
+		}
+	}
+
+	function shouldUseTv(gameId) {
+		if (!tvGameFilter.size) return true;
+		const gid = gameId.replace("game-", "");
+		return tvGameFilter.has(gid);
+	}
+
+	function ensureTvController(gameId, obj, offsetMs = 0) {
+		if (!obj || !obj.player) return null;
+		let ctrl = tvControllers.get(gameId);
+		const options = Object.assign(
+			{ staggerOffsetMs: offsetMs },
+			tvCycleConfig
+		);
+		if (!ctrl) {
+			if (typeof cgos.createTvSpotlight !== "function") return null;
+			try {
+				ctrl = cgos.createTvSpotlight(obj.player, options);
+				tvControllers.set(gameId, ctrl);
+			} catch (err) {
+				console.error("Failed to create TV controller", err);
+				return null;
+			}
+		} else {
+			ctrl.setCycleConfig(options);
+		}
+		return ctrl;
+	}
+
+	function stopTvController(gameId, destroy) {
+		const ctrl = tvControllers.get(gameId);
+		if (!ctrl) return;
+		ctrl.stop();
+		if (destroy && typeof ctrl.destroy === "function") ctrl.destroy();
+		if (destroy) tvControllers.delete(gameId);
+	}
+
+	function startTvForGame(gameId, obj, offsetMs = 0) {
+		if (!tvModeEnabled) return;
+		if (!shouldUseTv(gameId)) return;
+		const ctrl = ensureTvController(gameId, obj, offsetMs);
+		if (ctrl) ctrl.start();
+	}
+
+	function startTvForAllGames() {
+		let index = 0;
+		for (const [gameId, obj] of players.entries()) {
+			if (!obj.active || !obj.player) continue;
+			if (!shouldUseTv(gameId)) continue;
+			const offset = index * 750;
+			const ctrl = ensureTvController(gameId, obj, offset);
+			if (ctrl) ctrl.start();
+			index++;
+		}
+	}
+
+	function stopAllTvControllers(destroy) {
+		for (const [gameId, ctrl] of tvControllers.entries()) {
+			ctrl.stop();
+			if (destroy && typeof ctrl.destroy === "function") ctrl.destroy();
+			if (destroy) tvControllers.delete(gameId);
+		}
+		if (destroy) tvControllers.clear();
+	}
+
+	function persistTvPreference(enabled) {
+		try {
+			localStorage.setItem(tvStorageKey, enabled ? "true" : "false");
+		} catch (e) {
+			// ignore
+		}
+	}
+
+	function enableTvMode() {
+		if (tvModeEnabled) return;
+		if (typeof cgos.createTvSpotlight !== "function") return;
+		tvModeEnabled = true;
+		if (tvCheckbox) tvCheckbox.checked = true;
+		if (analysisCheckbox) {
+			prevAnalysisChecked = analysisCheckbox.checked;
+			analysisCheckbox.disabled = true;
+		}
+		applyAnalysisMode(true);
+		if (updateCheckbox) {
+			prevUpdateChecked = updateCheckbox.checked;
+			updateCheckbox.checked = true;
+			updateCheckbox.disabled = true;
+			updatePollHandler();
+		}
+		if (touchCheckbox) touchCheckbox.disabled = true;
+		if (stoneStyleSelect) stoneStyleSelect.disabled = true;
+		startTvForAllGames();
+		persistTvPreference(true);
+	}
+
+	function disableTvMode() {
+		if (!tvModeEnabled) return;
+		tvModeEnabled = false;
+		if (tvCheckbox) tvCheckbox.checked = false;
+		stopAllTvControllers(false);
+		if (analysisCheckbox) {
+			analysisCheckbox.disabled = false;
+		}
+		applyAnalysisMode(prevAnalysisChecked);
+		if (updateCheckbox) {
+			updateCheckbox.disabled = false;
+			updateCheckbox.checked = prevUpdateChecked;
+			updatePollHandler();
+		}
+		if (touchCheckbox) touchCheckbox.disabled = false;
+		if (stoneStyleSelect) stoneStyleSelect.disabled = false;
+		persistTvPreference(false);
 	}
 
 	function addWgo(lines) {
@@ -204,6 +384,7 @@
 					if (obj.element) elmList.removeChild(obj.element);
 					obj.player = null;
 					obj.element = null;
+					stopTvController(keys[i], true);
 				}
 			}
 		}
@@ -249,28 +430,36 @@
 		updateCheckbox = document.querySelector("#update");
 		if (updateCheckbox) {
 			updateCheckbox.addEventListener("click", (e) => {
+				if (tvModeEnabled) {
+					updateCheckbox.checked = true;
+					return;
+				}
 				updatePollHandler();
 			});
 		}
 
-		const analysisCheckbox = document.querySelector("#analysis-mode");
+		analysisCheckbox = document.querySelector("#analysis-mode");
 		if (analysisCheckbox) {
-			analysisCheckbox.addEventListener("click", (e) => {
-				currentAnalysisMode = analysisCheckbox.checked;
-				for (const obj of players.values()) {
-					obj.player.player._cgos.set(analysisCheckbox.checked);
-					obj.player.player.update();
-					/*
-					obj.player.player.dispatchEvent({
-						type: "update",
-						target: obj.player.player,
-					});
-					*/
+			analysisCheckbox.addEventListener("change", () => {
+				if (tvModeEnabled) {
+					analysisCheckbox.checked = true;
+					return;
 				}
+				applyAnalysisMode(analysisCheckbox.checked);
+			});
+			analysisCheckbox.checked = currentAnalysisMode;
+			prevAnalysisChecked = analysisCheckbox.checked;
+		}
+
+		tvCheckbox = document.querySelector("#tv-mode");
+		if (tvCheckbox) {
+			tvCheckbox.addEventListener("change", (e) => {
+				if (e.target.checked) enableTvMode();
+				else disableTvMode();
 			});
 		}
 
-		const touchCheckbox = document.querySelector("#touchmode");
+		touchCheckbox = document.querySelector("#touchmode");
 		const touchStorageKey = "cgos_touch_mode";
 		try {
 			currentTouchMode = localStorage.getItem(touchStorageKey) === "true";
@@ -291,7 +480,7 @@
 			});
 		}
 
-		const stoneStyleSelect = document.querySelector("#stone-style");
+		stoneStyleSelect = document.querySelector("#stone-style");
 		const stoneStyleStorageKey = "cgos_stone_style";
 		try {
 			currentStoneStyle =
@@ -318,11 +507,18 @@
 		if (resetButton) {
 			resetButton.addEventListener("click", (e) => {
 				players.clear();
+				stopAllTvControllers(true);
 				const elmList = document.getElementById("games");
 				if (elmList == null) throw Error("no games element");
 				elmList.innerHTML = "";
 				pollWebData();
 			});
+		}
+
+		if (storedTvPref) {
+			enableTvMode();
+		} else if (tvCheckbox) {
+			tvCheckbox.checked = false;
 		}
 
 		updatePollHandler();

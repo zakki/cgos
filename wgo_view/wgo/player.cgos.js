@@ -17,16 +17,69 @@ function parseCoord(size, str) {
 	return [x, size - y];
 }
 
+const ensureNodeId = (() => {
+	let seq = 1;
+	return function (node) {
+		if (!node) return null;
+		if (!node._cgosNodeId) node._cgosNodeId = seq++;
+		return node._cgosNodeId;
+	};
+})();
+
+const shallowEqual = function (a = {}, b = {}) {
+	if (a === b) return true;
+	const aKeys = Object.keys(a);
+	const bKeys = Object.keys(b);
+	if (aKeys.length !== bKeys.length) return false;
+	for (const key of aKeys) {
+		if (a[key] !== b[key]) return false;
+	}
+	return true;
+};
+
+const applyHighlightPv = function (context, moveInfo) {
+	if (context._last_mark) {
+		context.board.removeObject(context._last_mark);
+		delete context._last_mark;
+	}
+	if (
+		!moveInfo ||
+		!moveInfo.pv ||
+		moveInfo.pv.length === 0 ||
+		!context.player ||
+		!context.player.kifuReader ||
+		!context.player.kifuReader.game
+	)
+		return;
+	const game = context.player.kifuReader.game;
+	context._last_mark = moveInfo.pv.flatMap(function (m, i) {
+		const turn = i % 2 == 0 ? -game.turn : game.turn;
+		return [
+			{
+				type: "MONO",
+				x: m[0],
+				y: m[1],
+				c: turn
+			},
+			{
+				type: "LB",
+				text: "" + (i + 1),
+				x: m[0],
+				y: m[1],
+				c: turn == WGo.B ? "white" : "black"
+			}
+		];
+	});
+	context.board.addObject(context._last_mark);
+};
+
 // board mousemove callback for cgos move - adds highlighting
 const cgos_board_mouse_move = function (x, y) {
+	if (this._forcedHighlightActive) return;
 	if (this._lastX == x && this._lastY == y) return;
 
 	this._lastX = x;
 	this._lastY = y;
-
-	if (this._last_mark) {
-		this.board.removeObject(this._last_mark);
-	}
 
 	if (
 		!this.player.kifuReader ||
@@ -34,44 +87,29 @@ const cgos_board_mouse_move = function (x, y) {
 		!this.infoList
 	)
 		return;
-	const game = this.player.kifuReader.game;
 	if (x != -1 && y != -1) {
+		let applied = false;
 		for (let i = 0; i < this.infoList.length; i++) {
 			const o = this.infoList[i];
 			if (o.move[0] != x || o.move[1] != y) continue;
-			this._last_mark = o.pv.flatMap(function (m, i) {
-				const turn = i % 2 == 0 ? -game.turn : game.turn;
-				return [
-					{
-						type: "MONO",
-						x: m[0],
-						y: m[1],
-						c: turn
-					},
-					{
-						type: "LB",
-						text: "" + (i + 1),
-						x: m[0],
-						y: m[1],
-						c: turn == WGo.B ? "white" : "black"
-					}
-				];
-			});
-			this.board.addObject(this._last_mark);
+			applyHighlightPv(this, o);
+			applied = true;
+			break;
+		}
+		if (!applied) {
+			applyHighlightPv(this, null);
 		}
 	} else {
-		delete this._last_mark;
+		applyHighlightPv(this, null);
 	}
 };
 
 // board mouseout callback for cgos move
 const cgos_board_mouse_out = function () {
-	if (this._last_mark) {
-		this.board.removeObject(this._last_mark);
-		delete this._last_mark;
-		delete this._lastX;
-		delete this._lastY;
-	}
+	if (this._forcedHighlightActive) return;
+	applyHighlightPv(this, null);
+	delete this._lastX;
+	delete this._lastY;
 };
 
 const theme_variable = function (key, board) {
@@ -79,6 +117,15 @@ const theme_variable = function (key, board) {
 		? board.theme[key](board)
 		: board.theme[key];
 };
+
+const CGOS_SETTING_KEYS = [
+	"showStats",
+	"showOwnership",
+	"showBlackWinrate",
+	"showBlackScore",
+	"showWhiteWinrate",
+	"showWhiteScore"
+];
 
 const moveStatDrawer = {
 	stone: {
@@ -184,9 +231,22 @@ export const CgosAnalysisContext = function (player, board) {
 	this.showBlackScore = true;
 	this.showWhiteWinrate = true;
 	this.showWhiteScore = true;
+	this.infoList = [];
+	this._overrideSources = new Map();
+	this._activeOverrides = {};
+	this._currentSnapshot = null;
+	this._colorSnapshots = {};
+	this._lastMoveNodeId = null;
+	this._snapshotOverride = null;
+	this._forcedHighlightActive = false;
+	this._forcedHighlightIndex = -1;
+	this._highlightTimer = null;
 
 	this.ownershipLayer = new OwnershipLayer();
 	this.board.addLayer(this.ownershipLayer, 400);
+	if (typeof this._emitSettingsEvent === "function") {
+		this._emitSettingsEvent("init");
+	}
 };
 
 CgosAnalysisContext.prototype.set = function (set) {
@@ -220,6 +280,160 @@ CgosAnalysisContext.prototype.set = function (set) {
 
 		this.cgosMode = false;
 	}
+};
+
+CgosAnalysisContext.prototype.getSetting = function (prop) {
+	if (this._activeOverrides && prop in this._activeOverrides) {
+		return this._activeOverrides[prop];
+	}
+	return this[prop];
+};
+
+CgosAnalysisContext.prototype.getEffectiveSettings = function () {
+	const result = {};
+	for (const key of CGOS_SETTING_KEYS) {
+		result[key] = this.getSetting(key);
+	}
+	return result;
+};
+
+CgosAnalysisContext.prototype.applyOverrides = function (
+	overrides = {},
+	options = {}
+) {
+	const source = options.source || "override";
+	const sanitized = {};
+	let hasValues = false;
+	for (const key of Object.keys(overrides)) {
+		if (overrides[key] === undefined) continue;
+		sanitized[key] = overrides[key];
+		hasValues = true;
+	}
+	if (!hasValues) {
+		this._overrideSources.delete(source);
+	} else {
+		this._overrideSources.set(source, sanitized);
+	}
+	this._recomputeOverrides(source);
+};
+
+CgosAnalysisContext.prototype.clearOverrides = function (source) {
+	if (!source) {
+		this._overrideSources.clear();
+	} else {
+		this._overrideSources.delete(source);
+	}
+	this._recomputeOverrides(source || "override-clear");
+};
+
+CgosAnalysisContext.prototype._recomputeOverrides = function (source) {
+	const combined = {};
+	for (const [, map] of this._overrideSources) {
+		Object.assign(combined, map);
+	}
+	const changed = !shallowEqual(combined, this._activeOverrides || {});
+	this._activeOverrides = combined;
+	if (changed) {
+		this._emitSettingsEvent(source || "override");
+		this._renderActiveSnapshot();
+	}
+};
+
+CgosAnalysisContext.prototype.notifyBaseSettingsChanged = function (source) {
+	this._emitSettingsEvent(source || "manual");
+};
+
+CgosAnalysisContext.prototype._emitSettingsEvent = function (source) {
+	if (!this.player || typeof this.player.dispatchEvent !== "function") return;
+	const base = {};
+	for (const key of CGOS_SETTING_KEYS) {
+		base[key] = this[key];
+	}
+	this.player.dispatchEvent({
+		type: "cgossettings",
+		target: this.player,
+		source: source,
+		settings: this.getEffectiveSettings(),
+		base,
+		overrides: Object.assign({}, this._activeOverrides)
+	});
+};
+
+CgosAnalysisContext.prototype.setHighlightedMove = function (
+	index,
+	options = {}
+) {
+	if (this._highlightTimer) {
+		clearTimeout(this._highlightTimer);
+		this._highlightTimer = null;
+	}
+	if (index == null || index < 0) {
+		this.clearHighlightedMove();
+		return;
+	}
+	this._forcedHighlightActive = true;
+	this._forcedHighlightIndex = index;
+	this._applyForcedHighlight();
+	if (options.persistMs && options.persistMs > 0) {
+		this._highlightTimer = setTimeout(() => {
+			if (this._forcedHighlightIndex === index) {
+				this.clearHighlightedMove();
+			}
+		}, options.persistMs);
+	}
+};
+
+CgosAnalysisContext.prototype.clearHighlightedMove = function () {
+	if (this._highlightTimer) {
+		clearTimeout(this._highlightTimer);
+		this._highlightTimer = null;
+	}
+	this._forcedHighlightActive = false;
+	this._forcedHighlightIndex = -1;
+	applyHighlightPv(this, null);
+};
+
+CgosAnalysisContext.prototype._applyForcedHighlight = function () {
+	if (!this._forcedHighlightActive) return;
+	const list = this.infoList || [];
+	const moveInfo = list[this._forcedHighlightIndex];
+	if (!moveInfo) {
+		applyHighlightPv(this, null);
+		return;
+	}
+	applyHighlightPv(this, moveInfo);
+};
+
+CgosAnalysisContext.prototype._handleInfoListChange = function () {
+	if (this._forcedHighlightActive) {
+		this._applyForcedHighlight();
+	}
+	if (!this.infoList || this.infoList.length === 0) {
+		applyHighlightPv(this, null);
+	}
+};
+
+CgosAnalysisContext.prototype.getSnapshot = function () {
+	return this._currentSnapshot;
+};
+
+CgosAnalysisContext.prototype.getSnapshotForNode = function (node) {
+	const cc = parseAndCacheCC(node, this.board);
+	if (!cc) return null;
+	return {
+		node,
+		nodeId: ensureNodeId(node),
+		color: node && node.move ? node.move.c : null,
+		ownership: cc.ownership || null,
+		winrate: cc.winrate !== undefined ? cc.winrate : null,
+		score: cc.score !== undefined ? cc.score : null,
+		infoList: cc.moveInfoList || []
+	};
+};
+
+CgosAnalysisContext.prototype.getLastColorSnapshot = function (color) {
+	if (!this._colorSnapshots) return null;
+	return this._colorSnapshots[color] || null;
 };
 
 const prepare_cgos_contol_dom = function (player) {
@@ -293,6 +507,7 @@ CgosControl.widgets = [];
 	const createToggleHandler = function (prop) {
 		return function (player) {
 			player._cgos[prop] = !player._cgos[prop];
+			player._cgos.notifyBaseSettingsChanged("menu-" + prop);
 			player.update(true);
 			return player._cgos[prop];
 		};
@@ -470,11 +685,8 @@ function parseAndCacheCC(node, board) {
 
 // basic updating function - handles board changes
 const update_board = function (e) {
-	// init array for new objects
-	const add = [];
-
-	// remove old markers from the board
-	if (this._cgos && this._cgos.temp_marks) {
+	// remove old markers when CGOS mode is disabled
+	if (this._cgos && this._cgos.temp_marks && !this._cgos.cgosMode) {
 		this._cgos.board.removeObject(this._cgos.temp_marks);
 		this._cgos.temp_marks = null;
 	}
@@ -484,40 +696,52 @@ const update_board = function (e) {
 		return;
 	}
 	this._cgos.board._cgosMode = true;
-	this._cgos.board._cgosColor = 0;
-	this._cgos.board._cgosOwnership = null;
 
-	// genmove_analyze style comment
-	if (e.node.CC && e.node.CC.length > 0) {
-		const cc = parseAndCacheCC(e.node, this._cgos.board);
-		this._cgos.board._cgosOwnership = this._cgos.showOwnership
-			? cc.ownership
-			: null;
-		this._cgos.board._cgosColor = e.node.move.c;
-		this._cgos.infoList = [];
+	const node = e.node;
+	const moveColor = node && node.move ? node.move.c : 0;
+	const snapshotColor = node && node.move ? node.move.c : null;
+	let snapshot = null;
+	if (node) {
+		snapshot = {
+			node,
+			nodeId: ensureNodeId(node),
+			color: snapshotColor,
+			ownership: null,
+			winrate: null,
+			score: null,
+			infoList: []
+		};
+	}
 
-		if (this._cgos.showStats && cc.moveInfoList) {
-			this._cgos.infoList = cc.moveInfoList;
-			for (const o of cc.moveInfoList) {
-				add.push({
-					type: moveStatDrawer,
-					winrate: o.winrate,
-					score: o.score,
-					x: o.move[0],
-					y: o.move[1],
-					c:
-						this._cgos.board.theme.variationColor ||
-						"rgba(0,32,128,0.8)"
-				});
-			}
+	if (node && node.CC && node.CC.length > 0) {
+		const cc = parseAndCacheCC(node, this._cgos.board);
+		if (snapshot) {
+			snapshot.ownership = cc.ownership || null;
+			snapshot.infoList = cc.moveInfoList || [];
+			snapshot.winrate = cc.winrate !== undefined ? cc.winrate : null;
+			snapshot.score = cc.score !== undefined ? cc.score : null;
 		}
 	}
 
-	// add new markers on the board
-	this._cgos.temp_marks = add;
-	this._cgos.board.addObject(add);
-	// XXX Redraw the entire board as garbage remains
-	this._cgos.board.redraw();
+	this._cgos._currentSnapshot = snapshot;
+	if (snapshot && snapshot.color != null) {
+		this._cgos._colorSnapshots[snapshot.color] = snapshot;
+	}
+	this._cgos._renderActiveSnapshot();
+	const nodeId = snapshot ? snapshot.nodeId : null;
+	if (nodeId && nodeId !== this._cgos._lastMoveNodeId) {
+		this._cgos._lastMoveNodeId = nodeId;
+		if (snapshot && snapshot.color != null && this.player) {
+			this.player.dispatchEvent({
+				type: "moveplayed",
+				target: this.player,
+				color: snapshot.color,
+				nodeId: nodeId,
+				moveNumber:
+					e.path && typeof e.path.m === "number" ? e.path.m : null
+			});
+		}
+	}
 };
 
 const VariationOverlay = WGo.extendClass(Component, function (player) {
@@ -869,3 +1093,60 @@ bp_layouts["one_column"].bottom.splice(1, 0, "EvaluationGraphBox");
 bp_layouts["no_comment"].bottom.push("EvaluationGraphBox");
 
 BasicPlayer.component.EvaluationGraphBox = EvaluationGraphBox;
+CgosAnalysisContext.prototype._renderActiveSnapshot = function () {
+	this._renderSnapshot(this._snapshotOverride || this._currentSnapshot);
+};
+
+CgosAnalysisContext.prototype._renderSnapshot = function (snapshot) {
+	if (this.temp_marks) {
+		this.board.removeObject(this.temp_marks);
+		this.temp_marks = null;
+	}
+	const showOwnership = this.getSetting("showOwnership");
+	const showStats = this.getSetting("showStats");
+	const ownership = showOwnership && snapshot ? snapshot.ownership : null;
+	const color = snapshot && snapshot.color != null ? snapshot.color : 0;
+	this.board._cgosOwnership = ownership;
+	this.board._cgosColor = color;
+	let infoList = [];
+	if (showStats && snapshot && snapshot.infoList) {
+		infoList = snapshot.infoList;
+	}
+	this.infoList = infoList;
+	const add = [];
+	if (showStats && infoList && infoList.length) {
+		for (const o of infoList) {
+			add.push({
+				type: moveStatDrawer,
+				winrate: o.winrate,
+				score: o.score,
+				x: o.move[0],
+				y: o.move[1],
+				c: this.board.theme.variationColor || "rgba(0,32,128,0.8)"
+			});
+		}
+	}
+	if (add.length) {
+		this.temp_marks = add;
+		this.board.addObject(add);
+	} else {
+		this.temp_marks = null;
+	}
+	this._handleInfoListChange();
+	this.board.redraw();
+};
+
+CgosAnalysisContext.prototype.showSnapshot = function (snapshot) {
+	if (!snapshot) {
+		this.clearSnapshotOverride();
+		return;
+	}
+	this._snapshotOverride = snapshot;
+	this._renderSnapshot(snapshot);
+};
+
+CgosAnalysisContext.prototype.clearSnapshotOverride = function () {
+	if (!this._snapshotOverride) return;
+	this._snapshotOverride = null;
+	this._renderActiveSnapshot();
+};
