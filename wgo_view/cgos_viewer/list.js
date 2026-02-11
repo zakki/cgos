@@ -30,8 +30,9 @@
 	const POLL_INTERVAL = 10_000;
 	const FORCE_UPDATE_SGF = false;
 
-	let updateCheckbox;
-	let analysisCheckbox;
+	let currentAnalysisMode = false;
+	let currentTouchMode = false;
+	let currentStoneStyle = "SHELL";
 
 	function createPlayer(elmList, gameId, sgfPath, title, mode) {
 		const elmGame = document.createElement("div");
@@ -66,8 +67,12 @@
 		elmPlayer.className = "player";
 		// elmPlayer.src = "viewer_iframe.html?" + sgfPath2;
 		elmGame.append(elmPlayer);
-		const player = new cgos.WGoPlayer(elmPlayer, sgfPath2);
-		player.player._cgos.set(analysisCheckbox.checked);
+		const player = new cgos.WGoPlayer(elmPlayer, sgfPath2, null, {
+			touchMode: currentTouchMode,
+			touchSwipe: true,
+			layout: cgos.LAYOUT_LIST
+		});
+		player.player._cgos.set(currentAnalysisMode);
 
 		const obj = {
 			element: elmGame,
@@ -81,6 +86,22 @@
 			player.stop();
 		};
 		players.set(gameId, obj);
+	}
+
+	function applyStoneStyle(style) {
+		for (const obj of players.values()) {
+			if (obj.player) {
+				obj.player.setStoneStyle(style);
+			}
+		}
+	}
+
+	function applyTouchMode(touchMode) {
+		for (const obj of players.values()) {
+			if (obj.player) {
+				obj.player.setTouchMode(touchMode);
+			}
+		}
 	}
 
 	function addWgo(lines) {
@@ -165,6 +186,8 @@
 			gameKeys.delete(gameId);
 		}
 
+		applyStoneStyle(currentStoneStyle);
+
 		// Remove games
 		const keys = Array.from(players.keys());
 		keys.sort((a, b) => Number(b.split("-")[1]) - Number(a.split("-")[1]));
@@ -211,6 +234,7 @@
 		xhr.send();
 	}
 
+	let updateCheckbox;
 	let pollHandlerId = null;
 	function updatePollHandler() {
 		if (updateCheckbox.checked) {
@@ -229,19 +253,64 @@
 			});
 		}
 
-		analysisCheckbox = document.querySelector("#analysis-mode");
+		const analysisCheckbox = document.querySelector("#analysis-mode");
 		if (analysisCheckbox) {
 			analysisCheckbox.addEventListener("click", (e) => {
+				currentAnalysisMode = analysisCheckbox.checked;
 				for (const obj of players.values()) {
 					obj.player.player._cgos.set(analysisCheckbox.checked);
 					obj.player.player.update();
 					/*
-                    obj.player.player.dispatchEvent({
-                        type: "update",
-                        target: obj.player.player,
-                    });
-                    */
+					obj.player.player.dispatchEvent({
+						type: "update",
+						target: obj.player.player,
+					});
+					*/
 				}
+			});
+		}
+
+		const touchCheckbox = document.querySelector("#touchmode");
+		const touchStorageKey = "cgos_touch_mode";
+		try {
+			currentTouchMode = localStorage.getItem(touchStorageKey) === "true";
+		} catch (e) {
+			// do nothing
+		}
+		if (touchCheckbox) {
+			touchCheckbox.checked = currentTouchMode;
+
+			touchCheckbox.addEventListener("click", (e) => {
+				currentTouchMode = e.target.checked;
+				try {
+					localStorage.setItem(touchStorageKey, currentTouchMode);
+				} catch (err) {
+					// do nothing
+				}
+				applyTouchMode(currentTouchMode);
+			});
+		}
+
+		const stoneStyleSelect = document.querySelector("#stone-style");
+		const stoneStyleStorageKey = "cgos_stone_style";
+		try {
+			currentStoneStyle =
+				localStorage.getItem(stoneStyleStorageKey) || "SHELL";
+		} catch (e) {
+			// do nothing
+		}
+		applyStoneStyle(currentStoneStyle);
+		if (stoneStyleSelect) {
+			stoneStyleSelect.value = currentStoneStyle;
+
+			stoneStyleSelect.addEventListener("change", (e) => {
+				const style = e.target.value;
+				try {
+					localStorage.setItem(stoneStyleStorageKey, style);
+				} catch (err) {
+					// do nothing
+				}
+				applyStoneStyle(style);
 			});
 		}
 

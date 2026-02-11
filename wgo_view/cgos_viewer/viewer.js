@@ -29,8 +29,65 @@
 		const path = location.search.substring(1);
 		const elmPlayer = document.querySelector("#cgoswgo");
 		const updateCheckbox = document.querySelector("#update");
+		const touchCheckbox = document.querySelector("#touchmode");
+		const stoneStyleSelect = document.querySelector("#stone-style");
 		if (!elmPlayer) return;
 		// Instantiate the WGoPlayer class (defined in viewer_inner.js)
-		new cgos.WGoPlayer(elmPlayer, path, updateCheckbox);
+		// Persist touch mode setting across reloads
+		const touchStorageKey = "cgos_touch_mode";
+		let initialTouchMode = false;
+		if (touchCheckbox) {
+			try {
+				initialTouchMode =
+					localStorage.getItem(touchStorageKey) === "true";
+			} catch (e) {
+				// do nothing
+			}
+			touchCheckbox.checked = initialTouchMode;
+		}
+
+		// Persist stone style setting across reloads
+		const stoneStyleStorageKey = "cgos_stone_style";
+		let initialStoneStyle = "SHELL";
+		if (stoneStyleSelect) {
+			try {
+				initialStoneStyle =
+					localStorage.getItem(stoneStyleStorageKey) || "SHELL";
+			} catch (e) {
+				// do nothing
+			}
+			stoneStyleSelect.value = initialStoneStyle;
+		}
+
+		const player = new cgos.WGoPlayer(elmPlayer, path, updateCheckbox, {
+			touchMode: initialTouchMode,
+			touchSwipe: true,
+			stoneStyle: initialStoneStyle
+		});
+		// Bind touch mode toggle
+		if (touchCheckbox) {
+			touchCheckbox.addEventListener("click", (e) => {
+				const enabled = e.target.checked;
+				try {
+					localStorage.setItem(touchStorageKey, enabled);
+				} catch (err) {
+					// do nothing
+				}
+				player.setTouchMode(enabled);
+			});
+		}
+
+		// Bind stone style selector
+		if (stoneStyleSelect) {
+			stoneStyleSelect.addEventListener("change", (e) => {
+				const style = e.target.value;
+				try {
+					localStorage.setItem(stoneStyleStorageKey, style);
+				} catch (err) {
+					// do nothing
+				}
+				player.setStoneStyle(style);
+			});
+		}
 	});
 })(cgos);
