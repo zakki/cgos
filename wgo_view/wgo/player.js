@@ -43,6 +43,28 @@ const loadFromUrl = WGo.loadFromUrl = function(url, callback) {
 
 }
 
+const isResignationMove = function(e) {
+	if(!e.node.move || !e.node.move.pass) return false;
+
+	const result = e.target.kifu && e.target.kifu.info && e.target.kifu.info.RE;
+	const match = typeof result == "string" && result.trim().match(/^([BW])\+Resign$/i);
+	if(!match) return false;
+
+	const winner = match[1].toUpperCase() == "B" ? WGo.B : WGo.W;
+	if(e.node.move.c == winner) return false;
+
+	// A resignation is serialized as an empty move, optionally followed by
+	// comment-only nodes. A real pass followed by another move must stay a pass.
+	const descendants = e.node.children.slice();
+	while(descendants.length) {
+		const node = descendants.pop();
+		if(node.move) return false;
+		for(let i = 0; i < node.children.length; i++) descendants.push(node.children[i]);
+	}
+
+	return true;
+}
+
 // basic updating function - handles board changes
 const update_board = function(e) {
 	// update board's position
@@ -58,7 +80,10 @@ const update_board = function(e) {
 
 	// add current move marker
 	if(e.node.move && this.config.markLastMove) {
-		if(e.node.move.pass) this.notification(WGo.t((e.node.move.c == WGo.B ? "b" : "w")+"pass"));
+		if(e.node.move.pass) {
+			const color = e.node.move.c == WGo.B ? "b" : "w";
+			this.notification(WGo.t(color+(isResignationMove(e) ? "resign" : "pass")));
+		}
 		else add.push({
 			type: "CR",
 			x: e.node.move.x,
@@ -697,6 +722,8 @@ const player_terms = {
 	"none": "none",
 	"bpass": "Black passed.",
 	"wpass": "White passed.",
+	"bresign": "Black resigned.",
+	"wresign": "White resigned.",
 };
 
 for(const key in player_terms) WGo.i18n.en[key] = player_terms[key];
