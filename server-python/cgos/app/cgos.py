@@ -1365,11 +1365,11 @@ def _admin_command_match(sock: Client, tokens: List[str]) -> None:
 
     # Start game
     rec = games[gid]
-    logger.info(f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })")
+    logger.info(f"match-> {rec.w}({rating(rec.w)})   {rec.b}({rating(rec.b)})")
     start_game(rec)
 
     write_web_data_file(ctme)
-    sock.send(f"match {rec.w}({ rating(rec.w)}) {rec.b}({ rating(rec.b)})")
+    sock.send(f"match {rec.w}({rating(rec.w)}) {rec.b}({rating(rec.b)})")
 
 
 def _admin_command_abort(sock: Client, tokens: List[str]) -> None:
@@ -1925,9 +1925,7 @@ def match_games(ctme: datetime.datetime) -> None:
         # [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S" -timezone :UTC]
         for gid, rec in games.items():
             # wp, bp = rec
-            logger.info(
-                f"match-> {rec.w}({ rating(rec.w) })   {rec.b}({ rating(rec.b) })"
-            )
+            logger.info(f"match-> {rec.w}({rating(rec.w)})   {rec.b}({rating(rec.b)})")
             start_game(rec)
 
 
