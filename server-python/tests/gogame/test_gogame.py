@@ -20,13 +20,43 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import json
 import textwrap
+from datetime import datetime, timezone
 from unittest import TestCase
 
-from gogame import GoGame, KoRule, Rule
+from gogame import Game, GoGame, KoRule, Rule, sgf
 
 
 class TestGoGame(TestCase):
+    def test_sgf_ignores_non_string_analysis_comment(self):
+        game = Game(
+            "white",
+            "black",
+            0,
+            1000,
+            1000,
+            "1800",
+            "1800",
+            [("C3", 900, json.dumps({"comment": 1}))],
+            datetime.now(timezone.utc),
+        )
+
+        record = sgf(
+            game,
+            "server",
+            900000,
+            "Chinese",
+            19,
+            7.5,
+            1,
+            "?",
+            "2026-07-25",
+            "",
+        )
+
+        self.assertIn('CC[{"comment": 1}]', record)
+        self.assertNotIn("C[1]", record)
 
     def test_simplegame(self):
         board = GoGame(9, Rule(KoRule.POSITIONAL))

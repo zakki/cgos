@@ -136,7 +136,8 @@ def sgf(
             v = json.loads(analysis)
             if "comment" in v:
                 c = v["comment"]
-                s += f"C[{escapeSgfText(c)}]"
+                if isinstance(c, str):
+                    s += f"C[{escapeSgfText(c)}]"
         tmc += 1
         if tmc > 7:
             s += "\n"
